@@ -1,0 +1,73 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xmlreader_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - database
+    networks:
+      - xmlreader-network
+
+  # Opcional: Redis para cache/cola de trabajos
+  redis:
+    image: redis:alpine
+    container_name: xmlreader_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - xmlreader-network
+  
+  database:
+    image: mysql:8.0
+    container_name: database
+    volumes:
+      - ../../../mysql-xml:/var/lib/mysql
+    #command: >
+    #  sh -c "chmod 644 /etc/mysql/conf.d/mysqld.cnf && chown root:root /etc/mysql/conf.d/mysqld.cnf && mysqld"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+    expose:
+      - "3306"
+    networks:
+      - xmlreader-network
+    restart: on-failure
+
+  # Opcional: Worker para tareas asíncronas
+  #worker:
+  #  build:
+  #    context: .
+  #    dockerfile: Dockerfile
+  #  container_name: xmlreader_worker
+  #  command: celery -A app.worker.celery worker --loglevel=info
+  #  volumes:
+  #    - ./app:/app/app
+  #  env_file:
+  #    - .env
+  #  depends_on:
+  #    - api
+  #    - redis
+  #  networks:
+  #    - xmlreader-network
+
+networks:
+  xmlreader-network:
+    driver: bridge
+
+volumes:
+  redis_data:
