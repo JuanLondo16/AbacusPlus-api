@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException, status
 from app.api.endpoints.xml import router as xml_router
 from app.api.endpoints.users import router as users_router
+from app.api.endpoints.documents import router as documents_router
+from app.api.endpoints.receivers import router as receivers_router
 
 app = FastAPI(
     title="XML Reader API",
@@ -11,6 +13,8 @@ app = FastAPI(
 # Incluir routers
 app.include_router(xml_router, prefix="/api/v1", tags=["xml"])
 app.include_router(users_router, prefix="/api/v1", tags=["users"])
+app.include_router(documents_router, prefix="/api/v1", tags=["documents"])
+app.include_router(receivers_router, prefix="/api/v1", tags=["receivers"])
 
 @app.get("/")
 async def read_root():
