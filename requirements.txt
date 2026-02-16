@@ -1,10 +1,11 @@
-fastapi==0.95.2
+fastapi>=0.100.0,<1.0
 uvicorn==0.22.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
-lxml==4.9.2
+lxml>=5.0.0,<6.0
 python-dateutil==2.8.2
-pydantic==1.10.7
+pydantic>=2.0,<3.0
+pydantic-settings>=2.0,<3.0
 pyzipper==0.3.6
 mysql-connector-python==8.1.0
 sqlalchemy==2.0.40
@@ -15,3 +16,5 @@ passlib==1.7.4
 pyjwt==2.10.1
 Levenshtein==0.27.1
 scikit-learn==1.6.1
+pytest==8.3.4
+pytest-asyncio==0.24.0

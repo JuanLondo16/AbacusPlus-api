@@ -133,5 +133,5 @@ def parse_xml(xml_content: str) -> dict:
         return invoice_data
     
     except Exception as e:
-        raise ValueError(f"Error al procesar el XML: {str(e)}")
+        raise ValueError(f"Error processing XML: {str(e)}")
 
