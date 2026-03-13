@@ -9,8 +9,6 @@ os.environ.setdefault("DATABASE_PORT", "3306")
 os.environ.setdefault("DATABASE_USER", "test")
 os.environ.setdefault("DATABASE_PASSWORD", "test")
 os.environ.setdefault("DATABASE_NAME", "test")
-os.environ.setdefault("SECRET_KEY", "test-secret-key")
-os.environ.setdefault("ALGORITHM", "HS256")
 
 
 @pytest.fixture
@@ -18,7 +16,6 @@ def db_session():
     """Create an in-memory SQLite session for tests."""
     from app.infrastructure.config.database import Base
     # Import all models to register tables in Base.metadata
-    import app.infrastructure.persistence.models.user  # noqa: F401
     import app.infrastructure.persistence.models.document  # noqa: F401
     import app.infrastructure.persistence.models.issuer  # noqa: F401
     import app.infrastructure.persistence.models.receiver  # noqa: F401
