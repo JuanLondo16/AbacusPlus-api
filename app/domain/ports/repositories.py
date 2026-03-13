@@ -2,30 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, List
 from datetime import date
 
-from app.domain.entities.user import UserEntity
 from app.domain.entities.document import DocumentEntity
 from app.domain.entities.receiver import ReceiverEntity
 from app.domain.entities.issuer import IssuerEntity
 from app.domain.entities.tax import TaxEntity
 from app.domain.entities.concept import ConceptDescriptionEntity
 
-
-class UserRepositoryPort(ABC):
-    @abstractmethod
-    def get_by_username(self, username: str) -> Optional[object]:
-        ...
-
-    @abstractmethod
-    def get_by_email(self, email: str) -> Optional[object]:
-        ...
-
-    @abstractmethod
-    def create(self, user: object) -> object:
-        ...
-
-    @abstractmethod
-    def update_last_login(self, user: object) -> None:
-        ...
 
 
 class DocumentRepositoryPort(ABC):

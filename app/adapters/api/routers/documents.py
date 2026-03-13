@@ -22,7 +22,9 @@ async def get_documents(
         datefin: End date of the range
         use_case: Injected use case
     """
-    return use_case.execute(dateini, datefin)
+    documents = use_case.execute(dateini, datefin)
+    # Mapear los resultados a DocumentResponse
+    return [DocumentResponse.model_validate(doc, from_attributes=True) for doc in documents]
 
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
@@ -37,4 +39,5 @@ async def get_document(
         document_id: Document ID
         use_case: Injected use case
     """
-    return use_case.execute(document_id)
+    doc = use_case.execute(document_id)
+    return DocumentResponse.model_validate(doc, from_attributes=True)

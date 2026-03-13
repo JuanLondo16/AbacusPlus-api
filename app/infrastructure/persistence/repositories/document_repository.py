@@ -18,6 +18,9 @@ class DocumentRepository(DocumentRepositoryPort):
         return self.db.query(Document).filter(Document.id == document_id).first()
 
     def get_by_date_range(self, date_start: date, date_end: date) -> List[Document]:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"get_by_date_range called with: date_start={date_start}, date_end={date_end}")
         return self.db.query(Document).filter(
             Document.date >= date_start,
             Document.date <= date_end

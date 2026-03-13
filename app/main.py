@@ -2,7 +2,6 @@ import logging
 from fastapi import FastAPI, HTTPException, status
 from app.infrastructure.config.logging import setup_logging
 from app.adapters.api.routers.xml import router as xml_router
-from app.adapters.api.routers.users import router as users_router
 from app.adapters.api.routers.documents import router as documents_router
 from app.adapters.api.routers.receivers import router as receivers_router
 from app.domain.exceptions.base import DomainException
@@ -24,7 +23,6 @@ app.add_exception_handler(DomainException, domain_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(xml_router, prefix="/api/v1", tags=["xml"])
-app.include_router(users_router, prefix="/api/v1", tags=["users"])
 app.include_router(documents_router, prefix="/api/v1", tags=["documents"])
 app.include_router(receivers_router, prefix="/api/v1", tags=["receivers"])
 
