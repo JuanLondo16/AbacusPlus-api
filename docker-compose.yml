@@ -1,74 +1,178 @@
 services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: xmlreader_api
+
+  # ── Gateway (Nginx) ────────────────────────────────────────────────────────
+  gateway:
+    image: nginx:alpine
+    container_name: abacus_gateway
     ports:
-      - "8000:8000"
+      - "8000:80"
     volumes:
-      - ./app:/app/app
-      - ./data:/app/data
-      - ./tests:/app/tests
-    env_file:
-      - .env
+      - ./services/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - xml-processor
+      - rag-service
+      - llm-service
+      - session-proxy
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Microservicio 1: Procesamiento XML/ZIP ─────────────────────────────────
+  xml-processor:
+    build:
+      context: ./services/xml-processor
+      dockerfile: Dockerfile
+    container_name: abacus_xml_processor
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/xml-processor/app:/app/app
+      - ./services/xml-processor/tests:/app/tests
+    env_file: .env
     environment:
       - PYTHONUNBUFFERED=1
-      - ENVIRONMENT=${ENVIRONMENT:-dev}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    restart: unless-stopped
+      - RAG_SERVICE_URL=http://rag-service:8002
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     depends_on:
-      - redis
-      - database
+      database:
+        condition: service_healthy
     networks:
-      - xmlreader-network
+      - abacus-network
+    restart: unless-stopped
 
-  # Opcional: Redis para cache/cola de trabajos
+  # ── Microservicio 2: RAG (embeddings + búsqueda vectorial) ─────────────────
+  rag-service:
+    build:
+      context: ./services/rag-service
+      dockerfile: Dockerfile
+    container_name: abacus_rag_service
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./services/rag-service/app:/app/app
+      - ./services/rag-service/tests:/app/tests
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_EMBED_MODEL=nomic-embed-text
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+    depends_on:
+      database:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Microservicio 3: LLM Orchestration (OpenAI + RAG) ─────────────────────
+  llm-service:
+    build:
+      context: ./services/llm-service
+      dockerfile: Dockerfile
+    container_name: abacus_llm_service
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./services/llm-service/app:/app/app
+      - ./services/llm-service/tests:/app/tests
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RAG_SERVICE_URL=http://rag-service:8002
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+    depends_on:
+      - rag-service
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Microservicio 4: Session Proxy (portal externo con cookies) ───────────
+  session-proxy:
+    build:
+      context: ./services/session-proxy
+      dockerfile: Dockerfile
+    container_name: abacus_session_proxy
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./services/session-proxy/app:/app/app
+      - ./services/session-proxy/tests:/app/tests
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - EXTERNAL_BASE_URL=${EXTERNAL_BASE_URL:-https://portal.example.com}
+      - EXTERNAL_LOGIN_PATH=${EXTERNAL_LOGIN_PATH:-/api/login}
+      - EXTERNAL_FIXED_PK=${EXTERNAL_FIXED_PK:-}
+      - EXTERNAL_FIXED_RK=${EXTERNAL_FIXED_RK:-}
+      - SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-3600}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Infraestructura ────────────────────────────────────────────────────────
+  database:
+    image: pgvector/pgvector:pg16
+    container_name: abacus_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    environment:
+      - POSTGRES_USER=${DATABASE_USER:-master}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-master}
+      - POSTGRES_DB=${DATABASE_NAME:-xml2data}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-master} -d ${DATABASE_NAME:-xml2data}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    container_name: abacus_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  ollama-init:
+    image: ollama/ollama
+    container_name: abacus_ollama_init
+    depends_on:
+      - ollama
+    entrypoint: >
+      /bin/sh -c "sleep 10 && OLLAMA_HOST=http://ollama:11434 ollama pull nomic-embed-text"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - abacus-network
+    restart: on-failure
+
   redis:
     image: redis:alpine
-    container_name: xmlreader_redis
+    container_name: abacus_redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - xmlreader-network
-  
-  database:
-    image: mysql:8.0
-    container_name: database
-    volumes:
-      - ../../../mysql-xml:/var/lib/mysql
-    #command: >
-    #  sh -c "chmod 644 /etc/mysql/conf.d/mysqld.cnf && chown root:root /etc/mysql/conf.d/mysqld.cnf && mysqld"
-    environment:
-      - MYSQL_ALLOW_EMPTY_PASSWORD=true
-    expose:
-      - "3306"
-    networks:
-      - xmlreader-network
-    restart: on-failure
-
-  # Opcional: Worker para tareas asíncronas
-  #worker:
-  #  build:
-  #    context: .
-  #    dockerfile: Dockerfile
-  #  container_name: xmlreader_worker
-  #  command: celery -A app.worker.celery worker --loglevel=info
-  #  volumes:
-  #    - ./app:/app/app
-  #  env_file:
-  #    - .env
-  #  depends_on:
-  #    - api
-  #    - redis
-  #  networks:
-  #    - xmlreader-network
+      - abacus-network
 
 networks:
-  xmlreader-network:
+  abacus-network:
     driver: bridge
 
 volumes:
+  postgres_data:
+  ollama_data:
   redis_data:

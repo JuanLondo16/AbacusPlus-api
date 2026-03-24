@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m pytest:*)"
+      "Bash(python -m pytest:*)",
+      "Bash(docker run:*)",
+      "Bash(git clean:*)",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'' -Force -Recurse | Select-Object FullName\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'' -Force -Recurse | Select-Object FullName\")",
+      "Bash(powershell -Command \"[System.IO.Directory]::Delete\\(''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'', $true\\); [System.IO.Directory]::Delete\\(''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'', $true\\)\")",
+      "Bash(powershell -Command \"Remove-Item -LiteralPath ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'' -Force -Recurse; Remove-Item -LiteralPath ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'' -Force -Recurse\")"
     ]
   }
 }
