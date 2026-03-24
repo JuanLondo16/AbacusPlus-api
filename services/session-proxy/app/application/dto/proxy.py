@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 
 class ProxyRequest(BaseModel):
-    session_id: str = Field(..., description="ID de sesión retornado por /dian/auth")
+    token: str = Field(..., description="Token de autenticación DIAN")
     method: str = Field(..., description="Método HTTP: GET, POST, PUT, DELETE, PATCH")
     path: str = Field(..., description="Ruta relativa al EXTERNAL_BASE_URL, ej: /api/facturas")
     body: Optional[Dict[str, Any]] = Field(default=None)

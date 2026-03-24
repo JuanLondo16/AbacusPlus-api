@@ -40,7 +40,7 @@ def get_login_use_case() -> LoginUseCase:
 
 def get_proxy_request_use_case() -> ProxyRequestUseCase:
     return ProxyRequestUseCase(
-        session_store=get_session_store(),
         external_client=get_external_client(),
         base_url=os.getenv("EXTERNAL_BASE_URL", "https://portal.example.com"),
+        login_url=_build_login_url(),
     )
