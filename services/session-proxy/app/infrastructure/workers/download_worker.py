@@ -8,6 +8,7 @@ import logging
 import os
 from pathlib import Path
 
+import httpx
 from arq.connections import RedisSettings
 
 from app.infrastructure.clients.external_client import HttpxExternalClient
@@ -17,9 +18,21 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
+async def _trigger_xml_processing() -> None:
+    """Llama a xml-processor para que procese los ZIPs pendientes en la carpeta de descargas."""
+    xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(f"{xml_url}/api/v1/batch/process-downloads")
+        logger.info("batch/process-downloads → HTTP %d", response.status_code)
+    except Exception as e:
+        logger.warning("No se pudo disparar procesamiento en xml-processor: %s", e)
+
+
 async def download_zip(ctx: dict, track_id: str, token: str) -> dict:
     """
     Tarea ARQ: autentica en DIAN y descarga el ZIP para el track_id dado.
+    Tras guardar el ZIP dispara el procesamiento en xml-processor.
     """
     base_url = os.getenv("EXTERNAL_BASE_URL", "").rstrip("/")
     login_url = base_url + os.getenv("EXTERNAL_LOGIN_PATH", "/User/AuthToken")
@@ -40,6 +53,9 @@ async def download_zip(ctx: dict, track_id: str, token: str) -> dict:
     file_path.write_bytes(content)
 
     logger.info("ZIP guardado: %s (%d bytes)", file_path, len(content))
+
+    await _trigger_xml_processing()
+
     return {
         "track_id": track_id,
         "file": str(file_path),

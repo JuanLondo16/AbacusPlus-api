@@ -77,7 +77,8 @@ class ProcessXmlUseCase:
                 "id": created.id,
                 "document_name": created.document_name,
                 "document_number": created.document_number,
-                "date": str(created.date),
+                "date": created.date,
+                "document_type": created.document_type,
                 "issuer_name": created.issuer_name,
                 "receiver_name": created.receiver_name,
                 "total": created.total,
@@ -144,6 +145,10 @@ class ProcessXmlUseCase:
         tipo = xml_data.get('tipo_documento', {})
         doc_type = (tipo.get('nombre') or tipo.get('codigo') or '') if isinstance(tipo, dict) else str(tipo or '')
 
+        retenciones = xml_data.get('retenciones', [])
+        retefuente = sum(float(r.get('valor') or 0) for r in retenciones if r.get('codigo') == '06')
+        reteica = sum(float(r.get('valor') or 0) for r in retenciones if r.get('codigo') == '07')
+
         return Document(
             document_name=filename,
             document_number=xml_data.get('numero_documento', ''),
@@ -164,6 +169,8 @@ class ProcessXmlUseCase:
             subtotal=float(totales.get('subtotal') or 0),
             total_taxes=float(totales.get('total_impuestos') or 0),
             total=float(totales.get('total') or 0),
+            retefuente=retefuente,
+            reteica=reteica,
             status='Procesado',
         )
 

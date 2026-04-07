@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, status
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.config.database import Base, engine, SessionLocal
 from app.infrastructure.persistence.models import system_prompt as _sp_model  # noqa: F401
-from app.infrastructure.persistence.models import accounting_entry as _ae_model  # noqa: F401
+from app.infrastructure.persistence.models import accounting_entry as _ae_model  # noqa: F401  (registra AccountingEntry + AccountingEntryLine)
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 from app.adapters.api.routers.analyze import router as analyze_router
 from app.adapters.api.routers.query import router as query_router

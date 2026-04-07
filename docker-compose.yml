@@ -147,8 +147,10 @@ services:
       - EXTERNAL_FIXED_RK=${EXTERNAL_FIXED_RK:-}
       - REDIS_URL=redis://redis:6379
       - DOWNLOADS_DIR=/app/downloads
+      - XML_PROCESSOR_URL=http://xml-processor:8001
     depends_on:
       - redis
+      - xml-processor
     networks:
       - abacus-network
     restart: unless-stopped
@@ -171,10 +173,13 @@ services:
       - ODOO_DB=${ODOO_DB:-odoo}
       - ODOO_USER=${ODOO_USER:-admin}
       - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
+      - RAG_SERVICE_URL=http://rag-service:8002
     command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
     depends_on:
       database:
         condition: service_healthy
+      rag-service:
+        condition: service_started
     networks:
       - abacus-network
     restart: unless-stopped

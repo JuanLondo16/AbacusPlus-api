@@ -45,12 +45,12 @@ class SystemPromptResponse(BaseModel):
 
 class GenerateAccountingRequest(BaseModel):
     document_id: int = Field(..., description="ID del documento (factura) para el cual generar el asiento.", examples=[1])
-    top_k: int = Field(default=3, ge=1, le=10, description="Número de facturas similares a recuperar del RAG como contexto.")
+    top_k: int = Field(default=5, ge=1, le=10, description="Número de chunks similares a recuperar del RAG como contexto (incluye asientos históricos y facturas de referencia).")
     model: str = Field(default="gpt-4o-mini", description="Modelo de OpenAI a utilizar.", examples=["gpt-4o-mini", "gpt-4o"])
 
     model_config = {
         "json_schema_extra": {
-            "example": {"document_id": 1, "top_k": 3, "model": "gpt-4o-mini"}
+            "example": {"document_id": 1, "top_k": 5, "model": "gpt-4o-mini"}
         }
     }
 
@@ -65,14 +65,21 @@ class EntryLine(BaseModel):
     descripcion: str = Field(default="", description="Descripción del movimiento contable.", examples=["Causación factura FE7674"])
 
 
+class EntryLineResponse(EntryLine):
+    id: int = Field(..., description="Identificador único de la línea.")
+
+    model_config = {"from_attributes": True}
+
+
 class AccountingEntryResponse(BaseModel):
     id: int = Field(..., description="Identificador único del asiento contable.")
     document_id: int = Field(..., description="ID del documento al que corresponde el asiento.")
     system_prompt_id: Optional[int] = Field(None, description="ID del system prompt utilizado para generar el asiento.")
-    entries: Optional[List[EntryLine]] = Field(None, description="Líneas del asiento contable (partida doble).")
+    lines: List[EntryLineResponse] = Field(default_factory=list, description="Líneas del asiento contable (partida doble), cada una como registro independiente.")
     model_used: Optional[str] = Field(None, description="Modelo de OpenAI que generó el asiento.", examples=["gpt-4o-mini"])
     status: str = Field(..., description="Estado del asiento: `generated` si fue exitoso, `error` si falló.", examples=["generated"])
     error_message: Optional[str] = Field(None, description="Mensaje de error en caso de fallo. Null si el estado es `generated`.")
+    rag_context: Optional[List[dict]] = Field(None, description="Chunks RAG usados para inferir la distribución contable (cuentas PUC). No afectan los valores monetarios del asiento.")
     created_at: datetime = Field(..., description="Fecha y hora de generación.")
 
     model_config = {"from_attributes": True}

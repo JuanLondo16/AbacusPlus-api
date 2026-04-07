@@ -21,3 +21,14 @@ class RagClient(RagClientPort):
             )
             response.raise_for_status()
             return response.json().get("results", [])
+
+    async def index_chunk(self, source_type: str, source_id: int, content: str) -> None:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    f"{self._base_url}/api/v1/chunks",
+                    json={"source_type": source_type, "source_id": source_id, "content": content},
+                )
+                response.raise_for_status()
+        except Exception as e:
+            logger.warning("No se pudo indexar asiento en RAG (source_id=%d): %s", source_id, e)

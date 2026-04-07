@@ -305,17 +305,17 @@ def parse_xml(xml_content: str) -> dict:
 
         # --- Totals ---
         lt = root.find('cac:LegalMonetaryTotal', _NS)
-        tax_amount_el = root.find('cac:TaxTotal/cbc:TaxAmount', _NS)
+        # Sumar TaxAmount de todos los TaxTotal a nivel de documento (ej. IVA + INC Bolsas)
+        total_impuestos = sum(
+            float(tt.findtext('cbc:TaxAmount', '0', _NS) or 0)
+            for tt in root.findall('cac:TaxTotal', _NS)
+        )
         rounding_el = lt.find('cbc:PayableRoundingAmount', _NS) if lt is not None else None
 
         data['totales'] = {
             'valor_lineas': _text(lt, 'cbc:LineExtensionAmount'),
             'subtotal': _text(lt, 'cbc:TaxExclusiveAmount'),
-            'total_impuestos': (
-                tax_amount_el.text.strip()
-                if tax_amount_el is not None and tax_amount_el.text
-                else '0'
-            ),
+            'total_impuestos': str(total_impuestos) if total_impuestos else '0',
             'total_con_impuestos': _text(lt, 'cbc:TaxInclusiveAmount'),
             'redondeo': rounding_el.text.strip() if rounding_el is not None and rounding_el.text else None,
             'total': _text(lt, 'cbc:PayableAmount'),

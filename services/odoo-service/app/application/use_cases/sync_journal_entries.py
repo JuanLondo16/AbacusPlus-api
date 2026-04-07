@@ -2,6 +2,7 @@ import logging
 import uuid
 from collections import defaultdict
 from datetime import date
+from typing import Optional
 
 from app.domain.exceptions.base import ValidationException
 from app.domain.ports.services import OdooClientPort
@@ -15,9 +16,15 @@ MAX_DATE_RANGE_DAYS = 366
 
 class SyncJournalEntriesUseCase:
 
-    def __init__(self, odoo_client: OdooClientPort, repository: JournalEntryRepository):
+    def __init__(
+        self,
+        odoo_client: OdooClientPort,
+        repository: JournalEntryRepository,
+        rag_client=None,
+    ):
         self._odoo = odoo_client
         self._repo = repository
+        self._rag_client = rag_client
 
     def execute(self, request: SyncRequest) -> SyncResponse:
         self._validate(request)
@@ -54,9 +61,8 @@ class SyncJournalEntriesUseCase:
         })
         account_map = self._odoo.get_account_details(account_ids) if account_ids else {}
 
-        # Batch: cuentas analíticas (centros de costo)
-        # En Odoo 17 las claves de analytic_distribution pueden ser compuestas ("11,14")
-        # cuando una línea cruza varios planes analíticos simultáneamente.
+        # Batch: cuentas analíticas (centros de costo) — claves de analytic_distribution son strings
+        # En Odoo 17 las claves pueden ser compuestas ("11,14") cuando una línea cruza varios planes.
         analytic_ids = list({
             int(part)
             for ln in lines
@@ -79,13 +85,22 @@ class SyncJournalEntriesUseCase:
         for move in moves:
             try:
                 move_lines = lines_by_move.get(move["id"], [])
-                _, is_new = self._repo.upsert_entry(
+                entry, is_new = self._repo.upsert_entry(
                     move, move_lines, partner_map, account_map, analytic_map, batch_id
                 )
                 if is_new:
                     created += 1
                 else:
                     updated += 1
+
+                # Indexar en RAG (best-effort, no bloquea el sync)
+                if self._rag_client:
+                    self._rag_client.index_chunk(
+                        source_type="historical_entry",
+                        source_id=entry.id,
+                        content=self._build_chunk_content(entry),
+                    )
+
             except Exception as exc:
                 logger.error("Error procesando move source_id=%s: %s", move.get("id"), exc, exc_info=True)
                 errors.append({"source_id": move.get("id"), "error": str(exc)})
@@ -104,6 +119,35 @@ class SyncJournalEntriesUseCase:
             date_to=date_to,
             errors=errors,
         )
+
+    def _build_chunk_content(self, entry) -> str:
+        """
+        Construye el texto del chunk para indexación semántica en RAG.
+        Incluye cabecera del asiento y todas las líneas con cuentas PUC,
+        débitos, créditos y centro de costo para que el LLM pueda inferir
+        el tratamiento contable de facturas similares.
+        """
+        lines_text = ""
+        for line in entry.lines:
+            account_code = line.account_code or ""
+            account_name = line.account_name or ""
+            debit = float(line.debit or 0)
+            credit = float(line.credit or 0)
+            cost_center = line.cost_center or ""
+            lines_text += (
+                f"  {account_code} {account_name} | "
+                f"Débito: {debit:.2f} | Crédito: {credit:.2f} | CC: {cost_center}\n"
+            )
+
+        return (
+            f"Asiento: {entry.name or ''} | Tipo: {entry.move_type or ''} | "
+            f"Fecha: {entry.date or ''} | Diario: {entry.journal_name or ''}\n"
+            f"Tercero: {entry.partner_name or ''} | NIT: {entry.partner_vat or ''}\n"
+            f"Base imponible: {float(entry.amount_untaxed):.2f} | "
+            f"IVA: {float(entry.amount_tax):.2f} | "
+            f"Total: {float(entry.amount_total):.2f}\n"
+            f"Líneas contables:\n{lines_text}"
+        ).strip()
 
     def _validate(self, request: SyncRequest) -> None:
         if request.date_from > request.date_to:

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from app.infrastructure.config.database import get_db
 from app.infrastructure.odoo.odoo_client import OdooXmlRpcClient
+from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.persistence.repositories.journal_entry_repository import JournalEntryRepository
 from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
 from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
@@ -21,6 +22,11 @@ def get_odoo_client() -> OdooXmlRpcClient:
     )
 
 
+def get_rag_client() -> RagClient:
+    url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8002")
+    return RagClient(base_url=url)
+
+
 def get_journal_entry_repo(db: Session = Depends(get_db)) -> JournalEntryRepository:
     return JournalEntryRepository(db)
 
@@ -31,6 +37,7 @@ def get_sync_use_case(
     return SyncJournalEntriesUseCase(
         odoo_client=get_odoo_client(),
         repository=JournalEntryRepository(db),
+        rag_client=get_rag_client(),
     )
 
 

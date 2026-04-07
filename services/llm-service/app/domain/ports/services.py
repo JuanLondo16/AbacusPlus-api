@@ -17,3 +17,7 @@ class RagClientPort(ABC):
     @abstractmethod
     async def search(self, query: str, top_k: int = 5) -> List[dict]:
         ...
+
+    @abstractmethod
+    async def index_chunk(self, source_type: str, source_id: int, content: str) -> None:
+        ...

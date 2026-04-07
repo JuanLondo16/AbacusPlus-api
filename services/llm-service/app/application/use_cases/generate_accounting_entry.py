@@ -68,19 +68,67 @@ class GenerateAccountingEntryUseCase:
         # 4. Construir prompt de usuario
         doc_json = json.dumps(document, ensure_ascii=False, default=str, indent=2)
 
-        rag_context = ""
-        if rag_chunks:
-            refs = "\n\n".join(
-                f"[Ref {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
-                for i, c in enumerate(rag_chunks)
+        # Separar chunks por tipo
+        historical_chunks = [c for c in rag_chunks if c.get("source_type") == "historical_entry"]
+        generated_chunks  = [c for c in rag_chunks if c.get("source_type") == "generated_entry"]
+        invoice_chunks    = [c for c in rag_chunks if c.get("source_type") == "invoice"]
+
+        rag_prompt = ""
+        # IMPORTANTE: el RAG se usa SOLO para inferir la distribución contable (cuentas PUC,
+        # débitos/créditos, centros de costo). Los valores monetarios vienen exclusivamente
+        # del JSON de la factura a causar.
+        if historical_chunks:
+            hist_refs = "\n\n".join(
+                f"[Asiento histórico {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
+                for i, c in enumerate(historical_chunks)
             )
-            rag_context = f"FACTURAS DE REFERENCIA (usa para inferir cuentas PUC):\n{refs}\n\n"
+            rag_prompt += (
+                "ASIENTOS HISTÓRICOS DE REFERENCIA (Odoo)\n"
+                "(usa SOLO para inferir qué cuentas PUC, débitos/créditos y centros de costo aplicar —\n"
+                " los valores monetarios debes tomarlos del JSON de la factura):\n"
+                f"{hist_refs}\n\n"
+            )
+
+        if generated_chunks:
+            gen_refs = "\n\n".join(
+                f"[Causación previa {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
+                for i, c in enumerate(generated_chunks)
+            )
+            rag_prompt += (
+                "CAUSACIONES PREVIAS DEL SISTEMA\n"
+                "(asientos generados anteriormente para facturas similares —\n"
+                " usa SOLO para inferir la distribución contable, no los valores):\n"
+                f"{gen_refs}\n\n"
+            )
+
+        if invoice_chunks:
+            inv_refs = "\n\n".join(
+                f"[Ref {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
+                for i, c in enumerate(invoice_chunks)
+            )
+            rag_prompt += (
+                "FACTURAS DE REFERENCIA\n"
+                "(usa SOLO para inferir la distribución contable, no los valores):\n"
+                f"{inv_refs}\n\n"
+            )
 
         user_prompt = (
-            f"{rag_context}"
+            f"{rag_prompt}"
             f"FACTURA A CAUSAR (JSON):\n{doc_json}\n\n"
-            f"Genera el asiento contable de causación para la factura anterior."
+            f"Genera el asiento contable de causación para la factura anterior. "
+            f"Usa los valores monetarios del JSON de la factura, no los de las referencias."
         )
+
+        # Snapshot del contexto RAG para auditoría (qué fuentes se usaron y su similitud)
+        rag_context_snapshot = [
+            {
+                "source_type": c.get("source_type"),
+                "source_id": c.get("source_id"),
+                "similarity": c.get("similarity"),
+                "content": c.get("content"),
+            }
+            for c in rag_chunks
+        ]
 
         # 5. Llamar al LLM
         try:
@@ -97,9 +145,18 @@ class GenerateAccountingEntryUseCase:
             entry = AccountingEntry(
                 document_id=request.document_id,
                 system_prompt_id=system_prompt_id,
-                entries=parsed,
                 model_used=request.model,
                 status="generated",
+                rag_context=rag_context_snapshot,
+            )
+            saved = self._accounting_repo.create(entry, lines_data=parsed)
+
+            # Indexar el asiento generado en RAG para que futuras causaciones lo usen como referencia
+            chunk_content = self._build_entry_chunk(document, saved, parsed)
+            await self._rag.index_chunk(
+                source_type="generated_entry",
+                source_id=saved.id,
+                content=chunk_content,
             )
         except Exception as e:
             logger.error("Error generando causación para doc_id=%d: %s", request.document_id, e)
@@ -109,10 +166,27 @@ class GenerateAccountingEntryUseCase:
                 model_used=request.model,
                 status="error",
                 error_message=str(e),
+                rag_context=rag_context_snapshot,
             )
+            saved = self._accounting_repo.create(entry, lines_data=[])
 
-        saved = self._accounting_repo.create(entry)
         return AccountingEntryResponse.model_validate(saved)
+
+    def _build_entry_chunk(self, document: dict, entry, lines: list) -> str:
+        """Construye el texto a indexar en RAG para una causación generada por el sistema."""
+        header = (
+            f"Causación {document.get('document_number', '')} | "
+            f"Fecha: {document.get('date', '')} | "
+            f"Emisor: {document.get('issuer_name', '')} NIT {document.get('issuer_nit', '')} | "
+            f"Total: {document.get('total', '')}"
+        )
+        line_texts = "\n".join(
+            f"  {l.get('cuenta', '')} {l.get('nombre', '')} | "
+            f"Débito: {l.get('debito', 0)} | Crédito: {l.get('credito', 0)} | "
+            f"CC: {l.get('centro_costo', '') or ''} | Desc: {l.get('descripcion', '') or ''}"
+            for l in lines
+        )
+        return f"{header}\nLíneas contables:\n{line_texts}"
 
     def _parse_entries(self, raw: str) -> list:
         """Extrae el JSON de la respuesta del LLM, tolerando texto extra."""

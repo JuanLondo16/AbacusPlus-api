@@ -1,13 +1,19 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.application.dto.documents import (
     DocumentsRangeRequest,
     EnqueueDownloadsResponse,
     DownloadJobStatus,
+    BatchStatusResponse,
 )
 from app.application.use_cases.fetch_and_enqueue_documents import FetchAndEnqueueDocumentsUseCase
 from app.application.use_cases.get_job_status import GetJobStatusUseCase
-from app.dependencies import get_fetch_and_enqueue_use_case, get_job_status_use_case
+from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
+from app.dependencies import (
+    get_fetch_and_enqueue_use_case,
+    get_job_status_use_case,
+    get_batch_status_use_case,
+)
 
 router = APIRouter()
 
@@ -17,6 +23,13 @@ router = APIRouter()
     response_model=EnqueueDownloadsResponse,
     status_code=202,
     summary="Consulta documentos DIAN por rango de fechas y encola descarga de ZIPs",
+    description=(
+        "Consulta el portal DIAN por rango de fechas, filtra documentos con `DocumentTypeId=96` "
+        "y encola la descarga de cada ZIP en segundo plano.\n\n"
+        "Retorna un `batch_id` que puedes usar en "
+        "`GET /dian/documents/batches/{batch_id}` para monitorear el progreso."
+    ),
+    response_description="Batch creado con su ID, cantidad de jobs encolados y hora de inicio.",
 )
 async def enqueue_document_downloads(
     request: DocumentsRangeRequest,
@@ -26,9 +39,37 @@ async def enqueue_document_downloads(
 
 
 @router.get(
+    "/dian/documents/batches/{batch_id}",
+    response_model=BatchStatusResponse,
+    summary="Consultar estado de un batch de descarga",
+    description=(
+        "Retorna el estado actual del batch: cuántos jobs completaron, cuántos faltan, "
+        "tiempo transcurrido y porcentaje de avance.\n\n"
+        "Cuando `is_done` es `true` se incluye además el campo `total_time_seconds` "
+        "con el tiempo total de ejecución del batch."
+    ),
+    response_description="Estado del batch con métricas de progreso.",
+    responses={
+        404: {"description": "Batch no encontrado o expirado (TTL: 7 días)."},
+    },
+)
+async def get_batch_status(
+    batch_id: str,
+    use_case: GetBatchStatusUseCase = Depends(get_batch_status_use_case),
+):
+    result = await use_case.execute(batch_id)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Batch {batch_id} no encontrado o expirado.",
+        )
+    return result
+
+
+@router.get(
     "/dian/documents/jobs/{job_id}",
     response_model=DownloadJobStatus,
-    summary="Consulta el estado de un job de descarga de ZIP",
+    summary="Consulta el estado de un job individual de descarga",
 )
 async def get_download_job_status(
     job_id: str,

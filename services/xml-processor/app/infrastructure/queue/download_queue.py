@@ -1,10 +1,12 @@
 import asyncio
 import logging
 import os
+import re
 import shutil
+import unicodedata
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import Optional
+from typing import Optional, Tuple
 
 import httpx
 
@@ -42,6 +44,75 @@ def _peek_xml_filename(file_path: Path) -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def _sanitize_name(text: str) -> str:
+    """Elimina caracteres especiales y normaliza el texto para usar en nombres de archivo."""
+    # Normalizar unicode (ej. á → a)
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    # Reemplazar caracteres no alfanuméricos (excepto espacios y guiones) por espacio
+    text = re.sub(r"[^\w\s\-]", " ", text)
+    # Colapsar espacios múltiples
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _build_pdf_name(document_date, document_type: str, document_number: str, issuer_name: str) -> str:
+    """
+    Construye el nombre del PDF con la nomenclatura:
+    IKB - DOCU - AAAAMMDD - V01 - {tipo_documento} {numero_documento} {tercero}
+    """
+    try:
+        date_str = document_date.strftime("%Y%m%d")
+    except Exception:
+        date_str = str(document_date).replace("-", "")[:8]
+
+    doc_type = _sanitize_name(document_type or "")
+    doc_number = _sanitize_name(document_number or "")
+    issuer = _sanitize_name(issuer_name or "")
+    suffix = " ".join(part for part in [doc_type, doc_number, issuer] if part).strip()
+    return f"IKB - DOCU - {date_str} - V01 - {suffix}.pdf"
+
+
+def _extract_files_to_processed(file_path: Path, processed_dir: Path, document_data: dict) -> None:
+    """
+    Descomprime el ZIP y:
+    - Deja el XML en processed/xml/{nombre_original}.xml
+    - Deja el PDF en processed/pdf/{nomenclatura_IKB}.pdf
+    """
+    pdf_dir = processed_dir / "pdf"
+    xml_dir = processed_dir / "xml"
+    pdf_dir.mkdir(exist_ok=True)
+    xml_dir.mkdir(exist_ok=True)
+
+    try:
+        with zipfile.ZipFile(str(file_path)) as zf:
+            for member in zf.namelist():
+                # Ignorar entradas de sistema
+                if member.startswith(("__MACOSX/", "._")):
+                    continue
+                name_lower = member.lower()
+                member_name = PurePosixPath(member).name
+
+                if name_lower.endswith(".xml"):
+                    dest = xml_dir / member_name
+                    dest.write_bytes(zf.read(member))
+                    logger.info("XML extraído → %s", dest)
+
+                elif name_lower.endswith(".pdf"):
+                    pdf_name = _build_pdf_name(
+                        document_data.get("date"),
+                        document_data.get("document_type", ""),
+                        document_data.get("document_number", ""),
+                        document_data.get("issuer_name", ""),
+                    )
+                    dest = pdf_dir / pdf_name
+                    dest.write_bytes(zf.read(member))
+                    logger.info("PDF extraído y renombrado → %s", dest)
+
+    except Exception as e:
+        logger.warning("No se pudieron extraer archivos del ZIP %s: %s", file_path.name, e)
 
 
 class FileWrapper:
@@ -93,6 +164,9 @@ async def _process_single_file(file_path: Path) -> None:
 
         result = await use_case.execute(FileWrapper(file_path))
 
+        # Extraer PDF y XML a sus subcarpetas antes de mover el ZIP
+        _extract_files_to_processed(file_path, processed_dir, result["data"])
+
         acc_status, acc_error = await _trigger_accounting(result["document_id"])
         log_repo.create(ProcessingLog(
             filename=file_path.name,
@@ -109,11 +183,25 @@ async def _process_single_file(file_path: Path) -> None:
     except DuplicateEntityException as e:
         log_repo = ProcessingLogRepository(db)
         doc_number = e.message.split(": ")[-1] if ": " in e.message else ""
+
+        # Verificar si el documento duplicado ya tiene causación contable
+        existing_doc = DocumentRepository(db).get_by_document_number(doc_number)
+        acc_status, acc_error = None, None
+        if existing_doc:
+            already_has_entry = await _has_accounting_entry(existing_doc.id)
+            if not already_has_entry:
+                logger.info("Documento duplicado %s sin causación — generando...", doc_number)
+                acc_status, acc_error = await _trigger_accounting(existing_doc.id)
+            else:
+                logger.info("Documento duplicado %s ya tiene causación — omitiendo", doc_number)
+
         log_repo.create(ProcessingLog(
             filename=file_path.name,
             xml_filename=xml_filename,
             status="duplicate",
             document_number=doc_number,
+            accounting_status=acc_status,
+            accounting_error=acc_error,
         ))
         shutil.move(str(file_path), str(processed_dir / file_path.name))
         logger.info("ZIP duplicado → XML: %s — movido a processed/", xml_filename)
@@ -134,6 +222,20 @@ async def _process_single_file(file_path: Path) -> None:
 
     finally:
         db.close()
+
+
+async def _has_accounting_entry(document_id: int) -> bool:
+    """Consulta llm-service para saber si el documento ya tiene un asiento contable."""
+    url = os.getenv("LLM_SERVICE_URL", "http://llm-service:8003")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{url}/api/v1/accounting/entries/{document_id}")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("accounting_entry") is not None
+    except Exception as e:
+        logger.warning("No se pudo verificar causación para doc %d: %s", document_id, e)
+    return False
 
 
 async def _trigger_accounting(document_id: int):
