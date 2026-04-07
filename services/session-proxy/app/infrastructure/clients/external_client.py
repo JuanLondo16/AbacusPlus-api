@@ -141,6 +141,55 @@ class HttpxExternalClient(ExternalClientPort):
                 f"Fallo la petición al portal externo: {exc}"
             ) from exc
 
+    async def login_and_download(
+        self,
+        login_url: str,
+        credentials: Dict[str, Any],
+        download_url: str,
+    ) -> bytes:
+        """
+        Autentica y descarga contenido binario en un único AsyncClient.
+        Timeout de lectura extendido a 120s para ZIPs grandes.
+        """
+        login_params = self._build_login_params(credentials["token"])
+        base_url = login_url.split("/User/")[0]
+        timeout = httpx.Timeout(self._timeout, read=120.0)
+        try:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                await client.get(base_url)
+                auth_response = await client.get(login_url, params=login_params)
+                auth_response.raise_for_status()
+
+                cookies_captured = dict(client.cookies)
+                if not cookies_captured:
+                    raise ExternalAuthException(
+                        "No se pudieron obtener cookies para la descarga"
+                    )
+                logger.info("Login exitoso para descarga: %s", download_url)
+
+                response = await client.get(download_url)
+                response.raise_for_status()
+
+                if len(response.content) == 0:
+                    raise ExternalRequestException(
+                        f"Respuesta vacía al descargar {download_url}"
+                    )
+
+                logger.info(
+                    "ZIP descargado: %s (%d bytes)", download_url, len(response.content)
+                )
+                return response.content
+        except (ExternalAuthException, ExternalRequestException):
+            raise
+        except httpx.HTTPStatusError as exc:
+            raise ExternalRequestException(
+                f"El portal retornó {exc.response.status_code} para GET {download_url}"
+            ) from exc
+        except httpx.RequestError as exc:
+            raise ExternalRequestException(
+                f"Falló la descarga del portal externo: {exc}"
+            ) from exc
+
     async def login_debug(
         self, login_url: str, credentials: Dict[str, Any]
     ) -> Dict[str, Any]:

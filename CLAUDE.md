@@ -218,10 +218,60 @@ OLLAMA_EMBED_MODEL=nomic-embed-text
 RAG_SERVICE_URL=http://rag-service:8002
 ```
 
+## Reglas de desarrollo
+
+### Documentación Swagger (obligatoria en todos los endpoints)
+
+Cada endpoint FastAPI **debe** incluir:
+
+```python
+@router.post(
+    "/ruta",
+    response_model=MiResponse,
+    status_code=201,
+    summary="Título corto visible en la lista de endpoints",
+    description=(
+        "Descripción larga en markdown. Explicar:\n"
+        "- Qué hace el endpoint.\n"
+        "- Flujo interno si es relevante.\n"
+        "- Reglas de negocio importantes.\n"
+        "- Cuándo usar este endpoint vs otros similares."
+    ),
+    response_description="Qué retorna en caso exitoso.",
+    responses={
+        404: {"description": "Cuándo ocurre este error."},
+        409: {"description": "Cuándo ocurre este error."},
+    },
+)
+```
+
+Cada DTO Pydantic **debe** documentar sus campos con `Field(description=..., examples=[...])`:
+
+```python
+class MiRequest(BaseModel):
+    campo: str = Field(..., description="Para qué sirve este campo.", examples=["valor-ejemplo"])
+    model_config = {
+        "json_schema_extra": {"example": {"campo": "valor-ejemplo"}}
+    }
+```
+
+**Acceso a la documentación:**
+- **Centralizada (gateway):** `http://localhost:8000/docs` — selector de servicio en la parte superior
+- Por servicio (desarrollo): `http://localhost:800{1,2,3}/docs`
+
+Los specs OpenAPI de cada servicio también se exponen en el gateway:
+- `http://localhost:8000/openapi/xml-processor.json`
+- `http://localhost:8000/openapi/llm-service.json`
+- `http://localhost:8000/openapi/rag-service.json`
+- `http://localhost:8000/openapi/session-proxy.json`
+
+---
+
 ## Decisiones de diseño
 
 - **Hexagonal por servicio**: cada microservicio tiene su propio dominio, puertos y adaptadores. No se comparte código entre servicios.
 - **Best-effort en indexación**: si el rag-service no está disponible al procesar un XML, el xml-processor loguea un warning y continúa. La factura se guarda igual.
+- **Best-effort en causación**: si el llm-service no está disponible tras procesar un ZIP, se loguea warning y el documento queda guardado. Se puede re-generar manualmente con `POST /api/v1/accounting/generate`.
 - **Dominio independiente**: las entidades de dominio no se comparten entre servicios. Cada uno define sus propios contratos.
 - **pgvector nativo**: la búsqueda vectorial usa el operador `<=>` directamente en SQL para máximo rendimiento.
 - **Ollama en contenedor separado**: permite cambiar el modelo de embeddings sin tocar el código de rag-service (solo variable `OLLAMA_EMBED_MODEL`).

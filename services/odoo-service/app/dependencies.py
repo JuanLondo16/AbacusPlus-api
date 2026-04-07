@@ -1,0 +1,42 @@
+import os
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+
+from app.infrastructure.config.database import get_db
+from app.infrastructure.odoo.odoo_client import OdooXmlRpcClient
+from app.infrastructure.persistence.repositories.journal_entry_repository import JournalEntryRepository
+from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
+from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
+
+load_dotenv()
+
+
+def get_odoo_client() -> OdooXmlRpcClient:
+    return OdooXmlRpcClient(
+        url=os.getenv("ODOO_URL", "http://localhost:8069"),
+        db=os.getenv("ODOO_DB", "odoo"),
+        username=os.getenv("ODOO_USER", "admin"),
+        password=os.getenv("ODOO_PASSWORD", "admin"),
+    )
+
+
+def get_journal_entry_repo(db: Session = Depends(get_db)) -> JournalEntryRepository:
+    return JournalEntryRepository(db)
+
+
+def get_sync_use_case(
+    db: Session = Depends(get_db),
+) -> SyncJournalEntriesUseCase:
+    return SyncJournalEntriesUseCase(
+        odoo_client=get_odoo_client(),
+        repository=JournalEntryRepository(db),
+    )
+
+
+def get_query_use_case(
+    db: Session = Depends(get_db),
+) -> QueryJournalEntriesUseCase:
+    return QueryJournalEntriesUseCase(
+        repository=JournalEntryRepository(db),
+    )

@@ -28,7 +28,7 @@ class ChunkRepository(ChunkRepositoryPort):
 
         if embedding_str:
             self.db.execute(
-                text("UPDATE document_chunks SET embedding = :emb::vector WHERE id = :id"),
+                text("UPDATE document_chunks SET embedding = CAST(:emb AS vector) WHERE id = :id"),
                 {"emb": embedding_str, "id": db_chunk.id},
             )
 
@@ -45,10 +45,10 @@ class ChunkRepository(ChunkRepositoryPort):
         rows = self.db.execute(
             text("""
                 SELECT id, source_type, source_id, content,
-                       1 - (embedding <=> :emb::vector) AS similarity
+                       1 - (embedding <=> CAST(:emb AS vector)) AS similarity
                 FROM document_chunks
                 WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> :emb::vector
+                ORDER BY embedding <=> CAST(:emb AS vector)
                 LIMIT :top_k
             """),
             {"emb": embedding_str, "top_k": top_k},

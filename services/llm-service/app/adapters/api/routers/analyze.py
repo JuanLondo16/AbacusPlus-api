@@ -6,10 +6,24 @@ from app.dependencies import get_analyze_with_ai_use_case
 router = APIRouter()
 
 
-@router.post("/ai/analyze", response_model=AIAnalyzeResponse)
+@router.post(
+    "/ai/analyze",
+    response_model=AIAnalyzeResponse,
+    summary="Análisis directo con OpenAI (sin RAG)",
+    description=(
+        "Envía un prompt directamente a OpenAI sin enriquecer con contexto RAG. "
+        "Útil para análisis generales, clasificaciones o preguntas que no requieren "
+        "contexto específico de las facturas almacenadas.\n\n"
+        "Para consultas relacionadas con facturas indexadas, usar `POST /api/v1/query` "
+        "que incorpora contexto RAG automáticamente."
+    ),
+    response_description="Respuesta del modelo con el texto generado y métricas de uso de tokens.",
+    responses={
+        502: {"description": "Error de comunicación con la API de OpenAI."},
+    },
+)
 async def analyze_with_ai(
     request: AIAnalyzeRequest,
     use_case: AnalyzeWithAIUseCase = Depends(get_analyze_with_ai_use_case),
 ):
-    """Envía un prompt directo a OpenAI sin contexto RAG."""
     return await use_case.execute(request)

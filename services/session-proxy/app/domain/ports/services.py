@@ -34,3 +34,13 @@ class ExternalClientPort(ABC):
     ) -> Dict[str, Any]:
         """Autentica y hace la petición en un único cliente para preservar las cookies."""
         ...
+
+    @abstractmethod
+    async def login_and_download(
+        self,
+        login_url: str,
+        credentials: Dict[str, Any],
+        download_url: str,
+    ) -> bytes:
+        """Autentica y descarga contenido binario (ZIP). Retorna bytes del archivo."""
+        ...

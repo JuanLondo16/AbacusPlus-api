@@ -133,21 +133,26 @@ class ProcessXmlUseCase:
             self.tax_repo.create(Tax(
                 receiver_nit=receiver_nit,
                 tax=tax_name,
-                percentage=impuestos[0].get('porcentaje', 0),
+                percentage=float(impuestos[0].get('porcentaje') or 0),
             ))
 
     def _build_document(self, xml_data: dict, filename: str) -> Document:
         emisor = xml_data.get('emisor', {})
         receptor = xml_data.get('receptor', {})
         totales = xml_data.get('totales', {})
+
+        tipo = xml_data.get('tipo_documento', {})
+        doc_type = (tipo.get('nombre') or tipo.get('codigo') or '') if isinstance(tipo, dict) else str(tipo or '')
+
         return Document(
             document_name=filename,
             document_number=xml_data.get('numero_documento', ''),
             date=datetime.strptime(xml_data.get('fecha_emision', ''), '%Y-%m-%d'),
-            hour=xml_data.get('hora_emision', ''),
-            currency=xml_data.get('moneda', ''),
-            document_type=xml_data.get('tipo_documento', ''),
-            uuid=xml_data.get('uuid', ''),
+            hour=xml_data.get('hora_emision') or '',
+            currency=xml_data.get('moneda') or '',
+            document_type=doc_type,
+            uuid=xml_data.get('cufe', '') or '',
+            cufe=xml_data.get('cufe'),
             issuer_name=emisor.get('nombre', ''),
             issuer_nit=emisor.get('nit', ''),
             issuer_phone=emisor.get('contacto', {}).get('telefono', ''),
@@ -156,9 +161,9 @@ class ProcessXmlUseCase:
             receiver_nit=receptor.get('nit', ''),
             receiver_phone=receptor.get('contacto', {}).get('telefono', ''),
             receiver_email=receptor.get('contacto', {}).get('email', ''),
-            subtotal=float(totales.get('subtotal', 0)),
-            total_taxes=float(totales.get('total_impuestos', 0)),
-            total=float(totales.get('total', 0)),
+            subtotal=float(totales.get('subtotal') or 0),
+            total_taxes=float(totales.get('total_impuestos') or 0),
+            total=float(totales.get('total') or 0),
             status='Procesado',
         )
 
@@ -179,13 +184,13 @@ class ProcessXmlUseCase:
             document.details.append(DocumentDetail(
                 description=description,
                 concept_description_id=concept_description_id,
-                quantity=float(item.get('cantidad', 0)),
-                unit=item.get('unidad_medida', ''),
-                price=float(item.get('precio_unitario', 0)),
-                subtotal=float(item.get('valor_total', 0)),
-                tax_type=str(first_tax.get('porcentaje', 0)),
-                tax_value=float(first_tax.get('valor', 0)),
-                total=float(item.get('valor_total', 0)) + float(first_tax.get('valor', 0)),
+                quantity=float(item.get('cantidad') or 0),
+                unit=item.get('unidad_medida') or '',
+                price=float(item.get('precio_unitario') or 0),
+                subtotal=float(item.get('valor_total') or 0),
+                tax_type=str(first_tax.get('porcentaje') or 0),
+                tax_value=float(first_tax.get('valor') or 0),
+                total=float(item.get('valor_total') or 0) + float(first_tax.get('valor') or 0),
             ))
 
     def _build_chunk_content(self, xml_data: dict, document) -> str:

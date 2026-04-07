@@ -1,3 +1,4 @@
+from typing import Optional
 from openai import AsyncOpenAI
 from app.domain.ports.services import AIServicePort
 
@@ -6,10 +7,20 @@ class OpenAIService(AIServicePort):
     def __init__(self, api_key: str):
         self._client = AsyncOpenAI(api_key=api_key)
 
-    async def complete(self, prompt: str, model: str = "gpt-4o-mini") -> dict:
+    async def complete(
+        self,
+        prompt: str,
+        model: str = "gpt-4o-mini",
+        system_prompt: Optional[str] = None,
+    ) -> dict:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         response = await self._client.chat.completions.create(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
         )
         usage = response.usage
         return {

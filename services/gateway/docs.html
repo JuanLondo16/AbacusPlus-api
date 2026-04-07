@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AbacusPlus API — Documentación</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+
+    #banner {
+      background: #1b1b1b;
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 6px rgba(0,0,0,.4);
+    }
+
+    #banner h1 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      white-space: nowrap;
+    }
+
+    #banner label {
+      font-size: .85rem;
+      color: #ccc;
+      white-space: nowrap;
+    }
+
+    #service-select {
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #2d2d2d;
+      color: #fff;
+      font-size: .9rem;
+      cursor: pointer;
+      min-width: 260px;
+    }
+
+    #service-select:focus { outline: 2px solid #49cc90; }
+
+    #swagger-ui .topbar { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="banner">
+  <h1>AbacusPlus API</h1>
+  <label for="service-select">Servicio:</label>
+  <select id="service-select">
+    <option value="/openapi/xml-processor.json">XML Processor — Facturas DIAN (:8001)</option>
+    <option value="/openapi/llm-service.json">LLM Service — IA y Contabilidad (:8003)</option>
+    <option value="/openapi/rag-service.json">RAG Service — Embeddings (:8002)</option>
+    <option value="/openapi/session-proxy.json">Session Proxy — Portal DIAN (:8004)</option>
+  </select>
+</div>
+
+<div id="swagger-ui"></div>
+
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+  function loadSpec(url) {
+    SwaggerUIBundle({
+      url: url,
+      dom_id: '#swagger-ui',
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIBundle.SwaggerUIStandalonePreset,
+      ],
+      layout: 'BaseLayout',
+      deepLinking: true,
+      displayRequestDuration: true,
+      defaultModelsExpandDepth: 1,
+      defaultModelExpandDepth: 2,
+      docExpansion: 'list',
+      filter: true,
+      tryItOutEnabled: true,
+    });
+  }
+
+  const select = document.getElementById('service-select');
+  loadSpec(select.value);
+  select.addEventListener('change', () => loadSpec(select.value));
+</script>
+
+</body>
+</html>

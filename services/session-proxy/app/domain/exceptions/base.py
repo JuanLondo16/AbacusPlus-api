@@ -31,6 +31,12 @@ class ExternalAuthException(DomainException):
         super().__init__(message=message, code="EXTERNAL_AUTH_ERROR")
 
 
+class BrowserLoginException(DomainException):
+    def __init__(self, message: str, steps: list):
+        super().__init__(message=message, code="BROWSER_LOGIN_ERROR")
+        self.steps = steps
+
+
 class ExternalRequestException(DomainException):
     def __init__(self, message: str):
         super().__init__(message=message, code="EXTERNAL_REQUEST_ERROR")

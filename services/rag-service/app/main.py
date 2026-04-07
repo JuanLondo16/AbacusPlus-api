@@ -1,6 +1,9 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
 from app.infrastructure.config.logging import setup_logging
+from app.infrastructure.config.database import Base, engine
+from app.infrastructure.persistence.models import chunk as _chunk_model  # noqa: F401
 from app.adapters.api.routers.chunks import router as chunks_router
 from app.domain.exceptions.base import DomainException
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
@@ -8,10 +11,19 @@ from app.adapters.api.error_handlers import domain_exception_handler, unhandled_
 setup_logging()
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+    logger.info("Tabla document_chunks verificada/creada")
+    yield
+
+
 app = FastAPI(
     title="RAG Service",
     description="Microservicio para indexación y búsqueda semántica de documentos con pgvector",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_exception_handler(DomainException, domain_exception_handler)

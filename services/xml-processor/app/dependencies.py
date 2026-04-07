@@ -9,8 +9,11 @@ from app.infrastructure.persistence.repositories.receiver_repository import Rece
 from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
 from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
+from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
 from app.infrastructure.clients.rag_client import RagClient
+from app.infrastructure.queue.download_queue import get_queue
 from app.application.use_cases.process_xml import ProcessXmlUseCase
+from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
 from app.application.use_cases.query_documents import GetDocumentsByDateRangeUseCase, GetDocumentByIdUseCase
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
 
@@ -46,3 +49,14 @@ def get_document_by_id_use_case(db: Session = Depends(get_db)) -> GetDocumentByI
 
 def get_all_receivers_use_case(db: Session = Depends(get_db)) -> GetAllReceiversUseCase:
     return GetAllReceiversUseCase(receiver_repo=ReceiverRepository(db))
+
+
+def get_process_downloads_use_case() -> ProcessDownloadsUseCase:
+    return ProcessDownloadsUseCase(
+        downloads_dir=os.getenv("DOWNLOADS_DIR", "/app/downloads"),
+        queue=get_queue(),
+    )
+
+
+def get_processing_log_repo(db: Session = Depends(get_db)) -> ProcessingLogRepository:
+    return ProcessingLogRepository(db)

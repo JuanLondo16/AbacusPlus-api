@@ -7,7 +7,13 @@
       "Bash(powershell -Command \"Get-ChildItem ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'' -Force -Recurse | Select-Object FullName\")",
       "Bash(powershell -Command \"Get-ChildItem ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'' -Force -Recurse | Select-Object FullName\")",
       "Bash(powershell -Command \"[System.IO.Directory]::Delete\\(''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'', $true\\); [System.IO.Directory]::Delete\\(''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'', $true\\)\")",
-      "Bash(powershell -Command \"Remove-Item -LiteralPath ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'' -Force -Recurse; Remove-Item -LiteralPath ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'' -Force -Recurse\")"
+      "Bash(powershell -Command \"Remove-Item -LiteralPath ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\app'' -Force -Recurse; Remove-Item -LiteralPath ''C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\tests'' -Force -Recurse\")",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose stop:*)",
+      "Bash(docker-compose start:*)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/batch/process-downloads)",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:8001/api/v1/batch/process-downloads)"
     ]
   }
 }

@@ -4,10 +4,13 @@ from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.application.dto.auth import LoginRequest, LoginResponse
+from app.application.dto.company_login import CompanyLoginResponse
 from app.application.use_cases.login import LoginUseCase
+from app.application.use_cases.company_login import CompanyLoginUseCase
+from app.domain.exceptions.base import BrowserLoginException
 from app.infrastructure.session.in_memory_store import InMemorySessionStore
 from app.infrastructure.clients.external_client import HttpxExternalClient
-from app.dependencies import get_login_use_case, get_session_store, get_external_client
+from app.dependencies import get_login_use_case, get_session_store, get_external_client, get_company_login_use_case
 
 router = APIRouter()
 
@@ -42,6 +45,20 @@ async def login_debug(
         login_url=login_url,
         credentials={"token": request.token},
     )
+
+
+@router.post("/dian/company-login", response_model=CompanyLoginResponse, status_code=status.HTTP_201_CREATED)
+async def company_login(
+    use_case: CompanyLoginUseCase = Depends(get_company_login_use_case),
+):
+    """Abre browser, completa formulario DIAN CompanyLogin y retorna session_id."""
+    try:
+        return await use_case.execute()
+    except BrowserLoginException as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"error": e.message, "steps": e.steps},
+        )
 
 
 @router.get("/dian/debug/{session_id}")
