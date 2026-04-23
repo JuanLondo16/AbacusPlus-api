@@ -4,11 +4,12 @@ from sqlalchemy.orm import relationship
 from app.infrastructure.config.database import Base
 
 
-class HistoricalJournalEntry(Base):
-    __tablename__ = "historical_journal_entries"
+class AccountingEntry(Base):
+    __tablename__ = "accounting_entries"
 
     id = Column(Integer, primary_key=True, index=True)
     source_id = Column(Integer, unique=True, nullable=False, index=True)
+    document_id = Column(Integer, nullable=True, index=True)  # ref a documents.id, sin FK cross-service
     name = Column(String(100), nullable=True)
     date = Column(Date, nullable=True, index=True)
     ref = Column(String(200), nullable=True)
@@ -28,19 +29,19 @@ class HistoricalJournalEntry(Base):
     extracted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     lines = relationship(
-        "HistoricalJournalEntryLine",
+        "AccountingEntryLine",
         back_populates="entry",
         cascade="all, delete-orphan",
-        order_by="HistoricalJournalEntryLine.sequence",
+        order_by="AccountingEntryLine.sequence",
     )
 
 
-class HistoricalJournalEntryLine(Base):
-    __tablename__ = "historical_journal_entry_lines"
+class AccountingEntryLine(Base):
+    __tablename__ = "accounting_entry_lines"
 
     id = Column(Integer, primary_key=True, index=True)
     source_id = Column(Integer, unique=True, nullable=False, index=True)
-    move_id = Column(Integer, ForeignKey("historical_journal_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    entry_id = Column(Integer, ForeignKey("accounting_entries.id", ondelete="CASCADE"), nullable=False, index=True)
     source_move_id = Column(Integer, nullable=True)
     sequence = Column(Integer, nullable=False, default=0)
     account_code = Column(String(20), nullable=True)
@@ -54,4 +55,4 @@ class HistoricalJournalEntryLine(Base):
     date_maturity = Column(Date, nullable=True)
     extracted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    entry = relationship("HistoricalJournalEntry", back_populates="lines")
+    entry = relationship("AccountingEntry", back_populates="lines")

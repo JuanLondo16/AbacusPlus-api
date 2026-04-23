@@ -70,6 +70,26 @@ def _text(node, xpath: str) -> Optional[str]:
     return el.text.strip() if el is not None and el.text else None
 
 
+def _format_amount(value) -> str:
+    """
+    Format numeric amounts to match upstream XML conventions used across the project.
+
+    - If it is effectively an integer (e.g. 190000.0) return "190000"
+    - Otherwise return a plain string without scientific notation
+    """
+    try:
+        v = float(value or 0)
+    except Exception:
+        return "0"
+    if abs(v) < 1e-12:
+        return "0"
+    if abs(v - round(v)) < 1e-9:
+        return str(int(round(v)))
+    # Preserve decimals as provided by calculation; keep it stable.
+    s = f"{v:.10f}".rstrip("0").rstrip(".")
+    return s or "0"
+
+
 def _parse_party(party_node, additional_account_id: Optional[str]) -> dict:
     """Build a party dict from a cac:Party node (emisor or receptor)."""
     if party_node is None:
@@ -315,7 +335,8 @@ def parse_xml(xml_content: str) -> dict:
         data['totales'] = {
             'valor_lineas': _text(lt, 'cbc:LineExtensionAmount'),
             'subtotal': _text(lt, 'cbc:TaxExclusiveAmount'),
-            'total_impuestos': str(total_impuestos) if total_impuestos else '0',
+            # Normalizar 190000.0 -> "190000" para estabilidad en tests/consumo.
+            'total_impuestos': _format_amount(total_impuestos),
             'total_con_impuestos': _text(lt, 'cbc:TaxInclusiveAmount'),
             'redondeo': rounding_el.text.strip() if rounding_el is not None and rounding_el.text else None,
             'total': _text(lt, 'cbc:PayableAmount'),

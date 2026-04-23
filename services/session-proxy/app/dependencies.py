@@ -7,6 +7,7 @@ from app.infrastructure.clients.external_client import HttpxExternalClient
 from app.infrastructure.browser.playwright_client import PlaywrightBrowserClient
 from app.infrastructure.queue.arq_queue import ArqJobQueue
 from app.infrastructure.queue.batch_store import RedisBatchStore
+from app.infrastructure.queue.job_progress_store import JobProgressStore
 from app.application.use_cases.login import LoginUseCase
 from app.application.use_cases.proxy_request import ProxyRequestUseCase
 from app.application.use_cases.company_login import CompanyLoginUseCase
@@ -77,6 +78,10 @@ def get_batch_store() -> RedisBatchStore:
     return RedisBatchStore(redis_url=os.getenv("REDIS_URL", "redis://redis:6379"))
 
 
+def get_job_progress_store() -> JobProgressStore:
+    return JobProgressStore(redis_url=os.getenv("REDIS_URL", "redis://redis:6379"))
+
+
 def get_fetch_and_enqueue_use_case() -> FetchAndEnqueueDocumentsUseCase:
     return FetchAndEnqueueDocumentsUseCase(
         external_client=get_external_client(),
@@ -84,6 +89,7 @@ def get_fetch_and_enqueue_use_case() -> FetchAndEnqueueDocumentsUseCase:
         base_url=os.getenv("EXTERNAL_BASE_URL", ""),
         login_url=_build_login_url(),
         batch_store=get_batch_store(),
+        job_progress_store=get_job_progress_store(),
     )
 
 
@@ -94,5 +100,5 @@ def get_job_status_use_case() -> GetJobStatusUseCase:
 def get_batch_status_use_case() -> GetBatchStatusUseCase:
     return GetBatchStatusUseCase(
         batch_store=get_batch_store(),
-        job_queue=get_job_queue(),
+        job_progress_store=get_job_progress_store(),
     )

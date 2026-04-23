@@ -7,6 +7,7 @@ from app.domain.ports.services import ExternalClientPort
 from app.domain.ports.queue import JobQueuePort
 from app.application.dto.documents import DocumentsRangeRequest, EnqueueDownloadsResponse
 from app.infrastructure.queue.batch_store import RedisBatchStore
+from app.infrastructure.queue.job_progress_store import JobProgressStore
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +24,14 @@ class FetchAndEnqueueDocumentsUseCase:
         base_url: str,
         login_url: str,
         batch_store: RedisBatchStore,
+        job_progress_store: JobProgressStore,
     ):
         self._client = external_client
         self._queue = job_queue
         self._base_url = base_url.rstrip("/")
         self._login_url = login_url
         self._batch_store = batch_store
+        self._progress = job_progress_store
 
     async def execute(self, request: DocumentsRangeRequest) -> EnqueueDownloadsResponse:
         batch_id = str(uuid.uuid4())
@@ -57,6 +60,7 @@ class FetchAndEnqueueDocumentsUseCase:
         )
 
         job_ids = []
+        job_track_map: dict[str, str] = {}
         for doc in raw_docs:
             track_id = doc.get("Id") or doc.get("id")
             if not track_id:
@@ -71,9 +75,11 @@ class FetchAndEnqueueDocumentsUseCase:
                 token=request.token,
             )
             job_ids.append(job_id)
+            job_track_map[job_id] = str(track_id)
+            await self._progress.init(job_id, str(track_id))
             logger.info("Job encolado para trackId: %s → %s", track_id, job_id)
 
-        await self._batch_store.save(batch_id, job_ids, started_at)
+        await self._batch_store.save(batch_id, job_ids, started_at, job_track_map)
         logger.info("Batch %s iniciado con %d jobs", batch_id, len(job_ids))
 
         return EnqueueDownloadsResponse(

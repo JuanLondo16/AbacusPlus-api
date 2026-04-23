@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from arq import create_pool
 from arq.connections import RedisSettings
+from arq.jobs import Job
 
 from app.domain.ports.queue import JobQueuePort
 
@@ -27,11 +28,13 @@ class ArqJobQueue(JobQueuePort):
 
     async def get_job_status(self, job_id: str) -> Dict[str, Any]:
         pool = await self._get_pool()
-        job = await pool.job(job_id)
-        if job is None:
+        job = Job(job_id, pool)
+        status = await job.status()
+        if status.value == "not_found":
             return {"status": "not_found"}
-        info = await job.info()
+        result_info = await job.info()
+        result = result_info.result if result_info else None
         return {
-            "status": info.status.value if info else "unknown",
-            "result": info.result if info else None,
+            "status": status.value,
+            "result": result,
         }

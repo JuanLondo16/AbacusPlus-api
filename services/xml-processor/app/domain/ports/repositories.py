@@ -20,7 +20,7 @@ class DocumentRepositoryPort(ABC):
         ...
 
     @abstractmethod
-    def get_by_date_range(self, date_start: date, date_end: date) -> List[object]:
+    def get_by_date_range(self, date_start: date, date_end: date, status: Optional[str] = None) -> List[object]:
         ...
 
     @abstractmethod

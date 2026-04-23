@@ -5,15 +5,19 @@ from app.application.dto.accounting import (
     GenerateAccountingRequest,
     AccountingEntryResponse,
     DocumentWithAccountingResponse,
+    RecalculateAccountingBatchRequest,
+    RecalculateAccountingBatchResponse,
     SystemPromptRequest,
     SystemPromptResponse,
 )
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
+from app.application.use_cases.recalculate_accounting_batch import RecalculateAccountingBatchUseCase
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 from app.dependencies import (
     get_generate_accounting_use_case,
     get_query_accounting_use_case,
+    get_recalculate_accounting_batch_use_case,
     get_system_prompt_repo,
 )
 
@@ -70,6 +74,30 @@ async def get_document_with_accounting(
     use_case: QueryAccountingUseCase = Depends(get_query_accounting_use_case),
 ):
     return await use_case.execute(document_id)
+
+
+@router.post(
+    "/accounting/recalculate-batch",
+    response_model=RecalculateAccountingBatchResponse,
+    summary="Recalcular causación contable por rango de fechas",
+    description=(
+        "Recalcula la causación contable para todos los documentos dentro de un rango de fechas.\n\n"
+        "**Flujo interno:**\n"
+        "1. Lista documentos desde xml-processor en el rango `dateini`–`datefin` (y opcionalmente por `status`).\n"
+        "2. Para cada documento ejecuta el mismo proceso de `POST /api/v1/accounting/generate`.\n"
+        "3. Retorna un resumen con totales y el detalle por documento.\n\n"
+        "Nota: este proceso crea nuevos asientos (no reemplaza los anteriores)."
+    ),
+    response_description="Resumen del recálculo batch y resultados por documento.",
+    responses={
+        502: {"description": "Error de comunicación con xml-processor / OpenAI / rag-service."},
+    },
+)
+async def recalculate_accounting_batch(
+    request: RecalculateAccountingBatchRequest,
+    use_case: RecalculateAccountingBatchUseCase = Depends(get_recalculate_accounting_batch_use_case),
+):
+    return await use_case.execute(request)
 
 
 @router.get(

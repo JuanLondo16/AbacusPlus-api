@@ -26,6 +26,7 @@ class SyncResponse(BaseModel):
     synced: int = Field(..., description="Total de asientos procesados desde Odoo.")
     created: int = Field(..., description="Asientos nuevos insertados en la base de datos.")
     updated: int = Field(..., description="Asientos existentes actualizados.")
+    matched: int = Field(..., description="Asientos asociados a un documento XML de la DIAN.")
     batch_id: str = Field(..., description="UUID del lote de sincronización.")
     date_from: str = Field(..., description="Fecha inicial consultada.")
     date_to: str = Field(..., description="Fecha final consultada.")
@@ -53,6 +54,7 @@ class JournalEntryLineResponse(BaseModel):
 class JournalEntryResponse(BaseModel):
     id: int
     source_id: int
+    document_id: Optional[int] = Field(None, description="ID del documento XML de la DIAN asociado. Null si no se encontró coincidencia.")
     name: Optional[str]
     date: Optional[date]
     ref: Optional[str]
@@ -76,3 +78,42 @@ class JournalEntryResponse(BaseModel):
 
 class JournalEntryDetailResponse(JournalEntryResponse):
     lines: List[JournalEntryLineResponse] = Field(default_factory=list)
+
+
+class MatchEntryError(BaseModel):
+    entry_id: int = Field(..., description="ID interno del asiento contable.")
+    source_id: int = Field(..., description="ID del asiento en Odoo.")
+    error: str = Field(..., description="Descripción del error.")
+
+
+class MatchEntriesResponse(BaseModel):
+    total_reviewed: int = Field(
+        ...,
+        description="Total de asientos in_invoice sin documento revisados.",
+        examples=[42],
+    )
+    matched: int = Field(
+        ...,
+        description="Asientos vinculados exitosamente a un documento XML de la DIAN.",
+        examples=[35],
+    )
+    unmatched: int = Field(
+        ...,
+        description="Asientos para los que no se encontró documento coincidente.",
+        examples=[7],
+    )
+    errors: List[MatchEntryError] = Field(
+        default_factory=list,
+        description="Asientos que generaron error durante el proceso de vinculación.",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "total_reviewed": 42,
+                "matched": 35,
+                "unmatched": 7,
+                "errors": [],
+            }
+        }
+    }

@@ -11,11 +11,14 @@ from app.infrastructure.persistence.repositories.tax_repository import TaxReposi
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
 from app.infrastructure.clients.rag_client import RagClient
+from app.infrastructure.clients.llm_client import LlmClient
 from app.infrastructure.queue.download_queue import get_queue
 from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
+from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
 from app.application.use_cases.query_documents import GetDocumentsByDateRangeUseCase, GetDocumentByIdUseCase
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
+from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
 
 load_dotenv()
 
@@ -23,6 +26,11 @@ load_dotenv()
 def get_rag_client() -> RagClient:
     url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8002")
     return RagClient(base_url=url)
+
+
+def get_llm_client() -> LlmClient:
+    url = os.getenv("LLM_SERVICE_URL", "http://llm-service:8003")
+    return LlmClient(base_url=url)
 
 
 def get_process_xml_use_case(
@@ -58,5 +66,22 @@ def get_process_downloads_use_case() -> ProcessDownloadsUseCase:
     )
 
 
+def get_process_single_file_use_case() -> ProcessSingleFileUseCase:
+    return ProcessSingleFileUseCase(
+        downloads_dir=os.getenv("DOWNLOADS_DIR", "/app/downloads"),
+        queue=get_queue(),
+    )
+
+
 def get_processing_log_repo(db: Session = Depends(get_db)) -> ProcessingLogRepository:
     return ProcessingLogRepository(db)
+
+
+def get_document_detail_use_case(
+    db: Session = Depends(get_db),
+    llm_client: LlmClient = Depends(get_llm_client),
+) -> GetDocumentDetailWithAccountingUseCase:
+    return GetDocumentDetailWithAccountingUseCase(
+        document_repo=DocumentRepository(db),
+        llm_client=llm_client,
+    )

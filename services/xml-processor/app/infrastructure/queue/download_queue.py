@@ -21,14 +21,28 @@ from app.infrastructure.persistence.repositories.processing_log_repository impor
 from app.infrastructure.persistence.repositories.receiver_repository import ReceiverRepository
 from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
 from app.application.use_cases.process_xml import ProcessXmlUseCase
+from app.infrastructure.queue.job_progress_store import JobProgressStore
 
 logger = logging.getLogger(__name__)
 
+# La cola transporta tuplas (Path, job_id | None).
+# job_id es None cuando el item fue encolado por process-downloads (modo legacy).
 _queue: asyncio.Queue = asyncio.Queue()
+
+_progress_store: Optional[JobProgressStore] = None
 
 
 def get_queue() -> asyncio.Queue:
     return _queue
+
+
+def get_progress_store() -> JobProgressStore:
+    global _progress_store
+    if _progress_store is None:
+        _progress_store = JobProgressStore(
+            redis_url=os.getenv("REDIS_URL", "redis://redis:6379")
+        )
+    return _progress_store
 
 
 def _peek_xml_filename(file_path: Path) -> Optional[str]:
@@ -48,12 +62,9 @@ def _peek_xml_filename(file_path: Path) -> Optional[str]:
 
 def _sanitize_name(text: str) -> str:
     """Elimina caracteres especiales y normaliza el texto para usar en nombres de archivo."""
-    # Normalizar unicode (ej. á → a)
     text = unicodedata.normalize("NFKD", text)
     text = text.encode("ascii", "ignore").decode("ascii")
-    # Reemplazar caracteres no alfanuméricos (excepto espacios y guiones) por espacio
     text = re.sub(r"[^\w\s\-]", " ", text)
-    # Colapsar espacios múltiples
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
@@ -89,7 +100,6 @@ def _extract_files_to_processed(file_path: Path, processed_dir: Path, document_d
     try:
         with zipfile.ZipFile(str(file_path)) as zf:
             for member in zf.namelist():
-                # Ignorar entradas de sistema
                 if member.startswith(("__MACOSX/", "._")):
                     continue
                 name_lower = member.lower()
@@ -130,23 +140,29 @@ async def process_queue_worker() -> None:
     """Worker asyncio que consume la cola y procesa cada ZIP."""
     logger.info("Worker de procesamiento de ZIPs iniciado")
     while True:
-        file_path: Path = await _queue.get()
+        item = await _queue.get()
+        # Soporta tanto tuplas (path, job_id) como paths sueltos (compatibilidad)
+        if isinstance(item, tuple):
+            file_path, job_id = item
+        else:
+            file_path, job_id = item, None
+
         try:
-            await _process_single_file(file_path)
+            await _process_single_file(file_path, job_id)
         except Exception as e:
             logger.error("Error inesperado procesando %s: %s", file_path.name, e)
         finally:
             _queue.task_done()
 
 
-async def _process_single_file(file_path: Path) -> None:
+async def _process_single_file(file_path: Path, job_id: Optional[str]) -> None:
     downloads_dir = file_path.parent
     processed_dir = downloads_dir / "processed"
     errors_dir = downloads_dir / "errors"
     processed_dir.mkdir(exist_ok=True)
     errors_dir.mkdir(exist_ok=True)
 
-    # Obtener nombre del XML antes de procesar, disponible para todos los casos del log
+    progress = get_progress_store() if job_id else None
     xml_filename = _peek_xml_filename(file_path)
 
     db = SessionLocal()
@@ -164,10 +180,10 @@ async def _process_single_file(file_path: Path) -> None:
 
         result = await use_case.execute(FileWrapper(file_path))
 
-        # Extraer PDF y XML a sus subcarpetas antes de mover el ZIP
         _extract_files_to_processed(file_path, processed_dir, result["data"])
 
         acc_status, acc_error = await _trigger_accounting(result["document_id"])
+
         log_repo.create(ProcessingLog(
             filename=file_path.name,
             xml_filename=xml_filename or result.get("filename"),
@@ -180,11 +196,14 @@ async def _process_single_file(file_path: Path) -> None:
         shutil.move(str(file_path), str(processed_dir / file_path.name))
         logger.info("ZIP procesado → XML: %s — movido a processed/", xml_filename)
 
+        if progress:
+            await progress.mark_xml_done(job_id, "added", document_id=result["document_id"])
+            await progress.mark_accounting_done(job_id, acc_status or "error", error=acc_error)
+
     except DuplicateEntityException as e:
         log_repo = ProcessingLogRepository(db)
         doc_number = e.message.split(": ")[-1] if ": " in e.message else ""
 
-        # Verificar si el documento duplicado ya tiene causación contable
         existing_doc = DocumentRepository(db).get_by_document_number(doc_number)
         acc_status, acc_error = None, None
         if existing_doc:
@@ -206,6 +225,11 @@ async def _process_single_file(file_path: Path) -> None:
         shutil.move(str(file_path), str(processed_dir / file_path.name))
         logger.info("ZIP duplicado → XML: %s — movido a processed/", xml_filename)
 
+        if progress:
+            await progress.mark_xml_done(job_id, "duplicate", document_id=existing_doc.id if existing_doc else None)
+            if acc_status:
+                await progress.mark_accounting_done(job_id, acc_status, error=acc_error)
+
     except Exception as e:
         try:
             log_repo = ProcessingLogRepository(db)
@@ -219,6 +243,9 @@ async def _process_single_file(file_path: Path) -> None:
             pass
         shutil.move(str(file_path), str(errors_dir / file_path.name))
         logger.error("Error procesando %s (XML: %s): %s — movido a errors/", file_path.name, xml_filename, e)
+
+        if progress:
+            await progress.mark_xml_done(job_id, "error", error=str(e))
 
     finally:
         db.close()

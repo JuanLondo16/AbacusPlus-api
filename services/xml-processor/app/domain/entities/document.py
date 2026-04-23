@@ -44,4 +44,5 @@ class DocumentEntity:
     receiver_email: Optional[str] = None
     id: Optional[int] = None
     register_at: Optional[datetime] = None
+    accounting_entry_id: Optional[int] = None
     details: List[DocumentDetailEntity] = field(default_factory=list)

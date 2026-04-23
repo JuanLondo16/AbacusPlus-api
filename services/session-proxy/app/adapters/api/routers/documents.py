@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.application.dto.documents import (
     DocumentsRangeRequest,
@@ -43,21 +43,24 @@ async def enqueue_document_downloads(
     response_model=BatchStatusResponse,
     summary="Consultar estado de un batch de descarga",
     description=(
-        "Retorna el estado actual del batch: cuántos jobs completaron, cuántos faltan, "
-        "tiempo transcurrido y porcentaje de avance.\n\n"
-        "Cuando `is_done` es `true` se incluye además el campo `total_time_seconds` "
-        "con el tiempo total de ejecución del batch."
+        "Retorna el estado actual del batch con un resumen de progreso por etapa:\n\n"
+        "- **downloaded** — ZIP descargado del portal DIAN.\n"
+        "- **xml_processed** — XML parseado y guardado en base de datos.\n"
+        "- **accounting** — Asiento contable generado por el LLM.\n\n"
+        "Cuando `is_done` es `true` se incluye `total_time_seconds` con el tiempo total.\n\n"
+        "Usa `?detail=true` para incluir el campo `jobs` con el progreso individual de cada documento."
     ),
-    response_description="Estado del batch con métricas de progreso.",
+    response_description="Estado del batch con resumen por etapa y progreso individual opcional.",
     responses={
         404: {"description": "Batch no encontrado o expirado (TTL: 7 días)."},
     },
 )
 async def get_batch_status(
     batch_id: str,
+    detail: bool = Query(False, description="Si es true, incluye el detalle de progreso de cada job en el campo `jobs`."),
     use_case: GetBatchStatusUseCase = Depends(get_batch_status_use_case),
 ):
-    result = await use_case.execute(batch_id)
+    result = await use_case.execute(batch_id, detail=detail)
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

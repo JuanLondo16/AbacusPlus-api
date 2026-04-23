@@ -4,14 +4,14 @@ from typing import List, Optional
 
 from app.domain.exceptions.base import EntityNotFoundException
 from app.application.dto.journal_entry import JournalEntryResponse, JournalEntryDetailResponse
-from app.infrastructure.persistence.repositories.journal_entry_repository import JournalEntryRepository
+from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
 
 logger = logging.getLogger(__name__)
 
 
 class QueryJournalEntriesUseCase:
 
-    def __init__(self, repository: JournalEntryRepository):
+    def __init__(self, repository: AccountingEntryRepository):
         self._repo = repository
 
     def get_list(
@@ -32,5 +32,5 @@ class QueryJournalEntriesUseCase:
     def get_detail(self, entry_id: int) -> JournalEntryDetailResponse:
         entry = self._repo.get_by_id(entry_id)
         if not entry:
-            raise EntityNotFoundException("JournalEntry", str(entry_id))
+            raise EntityNotFoundException("AccountingEntry", str(entry_id))
         return JournalEntryDetailResponse.model_validate(entry)

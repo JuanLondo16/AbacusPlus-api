@@ -9,10 +9,10 @@ class GetDocumentsByDateRangeUseCase:
     def __init__(self, document_repo: DocumentRepositoryPort):
         self.document_repo = document_repo
 
-    def execute(self, date_start: date, date_end: date) -> List:
+    def execute(self, date_start: date, date_end: date, status: Optional[str] = None) -> List:
         if date_end < date_start:
             raise ValidationException("End date cannot be before start date")
-        return self.document_repo.get_by_date_range(date_start, date_end)
+        return self.document_repo.get_by_date_range(date_start, date_end, status)
 
 
 class GetDocumentByIdUseCase:

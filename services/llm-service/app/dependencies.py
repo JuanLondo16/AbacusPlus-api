@@ -13,6 +13,7 @@ from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
 from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
+from app.application.use_cases.recalculate_accounting_batch import RecalculateAccountingBatchUseCase
 
 load_dotenv()
 
@@ -69,4 +70,20 @@ def get_query_accounting_use_case(
     return QueryAccountingUseCase(
         document_client=get_document_client(),
         accounting_repo=AccountingRepository(db),
+    )
+
+
+def get_recalculate_accounting_batch_use_case(
+    db: Session = Depends(get_db),
+) -> RecalculateAccountingBatchUseCase:
+    generate_use_case = GenerateAccountingEntryUseCase(
+        ai_service=get_openai_service(),
+        rag_client=get_rag_client(),
+        document_client=get_document_client(),
+        accounting_repo=AccountingRepository(db),
+        system_prompt_repo=SystemPromptRepository(db),
+    )
+    return RecalculateAccountingBatchUseCase(
+        document_client=get_document_client(),
+        generate_use_case=generate_use_case,
     )

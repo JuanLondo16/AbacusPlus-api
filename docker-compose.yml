@@ -37,10 +37,13 @@ services:
       - RAG_SERVICE_URL=http://rag-service:8002
       - LLM_SERVICE_URL=http://llm-service:8003
       - DOWNLOADS_DIR=/app/downloads
+      - REDIS_URL=redis://redis:6379
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     depends_on:
       database:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - abacus-network
     restart: unless-stopped
@@ -174,7 +177,7 @@ services:
       - ODOO_USER=${ODOO_USER:-admin}
       - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
       - RAG_SERVICE_URL=http://rag-service:8002
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload --timeout-keep-alive 1200
     depends_on:
       database:
         condition: service_healthy

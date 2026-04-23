@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from typing import Any, Dict, Optional
 
 import httpx
@@ -46,9 +47,15 @@ class HttpxExternalClient(ExternalClientPort):
                     "Cookies de infraestructura capturadas: %d", len(client.cookies)
                 )
 
-                # Paso 2: autenticar con el token para obtener .AspNet.ApplicationCookie
-                response = await client.get(login_url, params=params)
-                response.raise_for_status()
+                # Paso 2: autenticar sin seguir redirects — el segundo redirect borra
+                # .AspNet.ApplicationCookie, por lo que hay que capturarla aquí antes.
+                response = await client.get(login_url, params=params, follow_redirects=False)
+                app_cookie = response.cookies.get(".AspNet.ApplicationCookie")
+                if not app_cookie:
+                    raise ExternalAuthException(
+                        "Token inválido o expirado: el portal no emitió .AspNet.ApplicationCookie"
+                    )
+                client.cookies.set(".AspNet.ApplicationCookie", app_cookie)
                 cookies: Dict[str, str] = dict(client.cookies)
                 logger.info(
                     "Login externo exitoso: %s — %d cookie(s) capturadas",
@@ -56,6 +63,8 @@ class HttpxExternalClient(ExternalClientPort):
                     len(cookies),
                 )
                 return cookies
+        except ExternalAuthException:
+            raise
         except httpx.HTTPStatusError as exc:
             raise ExternalAuthException(
                 f"El portal externo retornó {exc.response.status_code}"
@@ -77,6 +86,7 @@ class HttpxExternalClient(ExternalClientPort):
         """
         Autentica y hace la petición en un único AsyncClient para que las cookies
         conserven sus atributos originales (dominio, path, flags Secure/HttpOnly).
+        El portal DIAN requiere form-encoding y el token CSRF como campo del body.
         """
         login_params = self._build_login_params(credentials["token"])
         base_url = login_url.split("/User/")[0]
@@ -85,26 +95,44 @@ class HttpxExternalClient(ExternalClientPort):
                 # Paso 1: visitar el portal para obtener cookies de infraestructura
                 await client.get(base_url)
 
-                # Paso 2: autenticar con el token
-                auth_response = await client.get(login_url, params=login_params)
-                auth_response.raise_for_status()
-
-                cookies_captured = dict(client.cookies)
-                if not cookies_captured:
+                # Paso 2: autenticar sin seguir redirects — el segundo redirect borra
+                # .AspNet.ApplicationCookie, por lo que hay que capturarla aquí antes.
+                auth_response = await client.get(login_url, params=login_params, follow_redirects=False)
+                app_cookie = auth_response.cookies.get(".AspNet.ApplicationCookie")
+                if not app_cookie:
                     raise ExternalAuthException(
-                        "No se pudieron obtener cookies con el token proporcionado"
+                        "Token inválido o expirado: el portal no emitió .AspNet.ApplicationCookie"
                     )
+                client.cookies.set(".AspNet.ApplicationCookie", app_cookie)
+
+                # Paso 3: visitar la raíz autenticada para obtener un __RequestVerificationToken
+                # válido para la sesión activa. El token del paso 1 queda obsoleto tras el login.
+                dashboard = await client.get(base_url)
+                csrf_match = re.search(
+                    r'name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"',
+                    dashboard.text,
+                )
+                if not csrf_match:
+                    raise ExternalAuthException(
+                        "No se encontró __RequestVerificationToken en la página autenticada"
+                    )
+                csrf_token = csrf_match.group(1)
                 logger.info(
-                    "Login exitoso: %d cookie(s) — realizando %s %s",
-                    len(cookies_captured), method, url,
+                    "Login exitoso: ApplicationCookie + CSRF token obtenidos — realizando %s %s",
+                    method, url,
                 )
 
-                # Paso 2: petición al endpoint con JSON (Content-Type: application/json)
+                # Paso 4: petición como form-encoded (el portal rechaza JSON en estos endpoints).
+                # El token CSRF va como campo del body, no como header.
+                form_data = {k: str(v) for k, v in (body or {}).items()}
+                form_data["__RequestVerificationToken"] = csrf_token
+
                 response = await client.request(
                     method=method,
                     url=url,
-                    json=body,
+                    data=form_data,
                     params=params,
+                    headers={"X-Requested-With": "XMLHttpRequest"},
                     follow_redirects=False,
                 )
 
@@ -112,8 +140,7 @@ class HttpxExternalClient(ExternalClientPort):
                 if response.status_code in (301, 302, 303, 307, 308):
                     redirect_url = response.headers.get("location", "")
                     if not redirect_url.startswith("http"):
-                        base = url.rsplit("/", 1)[0]
-                        redirect_url = f"{base}{redirect_url}"
+                        redirect_url = f"{base_url}{redirect_url}"
                     logger.info("Redirect %s → GET %s", response.status_code, redirect_url)
                     response = await client.get(redirect_url)
 
@@ -157,14 +184,14 @@ class HttpxExternalClient(ExternalClientPort):
         try:
             async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
                 await client.get(base_url)
-                auth_response = await client.get(login_url, params=login_params)
-                auth_response.raise_for_status()
-
-                cookies_captured = dict(client.cookies)
-                if not cookies_captured:
+                # Sin seguir redirects — el segundo redirect borra ApplicationCookie
+                auth_response = await client.get(login_url, params=login_params, follow_redirects=False)
+                app_cookie = auth_response.cookies.get(".AspNet.ApplicationCookie")
+                if not app_cookie:
                     raise ExternalAuthException(
-                        "No se pudieron obtener cookies para la descarga"
+                        "Token inválido o expirado: el portal no emitió .AspNet.ApplicationCookie"
                     )
+                client.cookies.set(".AspNet.ApplicationCookie", app_cookie)
                 logger.info("Login exitoso para descarga: %s", download_url)
 
                 response = await client.get(download_url)

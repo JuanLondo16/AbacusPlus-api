@@ -14,6 +14,21 @@ class FakeExternalClient(ExternalClientPort):
     async def request(self, method, url, cookies, body=None, params=None):
         return {"status_code": 200, "body": {}, "headers": {}}
 
+    async def login_and_request(
+        self,
+        login_url: str,
+        credentials: dict,
+        method: str,
+        url: str,
+        body=None,
+        params=None,
+    ) -> dict:
+        cookies = await self.login(login_url=login_url, credentials=credentials)
+        return await self.request(method=method, url=url, cookies=cookies, body=body, params=params)
+
+    async def login_and_download(self, login_url: str, credentials: dict, download_url: str) -> bytes:
+        return b""
+
 
 class EmptyCookieClient(ExternalClientPort):
     async def login(self, login_url: str, credentials: dict) -> dict:
@@ -21,6 +36,21 @@ class EmptyCookieClient(ExternalClientPort):
 
     async def request(self, method, url, cookies, body=None, params=None):
         return {}
+
+    async def login_and_request(
+        self,
+        login_url: str,
+        credentials: dict,
+        method: str,
+        url: str,
+        body=None,
+        params=None,
+    ) -> dict:
+        cookies = await self.login(login_url=login_url, credentials=credentials)
+        return await self.request(method=method, url=url, cookies=cookies, body=body, params=params)
+
+    async def login_and_download(self, login_url: str, credentials: dict, download_url: str) -> bytes:
+        return b""
 
 
 @pytest.mark.asyncio

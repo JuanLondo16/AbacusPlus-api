@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 from app.infrastructure.config.database import get_db
 from app.infrastructure.odoo.odoo_client import OdooXmlRpcClient
 from app.infrastructure.clients.rag_client import RagClient
-from app.infrastructure.persistence.repositories.journal_entry_repository import JournalEntryRepository
+from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
 from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
 from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
+from app.application.use_cases.match_entries import MatchEntriesUseCase
 
 load_dotenv()
 
@@ -27,8 +28,8 @@ def get_rag_client() -> RagClient:
     return RagClient(base_url=url)
 
 
-def get_journal_entry_repo(db: Session = Depends(get_db)) -> JournalEntryRepository:
-    return JournalEntryRepository(db)
+def get_accounting_entry_repo(db: Session = Depends(get_db)) -> AccountingEntryRepository:
+    return AccountingEntryRepository(db)
 
 
 def get_sync_use_case(
@@ -36,7 +37,7 @@ def get_sync_use_case(
 ) -> SyncJournalEntriesUseCase:
     return SyncJournalEntriesUseCase(
         odoo_client=get_odoo_client(),
-        repository=JournalEntryRepository(db),
+        repository=AccountingEntryRepository(db),
         rag_client=get_rag_client(),
     )
 
@@ -45,5 +46,13 @@ def get_query_use_case(
     db: Session = Depends(get_db),
 ) -> QueryJournalEntriesUseCase:
     return QueryJournalEntriesUseCase(
-        repository=JournalEntryRepository(db),
+        repository=AccountingEntryRepository(db),
+    )
+
+
+def get_match_use_case(
+    db: Session = Depends(get_db),
+) -> MatchEntriesUseCase:
+    return MatchEntriesUseCase(
+        repository=AccountingEntryRepository(db),
     )

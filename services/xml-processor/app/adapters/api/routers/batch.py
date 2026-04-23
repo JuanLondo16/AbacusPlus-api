@@ -1,11 +1,12 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.application.dto.batch import EnqueueBatchResponse, ProcessingLogResponse
+from app.application.dto.batch import EnqueueBatchResponse, ProcessFileRequest, ProcessingLogResponse
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
+from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
 from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
-from app.dependencies import get_process_downloads_use_case, get_processing_log_repo
+from app.dependencies import get_process_downloads_use_case, get_process_single_file_use_case, get_processing_log_repo
 
 router = APIRouter()
 
@@ -31,6 +32,36 @@ async def process_downloads(
     use_case: ProcessDownloadsUseCase = Depends(get_process_downloads_use_case),
 ):
     return await use_case.execute()
+
+
+@router.post(
+    "/batch/process-file",
+    response_model=EnqueueBatchResponse,
+    status_code=202,
+    summary="Procesar un ZIP específico por nombre de archivo",
+    description=(
+        "Encola el archivo ZIP indicado en `filename` para procesamiento inmediato. "
+        "A diferencia de `/batch/process-downloads`, este endpoint opera sobre un único archivo "
+        "y asocia el procesamiento al `job_id` del worker que lo descargó, "
+        "permitiendo actualizar el progreso en Redis.\n\n"
+        "El archivo debe existir en `DOWNLOADS_DIR`. Si no existe retorna 404."
+    ),
+    response_description="Confirmación del archivo encolado.",
+    responses={
+        404: {"description": "El archivo no existe en DOWNLOADS_DIR."},
+    },
+)
+async def process_single_file(
+    request: ProcessFileRequest,
+    use_case: ProcessSingleFileUseCase = Depends(get_process_single_file_use_case),
+):
+    result = await use_case.execute(request.filename, request.job_id)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Archivo '{request.filename}' no encontrado en DOWNLOADS_DIR.",
+        )
+    return result
 
 
 @router.get(

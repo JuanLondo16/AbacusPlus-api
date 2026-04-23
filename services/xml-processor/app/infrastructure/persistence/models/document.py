@@ -31,6 +31,7 @@ class Document(Base):
     total = Column(Float, nullable=False)
     register_at = Column(DateTime, default=datetime.now(timezone.utc))
     status = Column(String(50), nullable=False)
+    accounting_entry_id = Column(Integer, nullable=True, index=True)  # ref a accounting_entries.id
 
     # Relación con DocumentDetail
     details = relationship("DocumentDetail", back_populates="document")

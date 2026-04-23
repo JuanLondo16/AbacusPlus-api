@@ -1,4 +1,5 @@
 import logging
+import socket
 import xmlrpc.client
 from typing import List, Dict
 
@@ -14,10 +15,11 @@ class OdooXmlRpcClient(OdooClientPort):
     Extrae todos los tipos de asientos contables sin restricción por tipo de movimiento.
     """
 
-    def __init__(self, url: str, db: str, username: str, password: str):
+    def __init__(self, url: str, db: str, username: str, password: str, timeout: int = 1200):
         self._db = db
         self._password = password
         try:
+            socket.setdefaulttimeout(timeout)
             common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
             self._uid = common.authenticate(db, username, password, {})
             if not self._uid:

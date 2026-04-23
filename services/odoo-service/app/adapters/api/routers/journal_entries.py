@@ -9,10 +9,12 @@ from app.application.dto.journal_entry import (
     SyncResponse,
     JournalEntryResponse,
     JournalEntryDetailResponse,
+    MatchEntriesResponse,
 )
 from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
 from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
-from app.dependencies import get_sync_use_case, get_query_use_case
+from app.application.use_cases.match_entries import MatchEntriesUseCase
+from app.dependencies import get_sync_use_case, get_query_use_case, get_match_use_case
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,35 @@ def list_journal_entries(
         move_type=move_type,
         state=state,
     )
+
+
+@router.post(
+    "/odoo/match-entries",
+    response_model=MatchEntriesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Vincular asientos in_invoice sin documento a su factura DIAN",
+    description=(
+        "Recorre **todos** los asientos contables con `move_type = in_invoice` que aún "
+        "no tienen un documento XML de la DIAN asociado (`document_id IS NULL`) y "
+        "evalúa la relación con la tabla `documents` usando los siguientes criterios:\n\n"
+        "- **Fecha exacta**: `accounting_entries.date` = `documents.date`\n"
+        "- **NIT del emisor**: `accounting_entries.partner_vat` = `documents.issuer_nit` "
+        "(normalizado: sin puntos, comas ni dígito de verificación)\n"
+        "- **Total**: diferencia absoluta ≤ 1 COP entre `amount_total` y `documents.total`\n\n"
+        "Solo se consideran documentos que tampoco tienen asiento asociado "
+        "(`accounting_entry_id IS NULL`).\n\n"
+        "Cuando se encuentra coincidencia, se actualizan ambas tablas:\n"
+        "- `accounting_entries.document_id` ← ID del documento encontrado\n"
+        "- `documents.accounting_entry_id` ← ID del asiento\n\n"
+        "La operación es segura para re-ejecutar: los asientos ya vinculados se omiten."
+    ),
+    response_description="Resumen del proceso: total revisados, vinculados, sin coincidencia y errores.",
+)
+def match_entries(
+    use_case: MatchEntriesUseCase = Depends(get_match_use_case),
+) -> MatchEntriesResponse:
+    result = use_case.execute()
+    return MatchEntriesResponse(**result)
 
 
 @router.get(

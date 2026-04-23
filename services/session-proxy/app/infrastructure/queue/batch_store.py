@@ -27,12 +27,16 @@ class RedisBatchStore:
     def _key(self, batch_id: str) -> str:
         return f"batch:{batch_id}"
 
-    async def save(self, batch_id: str, job_ids: list, started_at: datetime) -> None:
+    async def save(self, batch_id: str, job_ids: list, started_at: datetime, job_track_map: dict) -> None:
+        """
+        job_track_map: { job_id: track_id } — permite asociar cada job con su documento DIAN.
+        """
         client = await self._get_client()
         data = {
             "started_at": started_at.isoformat(),
             "total": len(job_ids),
             "job_ids": job_ids,
+            "job_track_map": job_track_map,
         }
         await client.set(self._key(batch_id), json.dumps(data), ex=_BATCH_TTL_SECONDS)
         logger.info("Batch %s guardado en Redis (%d jobs)", batch_id, len(job_ids))

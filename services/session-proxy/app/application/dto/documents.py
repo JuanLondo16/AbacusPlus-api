@@ -37,13 +37,63 @@ class DownloadJobStatus(BaseModel):
     result: Optional[Dict[str, Any]] = None
 
 
+# ── Detalle de progreso por paso ───────────────────────────────────────────────
+
+class StepDownloaded(BaseModel):
+    done: bool
+    at: Optional[str] = None
+
+
+class StepXmlProcessed(BaseModel):
+    done: bool
+    at: Optional[str] = None
+    status: Optional[str] = Field(None, description="added | duplicate | error")
+    document_id: Optional[int] = None
+    error: Optional[str] = None
+
+
+class StepAccounting(BaseModel):
+    done: bool
+    at: Optional[str] = None
+    status: Optional[str] = Field(None, description="triggered | error")
+    error: Optional[str] = None
+
+
+class JobSteps(BaseModel):
+    downloaded: StepDownloaded
+    xml_processed: StepXmlProcessed
+    accounting: StepAccounting
+
+
+class JobProgressDetail(BaseModel):
+    job_id: str
+    track_id: str
+    current_step: str = Field(..., description="downloaded | xml_processed | accounting | done | error")
+    steps: JobSteps
+
+
+# ── Resumen por paso del batch ─────────────────────────────────────────────────
+
+class StepSummary(BaseModel):
+    done: int
+    pending: int
+    error: int
+
+
+class BatchStepSummary(BaseModel):
+    downloaded: StepSummary
+    xml_processed: StepSummary
+    accounting: StepSummary
+
+
+# ── Respuesta del batch ────────────────────────────────────────────────────────
+
 class BatchStatusResponse(BaseModel):
     batch_id: str = Field(..., description="Identificador del batch.")
     total: int = Field(..., description="Total de documentos encolados en el batch.")
-    completed: int = Field(..., description="Documentos ya descargados y procesados.")
-    pending: int = Field(..., description="Documentos pendientes.")
-    percent_done: float = Field(..., description="Porcentaje de completado (0–100).")
     elapsed_seconds: float = Field(..., description="Segundos transcurridos desde el inicio.")
-    total_time_seconds: Optional[float] = Field(None, description="Tiempo total de ejecución en segundos. Solo presente cuando el batch está completado.")
-    is_done: bool = Field(..., description="True si todos los jobs del batch han finalizado.")
+    total_time_seconds: Optional[float] = Field(None, description="Tiempo total. Solo presente cuando el batch está completado.")
+    is_done: bool = Field(..., description="True si todos los jobs completaron sus 3 pasos (con éxito o error).")
     started_at: str = Field(..., description="Fecha y hora de inicio (ISO 8601 UTC).")
+    summary: BatchStepSummary = Field(..., description="Conteo de jobs por estado en cada etapa.")
+    jobs: Optional[List[JobProgressDetail]] = Field(None, description="Detalle por job. Solo presente cuando se solicita con ?detail=true.")

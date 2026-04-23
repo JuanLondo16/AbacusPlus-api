@@ -17,14 +17,17 @@ class DocumentRepository(DocumentRepositoryPort):
     def get_by_id(self, document_id: int) -> Optional[Document]:
         return self.db.query(Document).filter(Document.id == document_id).first()
 
-    def get_by_date_range(self, date_start: date, date_end: date) -> List[Document]:
+    def get_by_date_range(self, date_start: date, date_end: date, status: Optional[str] = None) -> List[Document]:
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"get_by_date_range called with: date_start={date_start}, date_end={date_end}")
-        return self.db.query(Document).filter(
+        logger.info(f"get_by_date_range called with: date_start={date_start}, date_end={date_end}, status={status}")
+        q = self.db.query(Document).filter(
             Document.date >= date_start,
-            Document.date <= date_end
-        ).all()
+            Document.date <= date_end,
+        )
+        if status:
+            q = q.filter(Document.status == status)
+        return q.all()
 
     def create(self, document: Document) -> Document:
         self.db.add(document)

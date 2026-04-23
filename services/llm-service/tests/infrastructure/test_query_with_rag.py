@@ -21,10 +21,16 @@ class FakeRagClient(RagClientPort):
     async def search(self, query: str, top_k: int = 5):
         return _FAKE_CHUNKS
 
+    async def index_chunk(self, source_type: str, source_id: int, content: str) -> None:
+        return None
+
 
 class EmptyRagClient(RagClientPort):
     async def search(self, query: str, top_k: int = 5):
         return []
+
+    async def index_chunk(self, source_type: str, source_id: int, content: str) -> None:
+        return None
 
 
 class TestQueryWithRAGUseCase:
