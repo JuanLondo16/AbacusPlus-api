@@ -22,6 +22,16 @@ class DocumentClient:
             response.raise_for_status()
             return response.json()
 
+    async def get_issuer(self, nit: str) -> Optional[dict]:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{self._base_url}/api/v1/issuers/{nit}"
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.json()
+
     async def list_by_date_range(
         self,
         dateini: date,

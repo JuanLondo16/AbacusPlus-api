@@ -7,6 +7,7 @@ from app.infrastructure.config.database import get_db
 from app.infrastructure.ai.openai_service import OpenAIService
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.clients.document_client import DocumentClient
+from app.infrastructure.clients.catalog_client import CatalogClient
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
 from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
@@ -31,6 +32,11 @@ def get_rag_client() -> RagClient:
 def get_document_client() -> DocumentClient:
     url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
     return DocumentClient(base_url=url)
+
+
+def get_catalog_client() -> CatalogClient:
+    url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    return CatalogClient(base_url=url)
 
 
 def get_system_prompt_repo(db: Session = Depends(get_db)) -> SystemPromptRepository:
@@ -59,6 +65,7 @@ def get_generate_accounting_use_case(
         ai_service=get_openai_service(),
         rag_client=get_rag_client(),
         document_client=get_document_client(),
+        catalog_client=get_catalog_client(),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
     )
@@ -80,6 +87,7 @@ def get_recalculate_accounting_batch_use_case(
         ai_service=get_openai_service(),
         rag_client=get_rag_client(),
         document_client=get_document_client(),
+        catalog_client=get_catalog_client(),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
     )

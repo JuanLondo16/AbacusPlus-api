@@ -109,6 +109,7 @@ class ProcessXmlUseCase:
                 dv=dv_calculate(nit),
                 phone=contacto.get('telefono', ''),
                 email=contacto.get('email', ''),
+                tipo_contribuyente=emisor.get('regimen') or None,
             ))
 
     def _ensure_receiver(self, xml_data: dict) -> None:

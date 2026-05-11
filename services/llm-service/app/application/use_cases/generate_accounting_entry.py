@@ -1,12 +1,14 @@
+import asyncio
 import json
 import logging
 import math
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, status
 
 from app.application.dto.accounting import GenerateAccountingRequest, AccountingEntryResponse
 from app.domain.ports.services import AIServicePort, RagClientPort
+from app.infrastructure.clients.catalog_client import CatalogClient
 from app.infrastructure.clients.document_client import DocumentClient
 from app.infrastructure.persistence.models.accounting_entry import AccountingEntry
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
@@ -14,20 +16,48 @@ from app.infrastructure.persistence.repositories.system_prompt_repository import
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_SYSTEM_PROMPT = (
-    "Eres un experto en contabilidad colombiana (Plan Único de Cuentas - PUC).\n"
-    "Dado el JSON de una factura electrónica DIAN, genera el asiento contable de causación.\n"
-    "Responde ÚNICAMENTE con JSON válido (sin markdown ni texto adicional) con este formato:\n"
-    "{\"entries\": [{\"cuenta\": \"string\", \"nombre\": \"string\", "
-    "\"debito\": 0.0, \"credito\": 0.0, \"tercero\": \"string|null\", "
-    "\"centro_costo\": \"string|null\", \"descripcion\": \"string|null\"}]}\n\n"
-    "Reglas obligatorias:\n"
-    "- Partida doble: suma(debito) = suma(credito).\n"
-    "- Cada línea debe tener debito>0 y credito=0, o credito>0 y debito=0 (nunca ambos >0).\n"
-    "- Montos con máximo 2 decimales.\n"
-    "- Usa el RAG SOLO para inferir distribución contable (cuentas/CC/tercero), no para copiar valores.\n"
-    "- Usa valores monetarios únicamente desde el JSON de la factura.\n"
-)
+_DEFAULT_SYSTEM_PROMPT = """\
+Eres un experto en contabilidad colombiana (Plan Único de Cuentas - PUC).
+Dado el JSON de una factura electrónica DIAN, genera el asiento contable de causación.
+Responde ÚNICAMENTE con JSON válido (sin markdown ni texto adicional) con este formato:
+{"entries": [{"cuenta": "string", "nombre": "string", "debito": 0.0, "credito": 0.0, "tercero": "string|null", "centro_costo": "string|null", "descripcion": "string|null"}]}
+
+== ESTRUCTURA TÍPICA DEL ASIENTO DE COMPRAS COLOMBIANO ==
+
+1. GASTO O COSTO (débito por cada línea de detalle):
+   - Si la línea de detalle tiene `concept_account_number`, usa ESA cuenta como cuenta de gasto.
+   - Si no, infiere la cuenta de gasto del PUC según la descripción del ítem (51xxxx servicios, 52xxxx gastos generales, etc.).
+   - Registra una línea por cada detalle o agrupa si todas van a la misma cuenta.
+
+2. IVA DESCONTABLE (débito) — cuenta 240810:
+   - Crea esta línea SOLO si `issuer_tipo_contribuyente` indica que el emisor ES responsable de IVA.
+   - Si el emisor NO es responsable de IVA (p.ej. "No responsable de IVA", null o vacío), suma el IVA al costo: NO crees línea de IVA separada.
+   - Valor: campo `total_taxes` del JSON.
+
+3. RETENCIÓN EN LA FUENTE (crédito) — solo si `retefuente` > 0:
+   - Cuenta: 2365xx según concepto (236515 honorarios, 236540 servicios, 236575 compras).
+   - Valor: campo `retefuente` del JSON.
+   - tercero = NIT del receptor (campo `receiver_nit`).
+
+4. RETENCIÓN ICA (crédito) — solo si `reteica` > 0:
+   - Cuenta: 236802 "ReteICA"
+   - Valor: campo `reteica` del JSON.
+   - tercero = NIT del receptor (campo `receiver_nit`).
+
+5. CUENTAS POR PAGAR — proveedor (crédito principal):
+   - Si el JSON tiene `issuer_account_number`, usa ESA cuenta exacta.
+   - Si no, usa 220500 (proveedores nacionales) u otra cuenta CxP apropiada.
+   - Valor = total - retefuente - reteica.
+   - tercero = NIT del emisor (campo `issuer_nit`). USA SIEMPRE EL NIT, NUNCA EL NOMBRE.
+
+== REGLAS OBLIGATORIAS ==
+- Partida doble: suma(debito) = suma(credito). SIEMPRE. Verifica antes de responder.
+- Cada línea: debito > 0 y credito = 0, O credito > 0 y debito = 0. Nunca ambos > 0.
+- Montos con máximo 2 decimales. Usa valores del JSON, nunca de las referencias RAG.
+- Campo `tercero`: usa siempre el NIT (número sin puntos ni guiones), nunca el nombre.
+- Campo `centro_costo`: asigna según contexto RAG si hay referencia similar; de lo contrario null.
+- El RAG es solo referencia para inferir cuentas y centros de costo; los valores vienen del JSON.
+"""
 
 _ACCOUNTING_JSON_SCHEMA = {
     "name": "accounting_entry",
@@ -43,7 +73,15 @@ _ACCOUNTING_JSON_SCHEMA = {
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
-                    "required": ["cuenta", "nombre", "debito", "credito"],
+                    "required": [
+                        "cuenta",
+                        "nombre",
+                        "debito",
+                        "credito",
+                        "tercero",
+                        "centro_costo",
+                        "descripcion",
+                    ],
                     "properties": {
                         "cuenta": {"type": "string", "minLength": 1, "maxLength": 20},
                         "nombre": {"type": "string", "minLength": 1, "maxLength": 200},
@@ -60,6 +98,14 @@ _ACCOUNTING_JSON_SCHEMA = {
 }
 
 
+async def _safe_fetch(coro, default):
+    try:
+        return await coro
+    except Exception as e:
+        logger.warning("Catalog fetch failed: %s", e)
+        return default
+
+
 class GenerateAccountingEntryUseCase:
     def __init__(
         self,
@@ -68,10 +114,12 @@ class GenerateAccountingEntryUseCase:
         document_client: DocumentClient,
         accounting_repo: AccountingRepository,
         system_prompt_repo: SystemPromptRepository,
+        catalog_client: Optional[CatalogClient] = None,
     ):
         self._ai = ai_service
         self._rag = rag_client
         self._doc_client = document_client
+        self._catalog_client = catalog_client
         self._accounting_repo = accounting_repo
         self._prompt_repo = system_prompt_repo
 
@@ -84,28 +132,76 @@ class GenerateAccountingEntryUseCase:
                 detail=f"Documento {request.document_id} no encontrado en xml-processor.",
             )
 
-        # 2. Obtener system prompt activo
+        # 2. P2: Enriquecer documento con datos contables del emisor
+        issuer_nit = document.get("issuer_nit", "")
+        if issuer_nit:
+            try:
+                issuer_data = await self._doc_client.get_issuer(issuer_nit)
+                if issuer_data:
+                    document = dict(document)
+                    document["issuer_account_number"] = issuer_data.get("account_number") or None
+                    document["issuer_tipo_contribuyente"] = issuer_data.get("tipo_contribuyente") or None
+                    logger.info(
+                        "Emisor enriquecido: NIT=%s cuenta=%s tipo=%s",
+                        issuer_nit,
+                        document["issuer_account_number"],
+                        document["issuer_tipo_contribuyente"],
+                    )
+            except Exception as e:
+                logger.warning("No se pudo enriquecer emisor NIT=%s: %s", issuer_nit, e)
+
+        # 3. P3: Obtener catálogo contable (centros de costo, PUC, retenciones) — best-effort
+        cost_centers: List[dict] = []
+        puc_accounts: List[dict] = []
+        retefuente_rates: List[dict] = []
+        if self._catalog_client:
+            cost_centers, puc_accounts, retefuente_rates = await asyncio.gather(
+                _safe_fetch(self._catalog_client.get_cost_centers(), []),
+                _safe_fetch(self._catalog_client.get_puc_accounts(), []),
+                _safe_fetch(self._catalog_client.get_retention_fuente_rates(), []),
+            )
+            logger.info(
+                "Catálogo: %d CC | %d PUC | %d reteFuente",
+                len(cost_centers), len(puc_accounts), len(retefuente_rates),
+            )
+
+        # 4. Obtener system prompt activo
         active_prompt = self._prompt_repo.get_active()
         system_prompt_text = active_prompt.content if active_prompt else _DEFAULT_SYSTEM_PROMPT
         system_prompt_id = active_prompt.id if active_prompt else None
 
-        # 3. Buscar facturas similares en RAG como referencia
-        query_for_rag = (
-            f"Factura {document.get('document_number', '')} "
-            f"emisor {document.get('issuer_name', '')} "
-            f"total {document.get('total', '')}"
+        # 5. Buscar facturas similares en RAG como referencia.
+        # Para el comparativo se usan hasta las primeras 3 líneas disponibles y no el total,
+        # porque el monto puede variar aunque la naturaleza contable sea la misma.
+        detail_descriptions = " ".join(
+            d.get("description", "") for d in document.get("details", [])[:3]
         )
-        rag_chunks = await self._rag.search(query_for_rag, top_k=request.top_k)
+        query_for_rag = (
+            f"Factura emisor {document.get('issuer_name', '')} "
+            f"conceptos: {detail_descriptions}"
+        )
+        try:
+            rag_chunks = await self._rag.search(query_for_rag, top_k=request.top_k)
+        except Exception as e:
+            logger.warning(
+                "RAG no disponible para causación doc_id=%d; se invocará OpenAI sin ejemplos: %s",
+                request.document_id,
+                e,
+            )
+            rag_chunks = []
         logger.info(
             "RAG: %d chunks recuperados para causación doc_id=%d",
             len(rag_chunks), request.document_id
         )
 
-        # 4. Construir prompt de usuario
+        # 6. Construir prompt de usuario
         doc_json = json.dumps(document, ensure_ascii=False, default=str, indent=2)
 
-        # Separar chunks por tipo
-        historical_chunks = [c for c in rag_chunks if c.get("source_type") == "historical_entry"]
+        # Separar chunks por tipo — P4: umbral mínimo 0.75 en históricos para evitar ruido
+        historical_chunks = [
+            c for c in rag_chunks
+            if c.get("source_type") == "historical_entry" and float(c.get("similarity") or 0) >= 0.75
+        ]
         # Evitar feedback loop: solo usa asientos generados si la similitud es realmente alta.
         generated_chunks = [
             c for c in rag_chunks
@@ -152,7 +248,16 @@ class GenerateAccountingEntryUseCase:
                 f"{inv_refs}\n\n"
             )
 
+        if not rag_prompt:
+            logger.info(
+                "Sin coincidencias RAG útiles para doc_id=%d; OpenAI usará solo system prompt, catálogo y JSON del documento.",
+                request.document_id,
+            )
+
+        catalog_prompt = self._build_catalog_prompt(cost_centers, puc_accounts, retefuente_rates)
+
         user_prompt = (
+            f"{catalog_prompt}"
             f"{rag_prompt}"
             f"FACTURA A CAUSAR (JSON):\n{doc_json}\n\n"
             f"Genera el asiento contable de causación para la factura anterior. "
@@ -171,7 +276,7 @@ class GenerateAccountingEntryUseCase:
             for c in rag_chunks
         ]
 
-        # 5. Llamar al LLM
+        # 7. Llamar al LLM
         try:
             result = await self._ai.complete(
                 prompt=user_prompt,
@@ -182,7 +287,7 @@ class GenerateAccountingEntryUseCase:
             )
             raw_response = result["content"]
 
-            # 6. Parsear JSON de la respuesta
+            # 8. Parsear JSON de la respuesta
             parsed = self._parse_entries(raw_response)
             parsed = self._normalize_entries(parsed)
             parsed = self._validate_and_repair_entries(parsed)
@@ -196,13 +301,17 @@ class GenerateAccountingEntryUseCase:
             )
             saved = self._accounting_repo.create(entry, lines_data=parsed)
 
-            # Indexar el asiento generado en RAG para que futuras causaciones lo usen como referencia
-            chunk_content = self._build_entry_chunk(document, saved, parsed)
-            await self._rag.index_chunk(
-                source_type="generated_entry",
-                source_id=saved.id,
-                content=chunk_content,
-            )
+            # Indexar el asiento generado en RAG para futuras causaciones. Es best-effort:
+            # un fallo de indexación no debe convertir una causación ya guardada en error.
+            try:
+                chunk_content = self._build_entry_chunk(document, saved, parsed)
+                await self._rag.index_chunk(
+                    source_type="generated_entry",
+                    source_id=saved.id,
+                    content=chunk_content,
+                )
+            except Exception as e:
+                logger.warning("No se pudo indexar causación generada entry_id=%s: %s", saved.id, e)
         except Exception as e:
             logger.error("Error generando causación para doc_id=%d: %s", request.document_id, e)
             entry = AccountingEntry(
@@ -216,6 +325,46 @@ class GenerateAccountingEntryUseCase:
             saved = self._accounting_repo.create(entry, lines_data=[])
 
         return AccountingEntryResponse.model_validate(saved)
+
+    def _build_catalog_prompt(
+        self,
+        cost_centers: List[dict],
+        puc_accounts: List[dict],
+        retefuente_rates: List[dict],
+    ) -> str:
+        parts = []
+
+        if cost_centers:
+            cc_lines = "\n".join(f"  {cc['code']} — {cc['name']}" for cc in cost_centers)
+            parts.append(
+                "== CENTROS DE COSTO DISPONIBLES ==\n"
+                "Asigna el más apropiado según el tipo de gasto (o null si no corresponde):\n"
+                f"{cc_lines}"
+            )
+
+        if puc_accounts:
+            puc_lines = "\n".join(f"  {a['code']} — {a['name']}" for a in puc_accounts)
+            parts.append(
+                "== CUENTAS PUC CONFIGURADAS PARA ESTA EMPRESA ==\n"
+                "Usa PREFERENTEMENTE estas cuentas (están validadas). "
+                "Solo usa cuentas fuera de esta lista si el concepto no tiene equivalente:\n"
+                f"{puc_lines}"
+            )
+
+        if retefuente_rates:
+            rate_lines = "\n".join(
+                f"  Concepto: {r.get('retention_concept', '')} | Contribuyente: {r.get('taxpayer_type', '')} | Tarifa: {r.get('rate_percentage', '')}%"
+                + (f" | Base UVT: {r['minimum_base_uvt']}" if r.get("minimum_base_uvt") is not None else "")
+                + (f" | Base Pesos: {r['minimum_base_pesos']}" if r.get("minimum_base_pesos") is not None else "")
+                for r in retefuente_rates
+            )
+            parts.append(
+                "== TASAS DE RETENCIÓN EN LA FUENTE ==\n"
+                "(referencia para elegir la subcuenta 2365xx correcta según concepto, tipo de proveedor y comparar las bases mínimas)\n"
+                f"{rate_lines}"
+            )
+
+        return "\n\n".join(parts) + "\n\n" if parts else ""
 
     def _build_entry_chunk(self, document: dict, entry, lines: list) -> str:
         """Construye el texto a indexar en RAG para una causación generada por el sistema."""

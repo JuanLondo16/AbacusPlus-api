@@ -12,13 +12,18 @@ from app.infrastructure.persistence.repositories.concept_repository import Conce
 from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.clients.llm_client import LlmClient
+from app.infrastructure.clients.odoo_client import OdooClient
 from app.infrastructure.queue.download_queue import get_queue
 from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
 from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
 from app.application.use_cases.query_documents import GetDocumentsByDateRangeUseCase, GetDocumentByIdUseCase
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
+from app.application.use_cases.query_issuers import GetIssuerByNitUseCase
 from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
+from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
+from app.infrastructure.persistence.repositories.puc_repository import PucRepository
+from app.infrastructure.persistence.repositories.retention_repository import RetentionRepository
 
 load_dotenv()
 
@@ -31,6 +36,11 @@ def get_rag_client() -> RagClient:
 def get_llm_client() -> LlmClient:
     url = os.getenv("LLM_SERVICE_URL", "http://llm-service:8003")
     return LlmClient(base_url=url)
+
+
+def get_odoo_client() -> OdooClient:
+    url = os.getenv("ODOO_SERVICE_URL", "http://odoo-service:8005")
+    return OdooClient(base_url=url)
 
 
 def get_process_xml_use_case(
@@ -59,6 +69,26 @@ def get_all_receivers_use_case(db: Session = Depends(get_db)) -> GetAllReceivers
     return GetAllReceiversUseCase(receiver_repo=ReceiverRepository(db))
 
 
+def get_issuer_by_nit_use_case(db: Session = Depends(get_db)) -> GetIssuerByNitUseCase:
+    return GetIssuerByNitUseCase(issuer_repo=IssuerRepository(db))
+
+
+def get_concept_repo(db: Session = Depends(get_db)) -> ConceptRepository:
+    return ConceptRepository(db)
+
+
+def get_cost_center_repo(db: Session = Depends(get_db)) -> CostCenterRepository:
+    return CostCenterRepository(db)
+
+
+def get_puc_repo(db: Session = Depends(get_db)) -> PucRepository:
+    return PucRepository(db)
+
+
+def get_retention_repo(db: Session = Depends(get_db)) -> RetentionRepository:
+    return RetentionRepository(db)
+
+
 def get_process_downloads_use_case() -> ProcessDownloadsUseCase:
     return ProcessDownloadsUseCase(
         downloads_dir=os.getenv("DOWNLOADS_DIR", "/app/downloads"),
@@ -79,9 +109,11 @@ def get_processing_log_repo(db: Session = Depends(get_db)) -> ProcessingLogRepos
 
 def get_document_detail_use_case(
     db: Session = Depends(get_db),
+    odoo_client: OdooClient = Depends(get_odoo_client),
     llm_client: LlmClient = Depends(get_llm_client),
 ) -> GetDocumentDetailWithAccountingUseCase:
     return GetDocumentDetailWithAccountingUseCase(
         document_repo=DocumentRepository(db),
+        odoo_client=odoo_client,
         llm_client=llm_client,
     )

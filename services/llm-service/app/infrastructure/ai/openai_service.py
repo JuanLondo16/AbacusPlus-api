@@ -1,6 +1,9 @@
+import logging
 from typing import Any, Optional
 from openai import AsyncOpenAI
 from app.domain.ports.services import AIServicePort
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIService(AIServicePort):
@@ -39,10 +42,18 @@ class OpenAIService(AIServicePort):
 
         try:
             response = await self._client.chat.completions.create(**create_kwargs)
-        except Exception:
+        except Exception as exc:
             # Fallback: si el modelo o la cuenta no soportan json_schema, reintenta sin response_format.
             if json_schema is not None and "response_format" in create_kwargs:
+                logger.warning("OpenAI rechazó response_format json_schema; reintentando sin schema: %s", exc)
                 create_kwargs.pop("response_format", None)
+                messages.insert(0, {
+                    "role": "system",
+                    "content": (
+                        "IMPORTANTE: aunque no haya schema técnico disponible, responde solo JSON válido "
+                        "con la forma {\"entries\": [...]} y mínimo dos líneas contables."
+                    ),
+                })
                 response = await self._client.chat.completions.create(**create_kwargs)
             else:
                 raise

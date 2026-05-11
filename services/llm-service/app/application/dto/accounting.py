@@ -138,6 +138,10 @@ class RecalculateAccountingBatchResponse(BaseModel):
     dateini: date = Field(..., description="Fecha de inicio del rango procesado.")
     datefin: date = Field(..., description="Fecha de fin del rango procesado.")
     total: int = Field(..., description="Cantidad de documentos encontrados en el rango.")
+    documents_read: int = Field(
+        ...,
+        description="Cantidad de documentos leídos desde xml-processor para el rango solicitado.",
+    )
     generated: int = Field(..., description="Cantidad de asientos generados correctamente.")
     failed: int = Field(..., description="Cantidad de documentos cuyo asiento falló.")
     results: List[RecalculateAccountingItemResult] = Field(

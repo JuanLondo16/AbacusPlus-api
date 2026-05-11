@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
         SystemPromptRepository(db).create_default_if_none()
     finally:
         db.close()
-    logger.info("Tablas de accounting verificadas/creadas")
+    logger.info("Tablas de generated accounting verificadas/creadas")
     yield
 
 

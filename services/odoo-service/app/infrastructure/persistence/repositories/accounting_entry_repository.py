@@ -188,6 +188,14 @@ class AccountingEntryRepository:
     def get_by_source_id(self, source_id: int) -> Optional[AccountingEntry]:
         return self._db.query(AccountingEntry).filter(AccountingEntry.source_id == source_id).first()
 
+    def get_latest_by_document_id(self, document_id: int) -> Optional[AccountingEntry]:
+        return (
+            self._db.query(AccountingEntry)
+            .filter(AccountingEntry.document_id == document_id)
+            .order_by(AccountingEntry.extracted_at.desc(), AccountingEntry.id.desc())
+            .first()
+        )
+
     def get_all(
         self,
         date_from: Optional[date] = None,

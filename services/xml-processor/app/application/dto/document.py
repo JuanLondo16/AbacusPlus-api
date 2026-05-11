@@ -17,6 +17,7 @@ class DocumentDetailResponse(BaseModel):
     tax_type: str
     tax_value: float
     total: float
+    concept_account_number: Optional[str] = None
 
 
 class DocumentResponse(BaseModel):

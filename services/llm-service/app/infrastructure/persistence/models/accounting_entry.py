@@ -6,7 +6,7 @@ from app.infrastructure.config.database import Base
 
 
 class AccountingEntry(Base):
-    __tablename__ = "accounting_entries"
+    __tablename__ = "generated_accounting_entries"
 
     id               = Column(Integer, primary_key=True, index=True)
     document_id      = Column(Integer, nullable=False, index=True)
@@ -28,10 +28,10 @@ class AccountingEntry(Base):
 
 
 class AccountingEntryLine(Base):
-    __tablename__ = "accounting_entry_lines"
+    __tablename__ = "generated_accounting_entry_lines"
 
     id           = Column(Integer, primary_key=True, index=True)
-    entry_id     = Column(Integer, ForeignKey("accounting_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    entry_id     = Column(Integer, ForeignKey("generated_accounting_entries.id", ondelete="CASCADE"), nullable=False, index=True)
     cuenta       = Column(String(20), nullable=False, index=True)
     nombre       = Column(String(200), nullable=False)
     debito       = Column(Numeric(18, 2), nullable=False, default=0)

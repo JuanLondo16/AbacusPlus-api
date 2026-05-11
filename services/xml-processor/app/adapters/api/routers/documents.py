@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import date
 
 from app.application.dto.document import (
@@ -15,10 +15,26 @@ from app.dependencies import (
     get_documents_by_date_range_use_case,
     get_document_by_id_use_case,
     get_document_detail_use_case,
+    get_concept_repo,
 )
 from app.domain.exceptions.base import EntityNotFoundException
+from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 
 router = APIRouter()
+ACCOUNTING_STATUS = "Causado"
+
+
+def _enrich_details(doc_response: DocumentResponse, concept_repo: ConceptRepository) -> None:
+    """Inyecta concept_account_number en cada línea de detalle (in-place)."""
+    ids = [d.concept_description_id for d in doc_response.details]
+    account_map = concept_repo.get_accounts_by_description_ids(ids)
+    for detail in doc_response.details:
+        detail.concept_account_number = account_map.get(detail.concept_description_id)
+
+
+def _mark_accounted(response: Union[DocumentResponse, DocumentSummaryResponse]) -> None:
+    if response.accounting_entry_id is not None:
+        response.status = ACCOUNTING_STATUS
 
 
 @router.get(
@@ -45,7 +61,10 @@ async def get_documents(
     use_case: GetDocumentsByDateRangeUseCase = Depends(get_documents_by_date_range_use_case),
 ):
     documents = use_case.execute(dateini, datefin, status)
-    return [DocumentSummaryResponse.model_validate(doc, from_attributes=True) for doc in documents]
+    responses = [DocumentSummaryResponse.model_validate(doc, from_attributes=True) for doc in documents]
+    for response in responses:
+        _mark_accounted(response)
+    return responses
 
 
 @router.get(
@@ -66,9 +85,13 @@ async def get_documents(
 async def get_document(
     document_id: int,
     use_case: GetDocumentByIdUseCase = Depends(get_document_by_id_use_case),
+    concept_repo: ConceptRepository = Depends(get_concept_repo),
 ):
     doc = use_case.execute(document_id)
-    return DocumentResponse.model_validate(doc, from_attributes=True)
+    response = DocumentResponse.model_validate(doc, from_attributes=True)
+    _mark_accounted(response)
+    _enrich_details(response, concept_repo)
+    return response
 
 
 @router.get(
@@ -95,6 +118,7 @@ async def get_document(
 async def get_document_detail(
     document_id: int,
     use_case: GetDocumentDetailWithAccountingUseCase = Depends(get_document_detail_use_case),
+    concept_repo: ConceptRepository = Depends(get_concept_repo),
 ):
     try:
         result = await use_case.execute(document_id)
@@ -102,6 +126,7 @@ async def get_document_detail(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found")
 
     xml_reading = DocumentResponse.model_validate(result["document"], from_attributes=True)
+    _enrich_details(xml_reading, concept_repo)
 
     accounting_data = result.get("accounting")
     accounting = None
@@ -114,5 +139,6 @@ async def get_document_detail(
             lines=lines,
             created_at=accounting_data["created_at"],
         )
+        xml_reading.status = ACCOUNTING_STATUS
 
     return DocumentDetailWithAccountingResponse(xml_reading=xml_reading, accounting=accounting)

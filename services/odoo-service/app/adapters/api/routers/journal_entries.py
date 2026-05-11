@@ -112,6 +112,28 @@ def match_entries(
 
 
 @router.get(
+    "/odoo/entries/by-document/{document_id}",
+    response_model=JournalEntryDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Detalle del asiento contable asociado a un documento",
+    description=(
+        "Retorna el último asiento contable de Odoo vinculado al documento XML indicado. "
+        "La relación se toma desde `accounting_entries.document_id`, que se llena durante "
+        "el proceso de matching contra la tabla `documents`."
+    ),
+    response_description="Asiento contable vinculado al documento, con sus líneas.",
+    responses={
+        404: {"description": "No existe asiento contable vinculado al documento."},
+    },
+)
+def get_journal_entry_by_document(
+    document_id: int,
+    use_case: QueryJournalEntriesUseCase = Depends(get_query_use_case),
+) -> JournalEntryDetailResponse:
+    return use_case.get_latest_by_document_id(document_id)
+
+
+@router.get(
     "/odoo/entries/{entry_id}",
     response_model=JournalEntryDetailResponse,
     status_code=status.HTTP_200_OK,

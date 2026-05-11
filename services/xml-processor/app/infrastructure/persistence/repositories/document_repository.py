@@ -5,6 +5,17 @@ from app.infrastructure.persistence.models.document import Document
 from app.domain.ports.repositories import DocumentRepositoryPort
 
 
+def _status_aliases(status: str) -> list[str]:
+    normalized = status.strip().lower()
+    aliases = {
+        "processed": ["processed", "Procesado", "procesado"],
+        "procesado": ["processed", "Procesado", "procesado"],
+        "error": ["error", "Error"],
+        "failed": ["failed", "error", "Error"],
+    }
+    return aliases.get(normalized, [status])
+
+
 class DocumentRepository(DocumentRepositoryPort):
     def __init__(self, db: Session):
         self.db = db
@@ -26,7 +37,7 @@ class DocumentRepository(DocumentRepositoryPort):
             Document.date <= date_end,
         )
         if status:
-            q = q.filter(Document.status == status)
+            q = q.filter(Document.status.in_(_status_aliases(status)))
         return q.all()
 
     def create(self, document: Document) -> Document:

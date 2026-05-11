@@ -81,6 +81,7 @@ class RecalculateAccountingBatchUseCase:
             dateini=request.dateini,
             datefin=request.datefin,
             total=len(documents),
+            documents_read=len(documents),
             generated=generated,
             failed=failed,
             results=results,

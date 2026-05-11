@@ -34,3 +34,9 @@ class QueryJournalEntriesUseCase:
         if not entry:
             raise EntityNotFoundException("AccountingEntry", str(entry_id))
         return JournalEntryDetailResponse.model_validate(entry)
+
+    def get_latest_by_document_id(self, document_id: int) -> JournalEntryDetailResponse:
+        entry = self._repo.get_latest_by_document_id(document_id)
+        if not entry:
+            raise EntityNotFoundException("AccountingEntry for document", str(document_id))
+        return JournalEntryDetailResponse.model_validate(entry)

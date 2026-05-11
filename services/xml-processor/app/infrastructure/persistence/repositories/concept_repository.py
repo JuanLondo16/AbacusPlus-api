@@ -1,6 +1,6 @@
-from typing import Optional, List
+from typing import Dict, Optional, List
 from sqlalchemy.orm import Session
-from app.infrastructure.persistence.models.concept import ConceptDescription
+from app.infrastructure.persistence.models.concept import Concept, ConceptDescription
 from app.utils.smart_match import smart_match
 from app.domain.ports.repositories import ConceptRepositoryPort
 
@@ -31,3 +31,16 @@ class ConceptRepository(ConceptRepositoryPort):
         self.db.commit()
         self.db.refresh(concept_desc)
         return concept_desc
+
+    def get_accounts_by_description_ids(self, description_ids: List[int]) -> Dict[int, str]:
+        """Retorna {concept_description_id: account_number} para los IDs dados."""
+        if not description_ids:
+            return {}
+        rows = (
+            self.db.query(ConceptDescription.id, Concept.account_number)
+            .join(Concept, Concept.id == ConceptDescription.concept_id)
+            .filter(ConceptDescription.id.in_(description_ids))
+            .filter(Concept.account_number != "")
+            .all()
+        )
+        return {row[0]: row[1] for row in rows}
