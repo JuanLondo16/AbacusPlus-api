@@ -73,6 +73,15 @@ async def get_batch_status(
     "/dian/documents/jobs/{job_id}",
     response_model=DownloadJobStatus,
     summary="Consulta el estado de un job individual de descarga",
+    description=(
+        "Consulta el progreso de un documento específico dentro del pipeline de descarga y procesamiento.\n\n"
+        "El estado indica si el ZIP fue descargado desde DIAN, si el XML ya fue procesado por "
+        "`xml-processor` y si se disparó o completó la causación contable."
+    ),
+    response_description="Estado detallado del job de descarga/procesamiento.",
+    responses={
+        404: {"description": "Job no encontrado o expirado."},
+    },
 )
 async def get_download_job_status(
     job_id: str,

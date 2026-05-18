@@ -28,11 +28,21 @@ app.include_router(documents_router, prefix="/api/v1", tags=["documents"])
 logger.info("Session Proxy Service iniciado en puerto 8004")
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Health check del Session Proxy",
+    description="Verifica que el microservicio de sesiones y descargas DIAN esté activo.",
+    response_description="Estado operativo del servicio.",
+)
 async def health_check():
     return {"status": "healthy", "service": "session-proxy"}
 
 
-@app.get("/{path:path}")
+@app.get(
+    "/{path:path}",
+    summary="Ruta no encontrada",
+    description="Responde `404` para cualquier ruta no definida por el Session Proxy.",
+    include_in_schema=False,
+)
 async def not_found(path: str):
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")
