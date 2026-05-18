@@ -10,11 +10,13 @@ from app.infrastructure.clients.document_client import DocumentClient
 from app.infrastructure.clients.catalog_client import CatalogClient
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
 from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
 from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
 from app.application.use_cases.recalculate_accounting_batch import RecalculateAccountingBatchUseCase
+from app.application.use_cases.recalculate_accounting_document import RecalculateAccountingDocumentUseCase
 
 load_dotenv()
 
@@ -63,11 +65,11 @@ def get_generate_accounting_use_case(
 ) -> GenerateAccountingEntryUseCase:
     return GenerateAccountingEntryUseCase(
         ai_service=get_openai_service(),
-        rag_client=get_rag_client(),
         document_client=get_document_client(),
         catalog_client=get_catalog_client(),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
+        chart_account_repo=ChartAccountRepository(db),
     )
 
 
@@ -85,13 +87,30 @@ def get_recalculate_accounting_batch_use_case(
 ) -> RecalculateAccountingBatchUseCase:
     generate_use_case = GenerateAccountingEntryUseCase(
         ai_service=get_openai_service(),
-        rag_client=get_rag_client(),
         document_client=get_document_client(),
         catalog_client=get_catalog_client(),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
+        chart_account_repo=ChartAccountRepository(db),
     )
     return RecalculateAccountingBatchUseCase(
+        document_client=get_document_client(),
+        generate_use_case=generate_use_case,
+    )
+
+
+def get_recalculate_accounting_document_use_case(
+    db: Session = Depends(get_db),
+) -> RecalculateAccountingDocumentUseCase:
+    generate_use_case = GenerateAccountingEntryUseCase(
+        ai_service=get_openai_service(),
+        document_client=get_document_client(),
+        catalog_client=get_catalog_client(),
+        accounting_repo=AccountingRepository(db),
+        system_prompt_repo=SystemPromptRepository(db),
+        chart_account_repo=ChartAccountRepository(db),
+    )
+    return RecalculateAccountingDocumentUseCase(
         document_client=get_document_client(),
         generate_use_case=generate_use_case,
     )

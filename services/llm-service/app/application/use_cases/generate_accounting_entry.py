@@ -2,16 +2,18 @@ import asyncio
 import json
 import logging
 import math
+import os
 from typing import List, Optional
 
 from fastapi import HTTPException, status
 
 from app.application.dto.accounting import GenerateAccountingRequest, AccountingEntryResponse
-from app.domain.ports.services import AIServicePort, RagClientPort
+from app.domain.ports.services import AIServicePort
 from app.infrastructure.clients.catalog_client import CatalogClient
 from app.infrastructure.clients.document_client import DocumentClient
 from app.infrastructure.persistence.models.accounting_entry import AccountingEntry
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 
 logger = logging.getLogger(__name__)
@@ -22,41 +24,76 @@ Dado el JSON de una factura electrónica DIAN, genera el asiento contable de cau
 Responde ÚNICAMENTE con JSON válido (sin markdown ni texto adicional) con este formato:
 {"entries": [{"cuenta": "string", "nombre": "string", "debito": 0.0, "credito": 0.0, "tercero": "string|null", "centro_costo": "string|null", "descripcion": "string|null"}]}
 
-== ESTRUCTURA TÍPICA DEL ASIENTO DE COMPRAS COLOMBIANO ==
+== CAMPOS DEL JSON QUE DEBES USAR ==
+- `total`: monto bruto total de la factura (subtotal + IVA).
+- `total_taxes`: valor total del IVA de la factura.
+- `subtotal`: base gravable sin IVA (campo real, no lo calcules).
+- `retefuente`: retención en la fuente (0 si no aplica).
+- `reteica`: retención ICA (0 si no aplica).
+- `details[].subtotal`: valor SIN IVA de esa línea de detalle.
+- `details[].tax_value`: valor del IVA de esa línea de detalle.
+- `details[].total`: valor total de esa línea (subtotal + tax_value).
+- `details[].concept_account_number`: cuenta PUC asignada a esa línea (puede ser null).
+- `details[].description`: descripción del concepto facturado.
+- `issuer_tipo_contribuyente`: indica si el emisor es responsable de IVA.
+- `issuer_account_number`: cuenta CxP del proveedor (puede ser null).
+- `issuer_nit`: NIT del emisor.
+- `receiver_nit`: NIT del receptor.
 
-1. GASTO O COSTO (débito por cada línea de detalle):
-   - Si la línea de detalle tiene `concept_account_number`, usa ESA cuenta como cuenta de gasto.
-   - Si no, infiere la cuenta de gasto del PUC según la descripción del ítem (51xxxx servicios, 52xxxx gastos generales, etc.).
-   - Registra una línea por cada detalle o agrupa si todas van a la misma cuenta.
+== PASO 1 — CALCULAR VALORES DE CADA LÍNEA ==
 
-2. IVA DESCONTABLE (débito) — cuenta 240810:
-   - Crea esta línea SOLO si `issuer_tipo_contribuyente` indica que el emisor ES responsable de IVA.
-   - Si el emisor NO es responsable de IVA (p.ej. "No responsable de IVA", null o vacío), suma el IVA al costo: NO crees línea de IVA separada.
-   - Valor: campo `total_taxes` del JSON.
+A. GASTO O COSTO (débito):
+   - Determina la cuenta: usa `concept_account_number` de la línea si existe; si no, busca
+     TEXTUALMENTE el término más relevante de `description` dentro de los nombres de la lista
+     "CUENTAS PUC CONFIGURADAS". Elige la cuenta cuyo nombre sea semánticamente más cercano.
+     NO inventes códigos de cuenta; usa SOLO los de la lista.
+   - Calcula el valor de cada línea:
+     * Si el emisor ES responsable de IVA: valor_linea = `details[].subtotal` de esa línea.
+     * Si el emisor NO es responsable de IVA: valor_linea = `details[].total` de esa línea (IVA absorbido).
+   - Si todas las líneas van a la misma cuenta, consolida en una sola entrada.
+   - El total de todas las líneas de gasto/costo debe ser:
+     * Emisor responsable de IVA  → igual al campo `subtotal` del documento.
+     * Emisor NO responsable de IVA → igual al campo `total` del documento (IVA absorbido en el costo).
 
-3. RETENCIÓN EN LA FUENTE (crédito) — solo si `retefuente` > 0:
-   - Cuenta: 2365xx según concepto (236515 honorarios, 236540 servicios, 236575 compras).
-   - Valor: campo `retefuente` del JSON.
-   - tercero = NIT del receptor (campo `receiver_nit`).
+B. IVA DESCONTABLE (débito) — cuenta 240810:
+   - SOLO si `issuer_tipo_contribuyente` indica responsable de IVA Y `total_taxes` > 0.
+   - Valor exacto: `total_taxes`.
+   - Si el emisor NO es responsable de IVA, NO crees esta línea.
+   - Si `total_taxes` == 0, NO crees esta línea aunque el emisor sea responsable de IVA.
 
-4. RETENCIÓN ICA (crédito) — solo si `reteica` > 0:
-   - Cuenta: 236802 "ReteICA"
-   - Valor: campo `reteica` del JSON.
-   - tercero = NIT del receptor (campo `receiver_nit`).
+C. RETENCIÓN EN LA FUENTE (crédito) — solo si `retefuente` > 0:
+   - Cuenta 2365xx según concepto (236515 honorarios, 236540 servicios, 236575 compras).
+   - Valor exacto: `retefuente`.
+   - tercero: `receiver_nit`.
 
-5. CUENTAS POR PAGAR — proveedor (crédito principal):
-   - Si el JSON tiene `issuer_account_number`, usa ESA cuenta exacta.
-   - Si no, usa 220500 (proveedores nacionales) u otra cuenta CxP apropiada.
-   - Valor = total - retefuente - reteica.
-   - tercero = NIT del emisor (campo `issuer_nit`). USA SIEMPRE EL NIT, NUNCA EL NOMBRE.
+D. RETENCIÓN ICA (crédito) — solo si `reteica` > 0:
+   - Cuenta 236802.
+   - Valor exacto: `reteica`.
+   - tercero: `receiver_nit`.
 
-== REGLAS OBLIGATORIAS ==
-- Partida doble: suma(debito) = suma(credito). SIEMPRE. Verifica antes de responder.
+E. CUENTAS POR PAGAR — proveedor (crédito):
+   - Cuenta: `issuer_account_number` si existe; si no, 220500.
+   - Valor exacto: total - retefuente - reteica.
+   - tercero: `issuer_nit`. USA SIEMPRE EL NIT, NUNCA EL NOMBRE.
+
+== PASO 2 — VERIFICAR PARTIDA DOBLE ANTES DE RESPONDER ==
+Calcula:
+  TOTAL_DEBITOS  = suma de todos los campos `debito`
+  TOTAL_CREDITOS = suma de todos los campos `credito`
+
+Si TOTAL_DEBITOS ≠ TOTAL_CREDITOS:
+  - Identifica la línea de gasto/costo con mayor valor.
+  - Ajusta su valor sumando o restando la diferencia exacta hasta que cuadren.
+  - NO crees líneas adicionales de ajuste o redondeo.
+
+El asiento final debe cumplir: TOTAL_DEBITOS == TOTAL_CREDITOS == `total`.
+
+== REGLAS ==
+- Partida doble obligatoria: sum(debito) == sum(credito). Verifica siempre.
 - Cada línea: debito > 0 y credito = 0, O credito > 0 y debito = 0. Nunca ambos > 0.
-- Montos con máximo 2 decimales. Usa valores del JSON, nunca de las referencias RAG.
-- Campo `tercero`: usa siempre el NIT (número sin puntos ni guiones), nunca el nombre.
-- Campo `centro_costo`: asigna según contexto RAG si hay referencia similar; de lo contrario null.
-- El RAG es solo referencia para inferir cuentas y centros de costo; los valores vienen del JSON.
+- Máximo 2 decimales. Usa valores del JSON; los del RAG son solo referencia de cuentas.
+- Campo `tercero`: NIT sin puntos ni guiones, nunca el nombre.
+- Campo `centro_costo`: asigna según RAG si hay referencia similar; null si no.
 """
 
 _ACCOUNTING_JSON_SCHEMA = {
@@ -110,18 +147,20 @@ class GenerateAccountingEntryUseCase:
     def __init__(
         self,
         ai_service: AIServicePort,
-        rag_client: RagClientPort,
         document_client: DocumentClient,
         accounting_repo: AccountingRepository,
         system_prompt_repo: SystemPromptRepository,
         catalog_client: Optional[CatalogClient] = None,
+        chart_account_repo: Optional[ChartAccountRepository] = None,
     ):
         self._ai = ai_service
-        self._rag = rag_client
         self._doc_client = document_client
         self._catalog_client = catalog_client
         self._accounting_repo = accounting_repo
         self._prompt_repo = system_prompt_repo
+        self._chart_account_repo = chart_account_repo
+        self._chart_account_provider = os.getenv("INTEGRATION_CHART_ACCOUNT_PROVIDER", "siigo").strip().lower()
+        self._chart_account_key = os.getenv("INTEGRATION_CHART_ACCOUNT_KEY", "default").strip()
 
     async def execute(self, request: GenerateAccountingRequest) -> AccountingEntryResponse:
         # 1. Obtener documento
@@ -141,11 +180,13 @@ class GenerateAccountingEntryUseCase:
                     document = dict(document)
                     document["issuer_account_number"] = issuer_data.get("account_number") or None
                     document["issuer_tipo_contribuyente"] = issuer_data.get("tipo_contribuyente") or None
+                    document["issuer_notes"] = issuer_data.get("notes") or None
                     logger.info(
-                        "Emisor enriquecido: NIT=%s cuenta=%s tipo=%s",
+                        "Emisor enriquecido: NIT=%s cuenta=%s tipo=%s notes=%s",
                         issuer_nit,
                         document["issuer_account_number"],
                         document["issuer_tipo_contribuyente"],
+                        document["issuer_notes"],
                     )
             except Exception as e:
                 logger.warning("No se pudo enriquecer emisor NIT=%s: %s", issuer_nit, e)
@@ -165,115 +206,107 @@ class GenerateAccountingEntryUseCase:
                 len(cost_centers), len(puc_accounts), len(retefuente_rates),
             )
 
+        chart_accounts = self._get_registered_chart_accounts()
+        if chart_accounts:
+            puc_accounts = chart_accounts
+            logger.info(
+                "Plan de cuentas validado desde integration_chart_accounts: %d cuentas provider=%s account_key=%s",
+                len(chart_accounts),
+                self._chart_account_provider,
+                self._chart_account_key,
+            )
+
         # 4. Obtener system prompt activo
         active_prompt = self._prompt_repo.get_active()
         system_prompt_text = active_prompt.content if active_prompt else _DEFAULT_SYSTEM_PROMPT
         system_prompt_id = active_prompt.id if active_prompt else None
 
-        # 5. Buscar facturas similares en RAG como referencia.
-        # Para el comparativo se usan hasta las primeras 3 líneas disponibles y no el total,
-        # porque el monto puede variar aunque la naturaleza contable sea la misma.
-        detail_descriptions = " ".join(
-            d.get("description", "") for d in document.get("details", [])[:3]
+        # 5. Buscar asientos históricos similares en la base de datos (últimos 12 meses, mismo NIT).
+        # Se recuperan hasta 50 candidatos y se rankean por similitud textual de descripciones.
+        historical_candidates = self._accounting_repo.find_historical_by_issuer(
+            issuer_nit=issuer_nit,
+            months_back=12,
+            limit=50,
         )
-        query_for_rag = (
-            f"Factura emisor {document.get('issuer_name', '')} "
-            f"conceptos: {detail_descriptions}"
-        )
-        try:
-            rag_chunks = await self._rag.search(query_for_rag, top_k=request.top_k)
-        except Exception as e:
-            logger.warning(
-                "RAG no disponible para causación doc_id=%d; se invocará OpenAI sin ejemplos: %s",
-                request.document_id,
-                e,
-            )
-            rag_chunks = []
         logger.info(
-            "RAG: %d chunks recuperados para causación doc_id=%d",
-            len(rag_chunks), request.document_id
+            "Histórico DB: %d candidatos para NIT=%s doc_id=%d",
+            len(historical_candidates), issuer_nit, request.document_id,
         )
+
+        current_descriptions = " ".join(
+            d.get("description", "") for d in document.get("details", [])
+        )
+        if historical_candidates and current_descriptions.strip():
+            historical_candidates = sorted(
+                historical_candidates,
+                key=lambda e: self._word_overlap(
+                    current_descriptions,
+                    " ".join(l.get("descripcion", "") or "" for l in e["lines"]),
+                ),
+                reverse=True,
+            )
+
+        historical_entries = historical_candidates[:request.top_k]
+
+        if not historical_entries:
+            logger.info(
+                "Sin históricos en DB para NIT=%s; el LLM usará solo system prompt, catálogo y JSON.",
+                issuer_nit,
+            )
 
         # 6. Construir prompt de usuario
         doc_json = json.dumps(document, ensure_ascii=False, default=str, indent=2)
 
-        # Separar chunks por tipo — P4: umbral mínimo 0.75 en históricos para evitar ruido
-        historical_chunks = [
-            c for c in rag_chunks
-            if c.get("source_type") == "historical_entry" and float(c.get("similarity") or 0) >= 0.75
-        ]
-        # Evitar feedback loop: solo usa asientos generados si la similitud es realmente alta.
-        generated_chunks = [
-            c for c in rag_chunks
-            if c.get("source_type") == "generated_entry" and float(c.get("similarity") or 0) >= 0.92
-        ]
-        invoice_chunks = [c for c in rag_chunks if c.get("source_type") == "invoice"]
-
-        rag_prompt = ""
-        # IMPORTANTE: el RAG se usa SOLO para inferir la distribución contable (cuentas PUC,
-        # débitos/créditos, centros de costo). Los valores monetarios vienen exclusivamente
-        # del JSON de la factura a causar.
-        if historical_chunks:
+        historical_prompt = ""
+        if historical_entries:
             hist_refs = "\n\n".join(
-                f"[Asiento histórico {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
-                for i, c in enumerate(historical_chunks)
+                f"[Asiento histórico {i+1} — {e['created_at'][:10]}]\n"
+                + "\n".join(
+                    f"  Cuenta: {l['cuenta']} {l['nombre']}"
+                    + (f" | CC: {l['centro_costo']}" if l.get("centro_costo") else "")
+                    + (f" | Desc: {l['descripcion']}" if l.get("descripcion") else "")
+                    for l in e["lines"]
+                )
+                for i, e in enumerate(historical_entries)
             )
-            rag_prompt += (
-                "ASIENTOS HISTÓRICOS DE REFERENCIA (Odoo)\n"
-                "(usa SOLO para inferir qué cuentas PUC, débitos/créditos y centros de costo aplicar —\n"
-                " los valores monetarios debes tomarlos del JSON de la factura):\n"
+            historical_prompt = (
+                "ASIENTOS HISTÓRICOS DE REFERENCIA (base de datos interna)\n"
+                "(usa SOLO para inferir la distribución de cuentas PUC y centros de costo —\n"
+                " NO copies valores monetarios; tómalos exclusivamente del JSON de la factura.\n"
+                " Si los históricos muestran distribuciones distintas para la misma naturaleza\n"
+                " de gasto, elige la distribución más apropiada al contexto de esta factura):\n"
                 f"{hist_refs}\n\n"
-            )
-
-        if generated_chunks:
-            gen_refs = "\n\n".join(
-                f"[Causación previa {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
-                for i, c in enumerate(generated_chunks)
-            )
-            rag_prompt += (
-                "CAUSACIONES PREVIAS DEL SISTEMA\n"
-                "(asientos generados anteriormente para facturas similares —\n"
-                " usa SOLO para inferir la distribución contable, no los valores):\n"
-                f"{gen_refs}\n\n"
-            )
-
-        if invoice_chunks:
-            inv_refs = "\n\n".join(
-                f"[Ref {i+1} — similitud {c['similarity']:.2%}]\n{c['content']}"
-                for i, c in enumerate(invoice_chunks)
-            )
-            rag_prompt += (
-                "FACTURAS DE REFERENCIA\n"
-                "(usa SOLO para inferir la distribución contable, no los valores):\n"
-                f"{inv_refs}\n\n"
-            )
-
-        if not rag_prompt:
-            logger.info(
-                "Sin coincidencias RAG útiles para doc_id=%d; OpenAI usará solo system prompt, catálogo y JSON del documento.",
-                request.document_id,
             )
 
         catalog_prompt = self._build_catalog_prompt(cost_centers, puc_accounts, retefuente_rates)
 
+        issuer_notes = document.get("issuer_notes")
+        issuer_notes_block = (
+            f"== REGLA ESPECIFICA PARA ESTE PROVEEDOR — PRIORIDAD MAXIMA ==\n"
+            f"{issuer_notes}\n"
+            f"Esta instruccion tiene PRIORIDAD sobre el catalogo de cuentas y sobre el historico. "
+            f"Aplica LITERALMENTE al determinar la cuenta de gasto/costo.\n\n"
+        ) if issuer_notes else ""
+
         user_prompt = (
             f"{catalog_prompt}"
-            f"{rag_prompt}"
+            f"{issuer_notes_block}"
+            f"{historical_prompt}"
             f"FACTURA A CAUSAR (JSON):\n{doc_json}\n\n"
             f"Genera el asiento contable de causación para la factura anterior. "
             f"Usa los valores monetarios del JSON de la factura, no los de las referencias. "
             f"Devuelve únicamente JSON válido con la clave 'entries'."
         )
 
-        # Snapshot del contexto RAG para auditoría (qué fuentes se usaron y su similitud)
-        rag_context_snapshot = [
+        # Snapshot de los históricos usados como referencia (para auditoría)
+        historical_context_snapshot = [
             {
-                "source_type": c.get("source_type"),
-                "source_id": c.get("source_id"),
-                "similarity": c.get("similarity"),
-                "content": c.get("content"),
+                "source_type": "db_historical_entry",
+                "source_id": e["entry_id"],
+                "created_at": e["created_at"],
+                "lines": e["lines"],
             }
-            for c in rag_chunks
+            for e in historical_entries
         ]
 
         # 7. Llamar al LLM
@@ -290,37 +323,42 @@ class GenerateAccountingEntryUseCase:
             # 8. Parsear JSON de la respuesta
             parsed = self._parse_entries(raw_response)
             parsed = self._normalize_entries(parsed)
+            logger.info(
+                "LLM entries before validation doc_id=%d: %s",
+                request.document_id,
+                json.dumps(parsed, ensure_ascii=False),
+            )
+            parsed = self._validate_cxp_side(parsed)
+            parsed = self._validate_cxp_exists(parsed)
+            parsed = self._correct_cxp_value(parsed, document)
+            parsed = self._strip_zero_iva_lines(parsed, document)
+            parsed = self._validate_gasto_vs_subtotal(parsed, document)
+            parsed = self._validate_tax_entries(parsed, document)
             parsed = self._validate_and_repair_entries(parsed)
+            parsed = self._validate_registered_accounts(parsed, chart_accounts)
 
             entry = AccountingEntry(
                 document_id=request.document_id,
+                issuer_nit=issuer_nit or None,
+                issuer_name=document.get("issuer_name") or None,
                 system_prompt_id=system_prompt_id,
                 model_used=request.model,
                 status="generated",
-                rag_context=rag_context_snapshot,
+                rag_context=historical_context_snapshot,
             )
             saved = self._accounting_repo.create(entry, lines_data=parsed)
-
-            # Indexar el asiento generado en RAG para futuras causaciones. Es best-effort:
-            # un fallo de indexación no debe convertir una causación ya guardada en error.
-            try:
-                chunk_content = self._build_entry_chunk(document, saved, parsed)
-                await self._rag.index_chunk(
-                    source_type="generated_entry",
-                    source_id=saved.id,
-                    content=chunk_content,
-                )
-            except Exception as e:
-                logger.warning("No se pudo indexar causación generada entry_id=%s: %s", saved.id, e)
+            self._accounting_repo.link_to_document(request.document_id, saved.id)
         except Exception as e:
             logger.error("Error generando causación para doc_id=%d: %s", request.document_id, e)
             entry = AccountingEntry(
                 document_id=request.document_id,
+                issuer_nit=issuer_nit or None,
+                issuer_name=document.get("issuer_name") or None,
                 system_prompt_id=system_prompt_id,
                 model_used=request.model,
                 status="error",
                 error_message=str(e),
-                rag_context=rag_context_snapshot,
+                rag_context=historical_context_snapshot,
             )
             saved = self._accounting_repo.create(entry, lines_data=[])
 
@@ -346,9 +384,30 @@ class GenerateAccountingEntryUseCase:
             puc_lines = "\n".join(f"  {a['code']} — {a['name']}" for a in puc_accounts)
             parts.append(
                 "== CUENTAS PUC CONFIGURADAS PARA ESTA EMPRESA ==\n"
-                "Usa PREFERENTEMENTE estas cuentas (están validadas). "
-                "Solo usa cuentas fuera de esta lista si el concepto no tiene equivalente:\n"
+                "Usa UNICAMENTE estas cuentas; la causación será rechazada si incluye "
+                "cuentas no registradas o inactivas en el sistema:\n"
                 f"{puc_lines}"
+            )
+
+            # Identificar cuenta CxP por defecto para proveedores nacionales
+            cxp_accounts = [a for a in puc_accounts if str(a.get("code", "")).startswith("22")]
+            nacional_cxp = next(
+                (a for a in cxp_accounts if "nacional" in (a.get("name") or "").lower()),
+                cxp_accounts[0] if cxp_accounts else None,
+            )
+            if nacional_cxp:
+                parts.append(
+                    "== CUENTA CxP POR DEFECTO ==\n"
+                    "Cuando el proveedor NO tiene cuenta CxP asignada en `issuer_account_number`, "
+                    f"usa OBLIGATORIAMENTE: {nacional_cxp['code']} — {nacional_cxp['name']}. "
+                    "NO uses 220500 ni ninguna otra cuenta que no esté en el plan configurado."
+                )
+        else:
+            parts.append(
+                "== CUENTAS PUC ==\n"
+                "No hay plan de cuentas configurado para esta empresa. "
+                "Usa tu criterio de experto en contabilidad colombiana (PUC) "
+                "para asignar las cuentas más apropiadas según la naturaleza del gasto."
             )
 
         if retefuente_rates:
@@ -366,21 +425,14 @@ class GenerateAccountingEntryUseCase:
 
         return "\n\n".join(parts) + "\n\n" if parts else ""
 
-    def _build_entry_chunk(self, document: dict, entry, lines: list) -> str:
-        """Construye el texto a indexar en RAG para una causación generada por el sistema."""
-        header = (
-            f"Causación {document.get('document_number', '')} | "
-            f"Fecha: {document.get('date', '')} | "
-            f"Emisor: {document.get('issuer_name', '')} NIT {document.get('issuer_nit', '')} | "
-            f"Total: {document.get('total', '')}"
-        )
-        line_texts = "\n".join(
-            f"  {l.get('cuenta', '')} {l.get('nombre', '')} | "
-            f"Débito: {l.get('debito', 0)} | Crédito: {l.get('credito', 0)} | "
-            f"CC: {l.get('centro_costo', '') or ''} | Desc: {l.get('descripcion', '') or ''}"
-            for l in lines
-        )
-        return f"{header}\nLíneas contables:\n{line_texts}"
+    @staticmethod
+    def _word_overlap(text_a: str, text_b: str) -> float:
+        """Similitud de Jaccard sobre tokens para rankear históricos por naturaleza del gasto."""
+        words_a = set(text_a.lower().split())
+        words_b = set(text_b.lower().split())
+        if not words_a or not words_b:
+            return 0.0
+        return len(words_a & words_b) / len(words_a | words_b)
 
     def _parse_entries(self, raw: str) -> list:
         """Extrae el JSON de la respuesta del LLM, tolerando texto extra."""
@@ -424,6 +476,177 @@ class GenerateAccountingEntryUseCase:
             )
         return normalized
 
+    def _correct_cxp_value(self, entries: list[dict], document: dict) -> list[dict]:
+        """Corrige el valor de la línea CxP cuando el LLM olvidó restar las retenciones.
+        CxP esperado = total - retefuente - reteica."""
+        total = float(document.get("total") or 0)
+        retefuente = float(document.get("retefuente") or 0)
+        reteica = float(document.get("reteica") or 0)
+        expected_cxp = self._to_money(total - retefuente - reteica)
+
+        cxp_lines = [
+            e for e in entries
+            if str(e.get("cuenta", "")).startswith("22") and float(e.get("credito") or 0) > 0
+        ]
+        if not cxp_lines:
+            return entries
+
+        actual_cxp = self._to_money(sum(float(e["credito"]) for e in cxp_lines))
+        if math.isclose(actual_cxp, expected_cxp, abs_tol=0.01):
+            return entries
+
+        logger.warning(
+            "CxP incorrecto: LLM generó credito=%.2f pero expected=%.2f (retenciones no restadas). Corrigiendo.",
+            actual_cxp, expected_cxp,
+        )
+
+        accumulated = 0.0
+        for i, e in enumerate(cxp_lines):
+            if i < len(cxp_lines) - 1:
+                new_val = self._to_money(float(e["credito"]) * (expected_cxp / actual_cxp))
+                e["credito"] = new_val
+                accumulated += new_val
+            else:
+                e["credito"] = self._to_money(expected_cxp - accumulated)
+
+        return entries
+
+    def _validate_cxp_side(self, entries: list[dict]) -> list[dict]:
+        """
+        Las cuentas CxP (220xxx / 221xxx) siempre van al crédito.
+        Si el LLM las colocó en débito, se corrigen automáticamente.
+        """
+        for e in entries:
+            cuenta = str(e.get("cuenta", ""))
+            if (
+                cuenta[:3] in ("220", "221")
+                and float(e.get("debito") or 0) > 0
+                and float(e.get("credito") or 0) == 0
+            ):
+                logger.warning(
+                    "CxP cuenta %s generada en débito — corrigiendo a crédito automáticamente.", cuenta
+                )
+                e["credito"] = e["debito"]
+                e["debito"] = 0.0
+        return entries
+
+    def _validate_cxp_exists(self, entries: list[dict]) -> list[dict]:
+        """Verifica que exista al menos una línea de CxP (22xxxx) en el crédito."""
+        has_cxp = any(
+            str(e.get("cuenta", "")).startswith("22") and float(e.get("credito") or 0) > 0
+            for e in entries
+        )
+        if not has_cxp:
+            raise ValueError(
+                "El asiento no contiene una línea de cuentas por pagar (22xxxx) en el crédito "
+                "con el valor neto a pagar al proveedor."
+            )
+        return entries
+
+    def _validate_tax_entries(self, entries: list[dict], document: dict) -> list[dict]:
+        """Verifica que existan líneas de retención cuando retefuente/reteica > 0."""
+        retefuente = float(document.get("retefuente") or 0)
+        reteica = float(document.get("reteica") or 0)
+
+        if retefuente > 0:
+            has_retefuente = any(
+                str(e.get("cuenta", "")).startswith("2365") and float(e.get("credito") or 0) > 0
+                for e in entries
+            )
+            if not has_retefuente:
+                raise ValueError(
+                    f"El documento tiene retefuente={retefuente:.2f} pero no hay línea de "
+                    "retención en la fuente (2365xx) en el crédito."
+                )
+
+        if reteica > 0:
+            has_reteica = any(
+                str(e.get("cuenta", "")).startswith("2368") and float(e.get("credito") or 0) > 0
+                for e in entries
+            )
+            if not has_reteica:
+                raise ValueError(
+                    f"El documento tiene reteica={reteica:.2f} pero no hay línea de "
+                    "retención ICA (2368xx) en el crédito."
+                )
+
+        return entries
+
+    def _strip_zero_iva_lines(self, entries: list[dict], document: dict) -> list[dict]:
+        """Elimina líneas 2408xx en débito cuando total_taxes == 0 para prevenir alucinaciones del LLM."""
+        total_taxes = float(document.get("total_taxes") or 0)
+        if total_taxes > 0:
+            return entries
+        cleaned = [
+            e for e in entries
+            if not (str(e.get("cuenta", "")).startswith("2408") and float(e.get("debito") or 0) > 0)
+        ]
+        if len(cleaned) < len(entries):
+            logger.warning(
+                "Se eliminaron %d línea(s) 2408xx con total_taxes=0 (alucinación del LLM).",
+                len(entries) - len(cleaned),
+            )
+        return cleaned
+
+    def _validate_gasto_vs_subtotal(self, entries: list[dict], document: dict) -> list[dict]:
+        """
+        Valida y corrige la suma de las líneas de gasto/costo:
+        - Con IVA (línea 2408xx en débito): gasto debe == total - total_taxes.
+          Se usa esta fórmula (no el campo subtotal) porque el XML de DIAN puede
+          traer subtotal inconsistente con total y total_taxes.
+        - Sin IVA: gasto debe == total.
+        Si el LLM distribuyó mal los montos, redistribuye proporcionalmente.
+        Cuentas de control: 2408xx (IVA), 2xxxxx (pasivos/CxP/retenciones).
+        """
+        _IVA_PREFIX = "2408"
+        _PASIVO_PREFIXES = ("2",)
+
+        has_iva_debit = any(
+            str(e.get("cuenta", "")).startswith(_IVA_PREFIX) and float(e.get("debito") or 0) > 0
+            for e in entries
+        )
+
+        # Con IVA → target es total - total_taxes (evita usar subtotal que puede ser inconsistente en el XML)
+        # Sin IVA → target es total
+        total = float(document.get("total") or 0)
+        total_taxes = float(document.get("total_taxes") or 0)
+        target = self._to_money(total - total_taxes) if has_iva_debit else total
+        if not target:
+            return entries
+
+        def is_gasto(e: dict) -> bool:
+            cuenta = str(e.get("cuenta", ""))
+            debito = float(e.get("debito") or 0)
+            return debito > 0 and not cuenta.startswith(_IVA_PREFIX) and not cuenta.startswith(_PASIVO_PREFIXES)
+
+        gasto_entries = [e for e in entries if is_gasto(e)]
+        if not gasto_entries:
+            return entries
+
+        sum_gasto = sum(float(e["debito"]) for e in gasto_entries)
+        if math.isclose(sum_gasto, target, abs_tol=0.01):
+            return entries
+
+        logger.warning(
+            "Gasto incorrecto: LLM generó sum_gasto=%.2f pero target=%.2f (has_iva=%s). "
+            "Redistribuyendo proporcionalmente.",
+            sum_gasto, target, has_iva_debit,
+        )
+
+        # Redistribuir proporcionalmente al target
+        factor = target / sum_gasto
+        accumulated = 0.0
+        for i, e in enumerate(gasto_entries):
+            if i < len(gasto_entries) - 1:
+                new_val = self._to_money(float(e["debito"]) * factor)
+                e["debito"] = new_val
+                accumulated += new_val
+            else:
+                # Última línea absorbe el residuo para garantizar suma exacta
+                e["debito"] = self._to_money(target - accumulated)
+
+        return entries
+
     def _validate_and_repair_entries(self, entries: list[dict]) -> list[dict]:
         if len(entries) < 2:
             raise ValueError("El asiento debe contener al menos 2 líneas.")
@@ -452,10 +675,14 @@ class GenerateAccountingEntryUseCase:
         if math.isclose(diff, 0.0, abs_tol=0.01):
             return repaired
 
+        if abs(diff) > 0.03:
+            raise ValueError(
+                f"El asiento no cuadra y la diferencia ({abs(diff):.2f} pesos) supera el máximo "
+                "de ajuste permitido (0.03 pesos). Revise los valores del asiento."
+            )
+
         # Reparación determinística: agregar línea de ajuste por redondeo.
         # Cuenta configurable por variable de entorno; fallback genérico.
-        import os
-
         adj_account = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT", "539520")
         adj_name = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT_NAME", "Ajuste por redondeo")
         adj_line = {
@@ -488,3 +715,70 @@ class GenerateAccountingEntryUseCase:
             v = 0.0
         # Normalizar a 2 decimales
         return round(v + 1e-12, 2)
+
+    def _get_registered_chart_accounts(self) -> list[dict]:
+        if not self._chart_account_repo:
+            return []
+        try:
+            return self._chart_account_repo.list_active(
+                provider=self._chart_account_provider,
+                account_key=self._chart_account_key,
+            )
+        except Exception as e:
+            raise ValueError(
+                "No fue posible consultar integration_chart_accounts para validar el plan de cuentas."
+            ) from e
+
+    def _validate_registered_accounts(self, entries: list[dict], chart_accounts: list[dict]) -> list[dict]:
+        if not chart_accounts:
+            return entries
+
+        account_map = {str(a["code"]).strip(): a for a in chart_accounts}
+
+        # Fallbacks por categoría cuando el LLM usa un código no registrado.
+        # Orden de prefijos: de más específico a más general.
+        _CATEGORY_FALLBACKS = [
+            ("2365", os.getenv("FALLBACK_RETEFUENTE_ACCOUNT", "23659501")),
+            ("2368", os.getenv("FALLBACK_RETEICA_ACCOUNT", "23689501")),
+            ("236",  os.getenv("FALLBACK_RETENCION_ACCOUNT", "23659501")),
+            ("22",   os.getenv("FALLBACK_CXP_ACCOUNT", "22050501")),
+            ("5",    os.getenv("FALLBACK_GASTO_ACCOUNT", "51999999")),
+            ("6",    os.getenv("FALLBACK_COSTO_ACCOUNT", "61999999")),
+        ]
+
+        # Las líneas de ajuste por redondeo las genera el sistema, no el LLM;
+        # no deben fallar validación aunque la cuenta no esté en el plan configurado.
+        llm_entries = [e for e in entries if e.get("descripcion") != "Ajuste por redondeo (autogenerado)"]
+
+        missing_uncorrected: list[str] = []
+        for entry in llm_entries:
+            code = str(entry.get("cuenta") or "").strip()
+            if code in account_map:
+                entry["nombre"] = account_map[code].get("name") or entry["nombre"]
+                continue
+
+            # Buscar fallback por categoría
+            fallback_code = None
+            for prefix, fb in _CATEGORY_FALLBACKS:
+                if code.startswith(prefix) and fb in account_map:
+                    fallback_code = fb
+                    break
+
+            if fallback_code:
+                logger.warning(
+                    "Cuenta %s no registrada → sustituyendo por fallback %s (%s).",
+                    code, fallback_code, account_map[fallback_code].get("name"),
+                )
+                entry["cuenta"] = fallback_code
+                entry["nombre"] = account_map[fallback_code].get("name") or entry["nombre"]
+            else:
+                missing_uncorrected.append(code)
+
+        if missing_uncorrected:
+            raise ValueError(
+                "La causación contiene cuentas no registradas o inactivas en "
+                "integration_chart_accounts: "
+                + ", ".join(sorted(set(missing_uncorrected)))
+            )
+
+        return entries

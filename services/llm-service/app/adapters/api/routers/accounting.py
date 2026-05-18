@@ -7,17 +7,21 @@ from app.application.dto.accounting import (
     DocumentWithAccountingResponse,
     RecalculateAccountingBatchRequest,
     RecalculateAccountingBatchResponse,
+    RecalculateAccountingDocumentRequest,
+    RecalculateAccountingItemResult,
     SystemPromptRequest,
     SystemPromptResponse,
 )
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
 from app.application.use_cases.recalculate_accounting_batch import RecalculateAccountingBatchUseCase
+from app.application.use_cases.recalculate_accounting_document import RecalculateAccountingDocumentUseCase
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 from app.dependencies import (
     get_generate_accounting_use_case,
     get_query_accounting_use_case,
     get_recalculate_accounting_batch_use_case,
+    get_recalculate_accounting_document_use_case,
     get_system_prompt_repo,
 )
 
@@ -96,6 +100,31 @@ async def get_document_with_accounting(
 async def recalculate_accounting_batch(
     request: RecalculateAccountingBatchRequest,
     use_case: RecalculateAccountingBatchUseCase = Depends(get_recalculate_accounting_batch_use_case),
+):
+    return await use_case.execute(request)
+
+
+@router.post(
+    "/accounting/recalculate-document",
+    response_model=RecalculateAccountingItemResult,
+    summary="Recalcular causación contable por ID de documento",
+    description=(
+        "Recalcula la causación contable para una factura específica identificada por el `id` de la tabla `documents`.\n\n"
+        "**Flujo interno:**\n"
+        "1. Valida que el documento exista en xml-processor usando `document_id`.\n"
+        "2. Ejecuta el mismo proceso de `POST /api/v1/accounting/generate`.\n"
+        "3. Retorna el resultado del recálculo para ese documento.\n\n"
+        "Nota: este proceso crea un nuevo asiento (no reemplaza los anteriores)."
+    ),
+    response_description="Resultado del recálculo para el documento solicitado.",
+    responses={
+        404: {"description": "Documento no encontrado para el ID indicado."},
+        502: {"description": "Error de comunicación con xml-processor / OpenAI / rag-service."},
+    },
+)
+async def recalculate_accounting_document(
+    request: RecalculateAccountingDocumentRequest,
+    use_case: RecalculateAccountingDocumentUseCase = Depends(get_recalculate_accounting_document_use_case),
 ):
     return await use_case.execute(request)
 

@@ -78,7 +78,6 @@ class EntryLineResponse(EntryLine):
 
 class AccountingEntryResponse(BaseModel):
     id: int = Field(..., description="Identificador único del asiento contable.")
-    document_id: int = Field(..., description="ID del documento al que corresponde el asiento.")
     system_prompt_id: Optional[int] = Field(None, description="ID del system prompt utilizado para generar el asiento.")
     lines: List[EntryLineResponse] = Field(default_factory=list, description="Líneas del asiento contable (partida doble), cada una como registro independiente.")
     model_used: Optional[str] = Field(None, description="Modelo de OpenAI que generó el asiento.", examples=["gpt-4o-mini"])
@@ -119,6 +118,26 @@ class RecalculateAccountingBatchRequest(BaseModel):
                 "dateini": "2024-01-01",
                 "datefin": "2024-01-31",
                 "status_filter": "processed",
+                "top_k": 5,
+                "model": "gpt-4o-mini",
+            }
+        }
+    }
+
+
+class RecalculateAccountingDocumentRequest(BaseModel):
+    document_id: int = Field(
+        ...,
+        description="ID del documento en la tabla `documents` que se desea recalcular.",
+        examples=[1],
+    )
+    top_k: int = Field(default=5, ge=1, le=10, description="Número de chunks RAG a recuperar como contexto.")
+    model: str = Field(default="gpt-4o-mini", description="Modelo de OpenAI a utilizar.", examples=["gpt-4o-mini", "gpt-4o"])
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "document_id": 1,
                 "top_k": 5,
                 "model": "gpt-4o-mini",
             }
