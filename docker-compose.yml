@@ -15,6 +15,8 @@ services:
       - llm-service
       - session-proxy
       - odoo-service
+      - siigo-service
+      - integration-config-service
     networks:
       - abacus-network
     restart: unless-stopped
@@ -183,6 +185,52 @@ services:
         condition: service_healthy
       rag-service:
         condition: service_started
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Microservicio 6: SIIGO (credenciales, plan de cuentas y compras) ─────
+  siigo-service:
+    build:
+      context: ./services/siigo-service
+      dockerfile: Dockerfile
+    container_name: abacus_siigo_service
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./services/siigo-service/app:/app/app
+      - ./services/siigo-service/tests:/app/tests
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SIIGO_BASE_URL=${SIIGO_BASE_URL:-https://api.siigo.com}
+      - SIIGO_CHART_ACCOUNTS_PATH=${SIIGO_CHART_ACCOUNTS_PATH:-/v1/accounts}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8006 --reload
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Microservicio 7: Configuracion de integraciones externas ─────────────
+  integration-config-service:
+    build:
+      context: ./services/integration-config-service
+      dockerfile: Dockerfile
+    container_name: abacus_integration_config_service
+    ports:
+      - "8007:8007"
+    volumes:
+      - ./services/integration-config-service/app:/app/app
+      - ./services/integration-config-service/tests:/app/tests
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8007 --reload
+    depends_on:
+      database:
+        condition: service_healthy
     networks:
       - abacus-network
     restart: unless-stopped

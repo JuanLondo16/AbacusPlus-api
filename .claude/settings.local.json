@@ -13,7 +13,8 @@
       "Bash(docker-compose start:*)",
       "Bash(curl -s -X POST http://localhost:8000/api/v1/batch/process-downloads)",
       "Bash(python -m json.tool)",
-      "Bash(curl -s -X POST http://localhost:8001/api/v1/batch/process-downloads)"
+      "Bash(curl -s -X POST http://localhost:8001/api/v1/batch/process-downloads)",
+      "Bash(curl -s -X POST \"http://localhost:8000/api/v1/dian/documents/enqueue\" -H \"Content-Type: application/json\" -d \"{\\\\\"token\\\\\":\\\\\"f33ffec9-ef3c-43e6-bbe6-12766370a34c\\\\\",\\\\\"StartDate\\\\\":\\\\\"2026-05-01\\\\\",\\\\\"EndDate\\\\\":\\\\\"2026-05-18\\\\\"}\")"
     ]
   }
 }
