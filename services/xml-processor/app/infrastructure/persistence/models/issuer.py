@@ -15,4 +15,7 @@ class Issuer(Base):
     account_number = Column(String(50), nullable=True, default="")
     # Tipo de contribuyente / régimen (p.ej. "Responsable de IVA", "No responsable", etc.)
     tipo_contribuyente = Column(String(50), nullable=True)
+    # Reglas contables específicas de este proveedor para el LLM (texto libre).
+    # Ejemplo: "Este proveedor alquila equipos. Usar cuenta 513535 para todas sus facturas."
+    notes = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))

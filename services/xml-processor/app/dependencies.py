@@ -17,7 +17,10 @@ from app.infrastructure.queue.download_queue import get_queue
 from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
 from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
-from app.application.use_cases.query_documents import GetDocumentsByDateRangeUseCase, GetDocumentByIdUseCase
+from app.application.use_cases.query_documents import (
+    GetDocumentsByDateRangeUseCase,
+    GetDocumentByIdUseCase,
+)
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
 from app.application.use_cases.query_issuers import GetIssuerByNitUseCase
 from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase

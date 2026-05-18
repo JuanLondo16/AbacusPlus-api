@@ -14,3 +14,4 @@ class IssuerResponse(BaseModel):
     email: Optional[str] = None
     account_number: Optional[str] = None
     tipo_contribuyente: Optional[str] = None
+    notes: Optional[str] = None

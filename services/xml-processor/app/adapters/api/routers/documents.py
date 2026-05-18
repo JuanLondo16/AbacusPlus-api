@@ -9,7 +9,10 @@ from app.application.dto.document import (
     AccountingEntryData,
     AccountingLineResponse,
 )
-from app.application.use_cases.query_documents import GetDocumentsByDateRangeUseCase, GetDocumentByIdUseCase
+from app.application.use_cases.query_documents import (
+    GetDocumentsByDateRangeUseCase,
+    GetDocumentByIdUseCase,
+)
 from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
 from app.dependencies import (
     get_documents_by_date_range_use_case,

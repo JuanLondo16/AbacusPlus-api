@@ -41,6 +41,8 @@ class DocumentResponse(BaseModel):
     receiver_email: Optional[str] = None
     subtotal: float
     total_taxes: float
+    retefuente: float = 0.0
+    reteica: float = 0.0
     total: float
     register_at: datetime
     status: str

@@ -78,11 +78,21 @@ app.include_router(batch_router, prefix="/api/v1", tags=["batch"])
 logger.info("XML Processor Service started on port 8001")
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Health check del XML Processor",
+    description="Verifica que el microservicio de procesamiento XML esté activo.",
+    response_description="Estado operativo del servicio.",
+)
 async def health_check():
     return {"status": "healthy", "service": "xml-processor"}
 
 
-@app.get("/{path:path}")
+@app.get(
+    "/{path:path}",
+    summary="Ruta no encontrada",
+    description="Responde `404` para cualquier ruta no definida por el XML Processor.",
+    include_in_schema=False,
+)
 async def not_found(path: str):
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")
