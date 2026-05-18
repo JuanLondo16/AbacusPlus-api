@@ -49,6 +49,7 @@ class AccountingEntryRepository:
 
         fields = {
             "source_id": source_id,
+            "source": "odoo",
             "name": move_data.get("name") or None,
             "date": move_data.get("date") or None,
             "ref": move_data.get("ref") or None,

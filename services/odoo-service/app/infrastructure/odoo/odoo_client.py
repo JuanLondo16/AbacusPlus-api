@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class OdooXmlRpcClient(OdooClientPort):
     """
     Cliente XML-RPC para Odoo 17.
-    Extrae todos los tipos de asientos contables sin restricción por tipo de movimiento.
+    Extrae facturas de compra publicadas (move_type = in_invoice).
     """
 
     def __init__(self, url: str, db: str, username: str, password: str, timeout: int = 1200):
@@ -41,11 +41,11 @@ class OdooXmlRpcClient(OdooClientPort):
 
     def search_moves(self, date_from: str, date_to: str) -> List[dict]:
         """
-        Busca todos los asientos contables publicados en el rango de fechas dado,
-        sin restricción por tipo de movimiento. El campo move_type diferencia cada tipo.
+        Busca facturas de compra publicadas en el rango de fechas dado.
         """
         domain = [
             ["state", "=", "posted"],
+            ["move_type", "=", "in_invoice"],
             ["date", ">=", date_from],
             ["date", "<=", date_to],
         ]

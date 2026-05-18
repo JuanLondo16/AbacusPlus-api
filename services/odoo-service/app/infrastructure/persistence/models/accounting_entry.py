@@ -8,7 +8,8 @@ class AccountingEntry(Base):
     __tablename__ = "accounting_entries"
 
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(Integer, unique=True, nullable=False, index=True)
+    source_id = Column(Integer, unique=True, nullable=True, index=True)
+    source = Column(String(10), nullable=True, default="odoo")
     document_id = Column(Integer, nullable=True, index=True)  # ref a documents.id, sin FK cross-service
     name = Column(String(100), nullable=True)
     date = Column(Date, nullable=True, index=True)
@@ -40,7 +41,7 @@ class AccountingEntryLine(Base):
     __tablename__ = "accounting_entry_lines"
 
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(Integer, unique=True, nullable=False, index=True)
+    source_id = Column(Integer, unique=True, nullable=True, index=True)
     entry_id = Column(Integer, ForeignKey("accounting_entries.id", ondelete="CASCADE"), nullable=False, index=True)
     source_move_id = Column(Integer, nullable=True)
     sequence = Column(Integer, nullable=False, default=0)

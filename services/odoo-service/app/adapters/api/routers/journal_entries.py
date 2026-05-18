@@ -25,17 +25,11 @@ router = APIRouter()
     "/odoo/sync",
     response_model=SyncResponse,
     status_code=status.HTTP_200_OK,
-    summary="Sincronizar todos los asientos contables desde Odoo",
+    summary="Sincronizar facturas de compra desde Odoo",
     description=(
-        "Extrae **todos los tipos** de asientos contables en estado publicado "
+        "Extrae **facturas de compra** (`move_type = in_invoice`) en estado publicado "
         "para el rango de fechas indicado y los almacena en PostgreSQL.\n\n"
-        "El campo `move_type` diferencia el tipo de documento:\n"
-        "- `out_invoice` — Factura de venta\n"
-        "- `out_refund` — Nota crédito de venta\n"
-        "- `in_invoice` — Factura de compra\n"
-        "- `in_refund` — Nota crédito de compra\n"
-        "- `in_receipt` / `out_receipt` — Recibos\n"
-        "- `entry` — Asiento manual\n\n"
+        "La consulta aplica el filtro `move_type = in_invoice` directamente en Odoo.\n\n"
         "La operación es **idempotente**: si un asiento ya existe (por `source_id`), "
         "se actualizan sus campos y se recrean sus líneas.\n\n"
         "Las líneas incluyen `cost_center` cuando el asiento tiene distribución analítica."
