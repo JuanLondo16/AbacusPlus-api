@@ -161,6 +161,16 @@ class GenerateAccountingEntryUseCase:
         self._chart_account_repo = chart_account_repo
         self._chart_account_provider = os.getenv("INTEGRATION_CHART_ACCOUNT_PROVIDER", "siigo").strip().lower()
         self._chart_account_key = os.getenv("INTEGRATION_CHART_ACCOUNT_KEY", "default").strip()
+        self._adj_account = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT", "539520")
+        self._adj_name = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT_NAME", "Ajuste por redondeo")
+        self._fallback_accounts = [
+            ("2365", os.getenv("FALLBACK_RETEFUENTE_ACCOUNT", "23659501")),
+            ("2368", os.getenv("FALLBACK_RETEICA_ACCOUNT", "23689501")),
+            ("236",  os.getenv("FALLBACK_RETENCION_ACCOUNT", "23659501")),
+            ("22",   os.getenv("FALLBACK_CXP_ACCOUNT", "22050501")),
+            ("5",    os.getenv("FALLBACK_GASTO_ACCOUNT", "51999999")),
+            ("6",    os.getenv("FALLBACK_COSTO_ACCOUNT", "61999999")),
+        ]
 
     async def execute(self, request: GenerateAccountingRequest) -> AccountingEntryResponse:
         # 1. Obtener documento
@@ -323,7 +333,7 @@ class GenerateAccountingEntryUseCase:
             # 8. Parsear JSON de la respuesta
             parsed = self._parse_entries(raw_response)
             parsed = self._normalize_entries(parsed)
-            logger.info(
+            logger.debug(
                 "LLM entries before validation doc_id=%d: %s",
                 request.document_id,
                 json.dumps(parsed, ensure_ascii=False),
@@ -500,10 +510,11 @@ class GenerateAccountingEntryUseCase:
             actual_cxp, expected_cxp,
         )
 
+        factor = expected_cxp / actual_cxp
         accumulated = 0.0
         for i, e in enumerate(cxp_lines):
             if i < len(cxp_lines) - 1:
-                new_val = self._to_money(float(e["credito"]) * (expected_cxp / actual_cxp))
+                new_val = self._to_money(float(e["credito"]) * factor)
                 e["credito"] = new_val
                 accumulated += new_val
             else:
@@ -681,13 +692,9 @@ class GenerateAccountingEntryUseCase:
                 "de ajuste permitido (0.03 pesos). Revise los valores del asiento."
             )
 
-        # Reparación determinística: agregar línea de ajuste por redondeo.
-        # Cuenta configurable por variable de entorno; fallback genérico.
-        adj_account = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT", "539520")
-        adj_name = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT_NAME", "Ajuste por redondeo")
         adj_line = {
-            "cuenta": adj_account,
-            "nombre": adj_name,
+            "cuenta": self._adj_account,
+            "nombre": self._adj_name,
             "debito": 0.0,
             "credito": 0.0,
             "tercero": None,
@@ -735,17 +742,6 @@ class GenerateAccountingEntryUseCase:
 
         account_map = {str(a["code"]).strip(): a for a in chart_accounts}
 
-        # Fallbacks por categoría cuando el LLM usa un código no registrado.
-        # Orden de prefijos: de más específico a más general.
-        _CATEGORY_FALLBACKS = [
-            ("2365", os.getenv("FALLBACK_RETEFUENTE_ACCOUNT", "23659501")),
-            ("2368", os.getenv("FALLBACK_RETEICA_ACCOUNT", "23689501")),
-            ("236",  os.getenv("FALLBACK_RETENCION_ACCOUNT", "23659501")),
-            ("22",   os.getenv("FALLBACK_CXP_ACCOUNT", "22050501")),
-            ("5",    os.getenv("FALLBACK_GASTO_ACCOUNT", "51999999")),
-            ("6",    os.getenv("FALLBACK_COSTO_ACCOUNT", "61999999")),
-        ]
-
         # Las líneas de ajuste por redondeo las genera el sistema, no el LLM;
         # no deben fallar validación aunque la cuenta no esté en el plan configurado.
         llm_entries = [e for e in entries if e.get("descripcion") != "Ajuste por redondeo (autogenerado)"]
@@ -759,7 +755,7 @@ class GenerateAccountingEntryUseCase:
 
             # Buscar fallback por categoría
             fallback_code = None
-            for prefix, fb in _CATEGORY_FALLBACKS:
+            for prefix, fb in self._fallback_accounts:
                 if code.startswith(prefix) and fb in account_map:
                     fallback_code = fb
                     break

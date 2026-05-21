@@ -16,7 +16,7 @@ class SiigoApiClient:
     def authenticate(self) -> Dict[str, Any]:
         try:
             response = httpx.post(
-                f"{self.base_url}/v1/auth",
+                f"{self.base_url}/auth/access-token",
                 json={
                     "username": self.credential.username,
                     "access_key": self.credential.access_key,
@@ -68,6 +68,24 @@ class SiigoApiClient:
         if isinstance(data, list):
             return {"results": data}
         return data
+
+    def post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        url = f"{self.base_url}/{path.lstrip('/')}"
+        try:
+            response = httpx.post(url, json=payload, headers=self._base_headers(), timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            body = ""
+            try:
+                body = exc.response.text
+            except Exception:
+                pass
+            raise SiigoConnectionException(
+                f"SIIGO returned status {exc.response.status_code} for POST {path}: {body}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise SiigoConnectionException(f"Could not POST to SIIGO endpoint {path}: {exc}") from exc
 
     def _base_headers(self, include_auth: bool = True) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}

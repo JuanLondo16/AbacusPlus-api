@@ -32,14 +32,29 @@ Cliente
                    ├─ POST /api/v1/readxml    ──►  xml-processor :8001
                    │  GET  /api/v1/documents        │  procesa ZIP/XML → PostgreSQL
                    │  GET  /api/v1/receivers         └─ POST /api/v1/chunks  ──►  rag-service :8002
-                   │                                                                (indexa embedding)
+                   │  GET  /api/v1/issuers                                          (indexa embedding)
+                   │  GET  /api/v1/catalog
+                   │  POST /api/v1/batch
                    │
                    ├─ POST /api/v1/query      ──►  llm-service :8003
                    │  POST /api/v1/ai/analyze        │  POST /api/v1/chunks/search ──► rag-service :8002
-                   │                                 └─ OpenAI API (prompt RAG-aumentado)
+                   │  POST /api/v1/accounting        └─ OpenAI API (prompt RAG-aumentado)
                    │
-                   └─ POST /api/v1/chunks     ──►  rag-service :8002  (debug/admin)
-                      GET  /health/*
+                   ├─ POST /api/v1/chunks     ──►  rag-service :8002  (debug/admin)
+                   │
+                   ├─ GET|POST /api/v1/odoo   ──►  odoo-service :8005
+                   │                                (sync facturas compra, asientos)
+                   │
+                   ├─ GET|POST /api/v1/siigo  ──►  siigo-service :8006
+                   │                                (credenciales, plan de cuentas)
+                   │
+                   ├─ GET|POST /api/v1/integrations ──►  integration-config-service :8007
+                   │                                      (credenciales, centros costo, import)
+                   │
+                   ├─ POST /api/v1/dian       ──►  session-proxy :8004
+                   │  POST /api/v1/proxy            (auth DIAN, descarga ZIPs, cola arq)
+                   │
+                   └─ GET  /health/*
 ```
 
 ## Estructura de carpetas
@@ -83,16 +98,67 @@ api/
 │   │   ├── Dockerfile
 │   │   └── requirements.txt
 │   │
-│   └── llm-service/            # Puerto 8003
+│   ├── llm-service/            # Puerto 8003
+│   │   ├── app/
+│   │   │   ├── adapters/api/routers/   analyze.py · query.py · accounting.py
+│   │   │   ├── application/use_cases/  analyze_with_ai.py · query_with_rag.py · generate_accounting_entry.py
+│   │   │   ├── application/dto/        ai.py · query.py · accounting.py
+│   │   │   ├── domain/ports/           services.py  (AIServicePort · RagClientPort)
+│   │   │   └── infrastructure/
+│   │   │       ├── ai/                 openai_service.py
+│   │   │       ├── clients/            rag_client.py · xml_processor_client.py
+│   │   │       └── config/             logging.py
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── session-proxy/          # Puerto 8004
+│   │   ├── app/
+│   │   │   ├── adapters/api/routers/   dian.py · proxy.py
+│   │   │   ├── application/use_cases/  auth.py · download.py
+│   │   │   ├── domain/                 entities/ · ports/
+│   │   │   └── infrastructure/
+│   │   │       ├── browser/            playwright_client.py
+│   │   │       ├── config/             settings.py
+│   │   │       └── workers/            download_worker.py  ← arq worker
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── odoo-service/           # Puerto 8005
+│   │   ├── app/
+│   │   │   ├── adapters/api/routers/   odoo.py
+│   │   │   ├── application/use_cases/  sync_invoices.py · match_entries.py
+│   │   │   ├── domain/                 entities/ · ports/
+│   │   │   └── infrastructure/
+│   │   │       ├── clients/            odoo_client.py
+│   │   │       ├── config/             database.py
+│   │   │       └── persistence/        models/ · repositories/
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── siigo-service/          # Puerto 8006
+│   │   ├── app/
+│   │   │   ├── adapters/api/routers/   chart_accounts.py · credentials.py · purchase_invoice_parameters.py
+│   │   │   ├── application/use_cases/  sync_chart_accounts.py · authenticate.py
+│   │   │   ├── domain/                 entities/ · ports/
+│   │   │   └── infrastructure/
+│   │   │       ├── clients/            siigo_client.py
+│   │   │       ├── config/             database.py
+│   │   │       └── persistence/        models/ · repositories/
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   └── integration-config-service/  # Puerto 8007
 │       ├── app/
-│       │   ├── adapters/api/routers/   analyze.py · query.py
-│       │   ├── application/use_cases/  analyze_with_ai.py · query_with_rag.py
-│       │   ├── application/dto/        ai.py · query.py
-│       │   ├── domain/ports/           services.py  (AIServicePort · RagClientPort)
+│       │   ├── adapters/api/routers/   credentials.py · cost_centers.py · chart_accounts.py · purchase_invoice_parameters.py
+│       │   ├── application/use_cases/  manage_credentials.py · import_cost_centers.py · import_chart_accounts.py
+│       │   ├── domain/                 entities/ · ports/
 │       │   └── infrastructure/
-│       │       ├── ai/                 openai_service.py
-│       │       ├── clients/            rag_client.py  ← HTTP client a rag-service
-│       │       └── config/             logging.py
+│       │       ├── config/             database.py
+│       │       └── persistence/        models/ · repositories/
 │       ├── tests/
 │       ├── Dockerfile
 │       └── requirements.txt
@@ -127,15 +193,38 @@ api/
 | POST | `/api/v1/readxml` | xml-processor |
 | GET  | `/api/v1/documents/` | xml-processor |
 | GET  | `/api/v1/documents/{id}` | xml-processor |
+| GET  | `/api/v1/documents/{id}/detail` | xml-processor |
 | GET  | `/api/v1/receivers` | xml-processor |
+| GET  | `/api/v1/issuers/{nit}` | xml-processor |
+| GET  | `/api/v1/catalog/*` | xml-processor |
+| POST | `/api/v1/batch/*` | xml-processor |
+| GET  | `/api/v1/batch/*` | xml-processor |
 | POST | `/api/v1/query` | llm-service |
 | POST | `/api/v1/ai/analyze` | llm-service |
+| POST | `/api/v1/accounting/*` | llm-service |
+| GET  | `/api/v1/accounting/*` | llm-service |
+| PATCH| `/api/v1/accounting/*` | llm-service |
 | POST | `/api/v1/chunks` | rag-service |
 | POST | `/api/v1/chunks/search` | rag-service |
+| GET  | `/api/v1/odoo/*` | odoo-service |
+| POST | `/api/v1/odoo/*` | odoo-service |
+| GET  | `/api/v1/siigo/*` | siigo-service |
+| POST | `/api/v1/siigo/*` | siigo-service |
+| GET  | `/api/v1/integrations/*` | integration-config-service |
+| POST | `/api/v1/integrations/*` | integration-config-service |
+| PUT  | `/api/v1/integrations/*` | integration-config-service |
+| POST | `/api/v1/dian/*` | session-proxy |
+| GET  | `/api/v1/dian/*` | session-proxy |
+| DELETE | `/api/v1/dian/*` | session-proxy |
+| POST | `/api/v1/proxy/*` | session-proxy |
 | GET  | `/health` | gateway |
 | GET  | `/health/xml-processor` | xml-processor |
 | GET  | `/health/rag-service` | rag-service |
 | GET  | `/health/llm-service` | llm-service |
+| GET  | `/health/session-proxy` | session-proxy |
+| GET  | `/health/odoo-service` | odoo-service |
+| GET  | `/health/siigo-service` | siigo-service |
+| GET  | `/health/integration-config-service` | integration-config-service |
 
 ### xml-processor (:8001) — interno
 | Método | Path | Descripción |
@@ -143,7 +232,16 @@ api/
 | POST | `/api/v1/readxml` | Procesa ZIP o XML DIAN |
 | GET  | `/api/v1/documents/` | Lista documentos por rango de fechas |
 | GET  | `/api/v1/documents/{id}` | Detalle de un documento |
+| GET  | `/api/v1/documents/{id}/detail` | Documento + último asiento contable |
 | GET  | `/api/v1/receivers` | Lista receptores |
+| GET  | `/api/v1/issuers/{nit}` | Datos del emisor por NIT |
+| GET  | `/api/v1/catalog/cost-centers` | Centros de costo activos |
+| GET  | `/api/v1/catalog/puc-accounts` | Cuentas PUC activas |
+| GET  | `/api/v1/catalog/retention-fuente-rates` | Tasas retención en la fuente |
+| GET  | `/api/v1/catalog/retention-ica-rates` | Tasas retención ICA |
+| POST | `/api/v1/batch/process-downloads` | Encolar ZIPs del directorio downloads |
+| POST | `/api/v1/batch/process-file` | Encolar un ZIP específico |
+| GET  | `/api/v1/batch/logs` | Historial de procesamiento batch |
 | GET  | `/health` | Health check |
 
 ### rag-service (:8002) — interno
@@ -158,6 +256,58 @@ api/
 |--------|------|-------------|
 | POST | `/api/v1/query` | Consulta RAG-aumentada con OpenAI |
 | POST | `/api/v1/ai/analyze` | Prompt directo a OpenAI sin RAG |
+| POST | `/api/v1/accounting/generate` | Genera asiento contable para un documento |
+| GET  | `/api/v1/accounting/entries/{document_id}` | Documento + último asiento contable |
+| POST | `/api/v1/accounting/recalculate-batch` | Recalcula asientos por rango de fechas |
+| POST | `/api/v1/accounting/recalculate-document` | Recalcula asiento de un documento |
+| GET  | `/api/v1/accounting/system-prompts` | Lista prompts del sistema |
+| POST | `/api/v1/accounting/system-prompts` | Crea nuevo prompt del sistema |
+| PATCH| `/api/v1/accounting/system-prompts/{id}/activate` | Activa un prompt (desactiva los demás) |
+| GET  | `/health` | Health check |
+
+### session-proxy (:8004) — interno
+| Método | Path | Descripción |
+|--------|------|-------------|
+| POST | `/api/v1/dian/auth` | Autentica con token en portal DIAN, crea sesión local |
+| DELETE | `/api/v1/dian/logout/{session_id}` | Elimina sesión local |
+| POST | `/api/v1/dian/company-login` | Login vía browser (Playwright), crea sesión |
+| GET  | `/api/v1/dian/debug/{session_id}` | [DEBUG] Cookies y metadata de sesión |
+| POST | `/api/v1/dian/auth/debug` | [DEBUG] Intento de login sin crear sesión |
+| POST | `/api/v1/dian/documents/enqueue` | Consulta DIAN y encola descargas de ZIPs |
+| GET  | `/api/v1/dian/documents/batches/{batch_id}` | Estado del lote de descarga |
+| GET  | `/api/v1/dian/documents/jobs/{job_id}` | Estado de un job individual |
+| POST | `/api/v1/proxy/request` | Reenvía request HTTP al portal externo |
+| GET  | `/health` | Health check |
+
+### odoo-service (:8005) — interno
+| Método | Path | Descripción |
+|--------|------|-------------|
+| POST | `/api/v1/odoo/sync` | Sincroniza facturas de compra desde Odoo |
+| GET  | `/api/v1/odoo/entries` | Lista asientos locales (filtros: fecha, tipo, estado) |
+| POST | `/api/v1/odoo/match-entries` | Vincula asientos Odoo con documentos DIAN |
+| GET  | `/api/v1/odoo/entries/by-document/{document_id}` | Último asiento vinculado a documento |
+| GET  | `/api/v1/odoo/entries/{entry_id}` | Detalle de asiento con líneas |
+| GET  | `/health` | Health check |
+
+### siigo-service (:8006) — interno
+| Método | Path | Descripción |
+|--------|------|-------------|
+| POST | `/api/v1/siigo/auth` | Autentica en SIIGO, persiste token |
+| POST | `/api/v1/siigo/chart-accounts/sync` | Sincroniza plan de cuentas desde SIIGO |
+| GET  | `/api/v1/siigo/chart-accounts` | Lista plan de cuentas local |
+| POST | `/api/v1/siigo/purchase-invoice-parameters` | Guarda plantilla para facturas de compra |
+| GET  | `/api/v1/siigo/purchase-invoice-parameters` | Lista plantillas locales |
+| GET  | `/health` | Health check |
+
+### integration-config-service (:8007) — interno
+| Método | Path | Descripción |
+|--------|------|-------------|
+| PUT  | `/api/v1/integrations/credentials` | Crear/actualizar credenciales de integración |
+| GET  | `/api/v1/integrations/credentials` | Lista credenciales (sin secretos) |
+| POST | `/api/v1/integrations/cost-centers/import-excel` | Importa centros de costo desde .xlsx |
+| POST | `/api/v1/integrations/chart-accounts/import-excel` | Importa plan de cuentas desde .xlsx |
+| POST | `/api/v1/integrations/purchase-invoice-parameters` | Guarda plantilla proveedor-agnóstica |
+| GET  | `/api/v1/integrations/purchase-invoice-parameters` | Lista plantillas (filtros: provider, account_key) |
 | GET  | `/health` | Health check |
 
 ## Infraestructura
@@ -216,6 +366,26 @@ OLLAMA_EMBED_MODEL=nomic-embed-text
 
 # URLs inter-servicio (sobreescritas en docker-compose)
 RAG_SERVICE_URL=http://rag-service:8002
+LLM_SERVICE_URL=http://llm-service:8003
+XML_PROCESSOR_URL=http://xml-processor:8001
+
+# Odoo (odoo-service)
+ODOO_URL=http://localhost:8069
+ODOO_DB=odoo
+ODOO_USER=admin
+ODOO_PASSWORD=admin
+
+# SIIGO (siigo-service)
+SIIGO_BASE_URL=https://api.siigo.com
+SIIGO_CHART_ACCOUNTS_PATH=/v1/accounts
+
+# session-proxy
+EXTERNAL_BASE_URL=https://catalogo-vpfe.dian.gov.co
+EXTERNAL_LOGIN_PATH=/User/AuthToken
+SESSION_TTL_SECONDS=3600
+
+# Redis (session-proxy + xml-processor batch)
+REDIS_URL=redis://redis:6379
 ```
 
 ## Reglas de desarrollo
@@ -264,6 +434,9 @@ Los specs OpenAPI de cada servicio también se exponen en el gateway:
 - `http://localhost:8000/openapi/llm-service.json`
 - `http://localhost:8000/openapi/rag-service.json`
 - `http://localhost:8000/openapi/session-proxy.json`
+- `http://localhost:8000/openapi/odoo-service.json`
+- `http://localhost:8000/openapi/siigo-service.json`
+- `http://localhost:8000/openapi/integration-config-service.json`
 
 ---
 

@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException, status
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 from app.adapters.api.routers.chart_accounts import router as chart_accounts_router
 from app.adapters.api.routers.credentials import router as credentials_router
+from app.adapters.api.routers.journal_entries import router as journal_entries_router
+from app.adapters.api.routers.purchase_invoice_parameters import router as purchase_invoice_parameters_router
 from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.config.logging import setup_logging
@@ -40,6 +42,8 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(credentials_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(chart_accounts_router, prefix="/api/v1", tags=["siigo"])
+app.include_router(purchase_invoice_parameters_router, prefix="/api/v1", tags=["siigo"])
+app.include_router(journal_entries_router, prefix="/api/v1", tags=["siigo"])
 
 logger.info("SIIGO Service started on port 8006")
 
