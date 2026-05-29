@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/odoo/sync",
+    "/odoo/syncs",
     response_model=SyncResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar facturas de compra desde Odoo",
@@ -77,7 +77,7 @@ def list_journal_entries(
 
 
 @router.post(
-    "/odoo/match-entries",
+    "/odoo/entry-matches",
     response_model=MatchEntriesResponse,
     status_code=status.HTTP_200_OK,
     summary="Vincular asientos in_invoice sin documento a su factura DIAN",
@@ -106,7 +106,7 @@ def match_entries(
 
 
 @router.get(
-    "/odoo/entries/by-document/{document_id}",
+    "/odoo/entries/document/{document_id}",
     response_model=JournalEntryDetailResponse,
     status_code=status.HTTP_200_OK,
     summary="Detalle del asiento contable asociado a un documento",

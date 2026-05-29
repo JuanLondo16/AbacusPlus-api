@@ -29,15 +29,16 @@ Cliente
   │
   └─ :8000  ──►  gateway (Nginx)
                    │
-                   ├─ POST /api/v1/readxml    ──►  xml-processor :8001
+                   ├─ POST /api/v1/documents  ──►  xml-processor :8001
                    │  GET  /api/v1/documents        │  procesa ZIP/XML → PostgreSQL
                    │  GET  /api/v1/receivers         └─ POST /api/v1/chunks  ──►  rag-service :8002
                    │  GET  /api/v1/issuers                                          (indexa embedding)
                    │  GET  /api/v1/catalog
-                   │  POST /api/v1/batch
+                   │  POST /api/v1/batch-jobs
+                   │  GET  /api/v1/batch-logs
                    │
                    ├─ POST /api/v1/query      ──►  llm-service :8003
-                   │  POST /api/v1/ai/analyze        │  POST /api/v1/chunks/search ──► rag-service :8002
+                   │  POST /api/v1/analyses          │  POST /api/v1/chunks/search ──► rag-service :8002
                    │  POST /api/v1/accounting        └─ OpenAI API (prompt RAG-aumentado)
                    │
                    ├─ POST /api/v1/chunks     ──►  rag-service :8002  (debug/admin)
@@ -190,17 +191,19 @@ api/
 ### gateway (:8000) — entrada única para clientes
 | Método | Path | Destino |
 |--------|------|---------|
-| POST | `/api/v1/readxml` | xml-processor |
+| POST | `/api/v1/documents` | xml-processor |
 | GET  | `/api/v1/documents/` | xml-processor |
 | GET  | `/api/v1/documents/{id}` | xml-processor |
-| GET  | `/api/v1/documents/{id}/detail` | xml-processor |
+| GET  | `/api/v1/documents/{id}/full` | xml-processor |
+| PATCH| `/api/v1/documents/{id}` | xml-processor |
+| PATCH| `/api/v1/documents/{id}/approve` | xml-processor |
 | GET  | `/api/v1/receivers` | xml-processor |
 | GET  | `/api/v1/issuers/{nit}` | xml-processor |
 | GET  | `/api/v1/catalog/*` | xml-processor |
-| POST | `/api/v1/batch/*` | xml-processor |
-| GET  | `/api/v1/batch/*` | xml-processor |
+| POST | `/api/v1/batch-jobs/*` | xml-processor |
+| GET  | `/api/v1/batch-logs` | xml-processor |
 | POST | `/api/v1/query` | llm-service |
-| POST | `/api/v1/ai/analyze` | llm-service |
+| POST | `/api/v1/analyses` | llm-service |
 | POST | `/api/v1/accounting/*` | llm-service |
 | GET  | `/api/v1/accounting/*` | llm-service |
 | PATCH| `/api/v1/accounting/*` | llm-service |
@@ -229,19 +232,21 @@ api/
 ### xml-processor (:8001) — interno
 | Método | Path | Descripción |
 |--------|------|-------------|
-| POST | `/api/v1/readxml` | Procesa ZIP o XML DIAN |
-| GET  | `/api/v1/documents/` | Lista documentos por rango de fechas |
+| POST | `/api/v1/documents` | Procesa ZIP o XML DIAN, crea documento |
+| GET  | `/api/v1/documents` | Lista documentos (`?from_date=&to_date=`) |
 | GET  | `/api/v1/documents/{id}` | Detalle de un documento |
-| GET  | `/api/v1/documents/{id}/detail` | Documento + último asiento contable |
+| GET  | `/api/v1/documents/{id}/full` | Documento + último asiento contable |
+| PATCH| `/api/v1/documents/{id}/approve` | Aprueba documento (Causado → Aprobado) |
+| PATCH| `/api/v1/documents/{id}` | Actualiza estado (`{"status": 200}` revierte a Causado) |
 | GET  | `/api/v1/receivers` | Lista receptores |
 | GET  | `/api/v1/issuers/{nit}` | Datos del emisor por NIT |
 | GET  | `/api/v1/catalog/cost-centers` | Centros de costo activos |
 | GET  | `/api/v1/catalog/puc-accounts` | Cuentas PUC activas |
 | GET  | `/api/v1/catalog/retention-fuente-rates` | Tasas retención en la fuente |
 | GET  | `/api/v1/catalog/retention-ica-rates` | Tasas retención ICA |
-| POST | `/api/v1/batch/process-downloads` | Encolar ZIPs del directorio downloads |
-| POST | `/api/v1/batch/process-file` | Encolar un ZIP específico |
-| GET  | `/api/v1/batch/logs` | Historial de procesamiento batch |
+| POST | `/api/v1/batch-jobs/downloads` | Encolar ZIPs del directorio downloads |
+| POST | `/api/v1/batch-jobs/file` | Encolar un ZIP específico |
+| GET  | `/api/v1/batch-logs` | Historial de procesamiento batch |
 | GET  | `/health` | Health check |
 
 ### rag-service (:8002) — interno
@@ -255,25 +260,25 @@ api/
 | Método | Path | Descripción |
 |--------|------|-------------|
 | POST | `/api/v1/query` | Consulta RAG-aumentada con OpenAI |
-| POST | `/api/v1/ai/analyze` | Prompt directo a OpenAI sin RAG |
-| POST | `/api/v1/accounting/generate` | Genera asiento contable para un documento |
+| POST | `/api/v1/analyses` | Prompt directo a OpenAI sin RAG |
+| POST | `/api/v1/accounting/entries` | Genera asiento contable para un documento |
 | GET  | `/api/v1/accounting/entries/{document_id}` | Documento + último asiento contable |
-| POST | `/api/v1/accounting/recalculate-batch` | Recalcula asientos por rango de fechas |
-| POST | `/api/v1/accounting/recalculate-document` | Recalcula asiento de un documento |
+| POST | `/api/v1/accounting/recalculations` | Recalcula asientos por rango de fechas |
+| POST | `/api/v1/accounting/entries/{document_id}/recalculations` | Recalcula asiento de un documento |
 | GET  | `/api/v1/accounting/system-prompts` | Lista prompts del sistema |
 | POST | `/api/v1/accounting/system-prompts` | Crea nuevo prompt del sistema |
-| PATCH| `/api/v1/accounting/system-prompts/{id}/activate` | Activa un prompt (desactiva los demás) |
+| PATCH| `/api/v1/accounting/system-prompts/{id}` | Actualiza prompt (`{"is_active": true}` activa) |
 | GET  | `/health` | Health check |
 
 ### session-proxy (:8004) — interno
 | Método | Path | Descripción |
 |--------|------|-------------|
-| POST | `/api/v1/dian/auth` | Autentica con token en portal DIAN, crea sesión local |
-| DELETE | `/api/v1/dian/logout/{session_id}` | Elimina sesión local |
-| POST | `/api/v1/dian/company-login` | Login vía browser (Playwright), crea sesión |
-| GET  | `/api/v1/dian/debug/{session_id}` | [DEBUG] Cookies y metadata de sesión |
-| POST | `/api/v1/dian/auth/debug` | [DEBUG] Intento de login sin crear sesión |
-| POST | `/api/v1/dian/documents/enqueue` | Consulta DIAN y encola descargas de ZIPs |
+| POST | `/api/v1/dian/sessions` | Autentica con token en portal DIAN, crea sesión local |
+| DELETE | `/api/v1/dian/sessions/{session_id}` | Elimina sesión local |
+| POST | `/api/v1/dian/sessions/company` | Login vía browser (Playwright), crea sesión |
+| GET  | `/api/v1/dian/sessions/{session_id}/debug` | [DEBUG] Cookies y metadata de sesión |
+| POST | `/api/v1/dian/sessions/debug` | [DEBUG] Intento de login sin crear sesión |
+| POST | `/api/v1/dian/downloads` | Consulta DIAN y encola descargas de ZIPs |
 | GET  | `/api/v1/dian/documents/batches/{batch_id}` | Estado del lote de descarga |
 | GET  | `/api/v1/dian/documents/jobs/{job_id}` | Estado de un job individual |
 | POST | `/api/v1/proxy/request` | Reenvía request HTTP al portal externo |
@@ -282,18 +287,18 @@ api/
 ### odoo-service (:8005) — interno
 | Método | Path | Descripción |
 |--------|------|-------------|
-| POST | `/api/v1/odoo/sync` | Sincroniza facturas de compra desde Odoo |
+| POST | `/api/v1/odoo/syncs` | Sincroniza facturas de compra desde Odoo |
 | GET  | `/api/v1/odoo/entries` | Lista asientos locales (filtros: fecha, tipo, estado) |
-| POST | `/api/v1/odoo/match-entries` | Vincula asientos Odoo con documentos DIAN |
-| GET  | `/api/v1/odoo/entries/by-document/{document_id}` | Último asiento vinculado a documento |
+| POST | `/api/v1/odoo/entry-matches` | Vincula asientos Odoo con documentos DIAN |
+| GET  | `/api/v1/odoo/entries/document/{document_id}` | Último asiento vinculado a documento |
 | GET  | `/api/v1/odoo/entries/{entry_id}` | Detalle de asiento con líneas |
 | GET  | `/health` | Health check |
 
 ### siigo-service (:8006) — interno
 | Método | Path | Descripción |
 |--------|------|-------------|
-| POST | `/api/v1/siigo/auth` | Autentica en SIIGO, persiste token |
-| POST | `/api/v1/siigo/chart-accounts/sync` | Sincroniza plan de cuentas desde SIIGO |
+| POST | `/api/v1/siigo/sessions` | Autentica en SIIGO, persiste token |
+| POST | `/api/v1/siigo/chart-accounts/syncs` | Sincroniza plan de cuentas desde SIIGO |
 | GET  | `/api/v1/siigo/chart-accounts` | Lista plan de cuentas local |
 | POST | `/api/v1/siigo/purchase-invoice-parameters` | Guarda plantilla para facturas de compra |
 | GET  | `/api/v1/siigo/purchase-invoice-parameters` | Lista plantillas locales |
@@ -304,8 +309,8 @@ api/
 |--------|------|-------------|
 | PUT  | `/api/v1/integrations/credentials` | Crear/actualizar credenciales de integración |
 | GET  | `/api/v1/integrations/credentials` | Lista credenciales (sin secretos) |
-| POST | `/api/v1/integrations/cost-centers/import-excel` | Importa centros de costo desde .xlsx |
-| POST | `/api/v1/integrations/chart-accounts/import-excel` | Importa plan de cuentas desde .xlsx |
+| POST | `/api/v1/integrations/cost-centers/imports` | Importa centros de costo desde .xlsx |
+| POST | `/api/v1/integrations/chart-accounts/imports` | Importa plan de cuentas desde .xlsx |
 | POST | `/api/v1/integrations/purchase-invoice-parameters` | Guarda plantilla proveedor-agnóstica |
 | GET  | `/api/v1/integrations/purchase-invoice-parameters` | Lista plantillas (filtros: provider, account_key) |
 | GET  | `/health` | Health check |

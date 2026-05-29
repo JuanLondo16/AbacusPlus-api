@@ -167,3 +167,26 @@ class RecalculateAccountingBatchResponse(BaseModel):
         default_factory=list,
         description="Detalle por documento del resultado del recálculo.",
     )
+
+
+class RecalculateDocumentBody(BaseModel):
+    """Body para POST /accounting/entries/{document_id}/recalculations — el document_id va en la ruta."""
+
+    top_k: int = Field(default=5, ge=1, le=10, description="Número de chunks RAG a recuperar como contexto.")
+    model: str = Field(default="gpt-4o-mini", description="Modelo de OpenAI a utilizar.", examples=["gpt-4o-mini", "gpt-4o"])
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {"top_k": 5, "model": "gpt-4o-mini"}
+        }
+    }
+
+
+class SystemPromptActivateRequest(BaseModel):
+    """Body para PATCH /accounting/system-prompts/{id}."""
+
+    is_active: bool = Field(True, description="Activar (true) este system prompt y desactivar los demás.")
+
+    model_config = {
+        "json_schema_extra": {"example": {"is_active": True}}
+    }

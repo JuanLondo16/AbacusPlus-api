@@ -9,14 +9,14 @@ from app.application.dto.chart_account import (
 )
 from app.application.use_cases.sync_chart_accounts import SyncChartAccountsUseCase
 from app.dependencies import get_sync_chart_accounts_use_case
-from app.infrastructure.config.database import get_db
+from app.infrastructure.config.auth_dependency import get_tenant_db
 from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
 
 router = APIRouter()
 
 
 @router.post(
-    "/siigo/chart-accounts/sync",
+    "/siigo/chart-accounts/syncs",
     response_model=SyncChartAccountsResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar plan de cuentas desde SIIGO",
@@ -57,6 +57,6 @@ def sync_chart_accounts(
 def list_chart_accounts(
     account_key: str = "default",
     active: Optional[bool] = None,
-    db=Depends(get_db),
+    db=Depends(get_tenant_db),
 ) -> List[ChartAccountResponse]:
     return ChartAccountRepository(db).list("siigo", account_key, active=active)

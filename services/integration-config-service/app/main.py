@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI
 
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 from app.adapters.api.routers.chart_accounts import router as chart_accounts_router
@@ -15,6 +15,7 @@ from app.infrastructure.persistence.models import chart_account as _chart_accoun
 from app.infrastructure.persistence.models import cost_center as _cost_center_model  # noqa: F401
 from app.infrastructure.persistence.models import integration as _integration_model  # noqa: F401
 from app.infrastructure.persistence.models import purchase_invoice_parameter as _purchase_param_model  # noqa: F401
+from app.adapters.api.routers.internal import router as internal_router
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ app.include_router(chart_accounts_router, prefix="/api/v1", tags=["integrations"
 app.include_router(cost_centers_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(credentials_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(purchase_invoice_parameters_router, prefix="/api/v1", tags=["integrations"])
+app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 
 logger.info("Integration Config Service started on port 8007")
 
@@ -57,13 +59,3 @@ logger.info("Integration Config Service started on port 8007")
 )
 async def health_check():
     return {"status": "healthy", "service": "integration-config-service"}
-
-
-@app.get(
-    "/{path:path}",
-    summary="Ruta no encontrada",
-    description="Responde `404` para cualquier ruta no definida por este servicio.",
-    include_in_schema=False,
-)
-async def not_found(path: str):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")

@@ -1,0 +1,769 @@
+{
+  "info": {
+    "name": "AbacusPlus API",
+    "_postman_id": "abacusplus-api-collection",
+    "description": "Colección completa de endpoints AbacusPlus — gateway :8000",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",    "value": "http://localhost:8000", "type": "string" },
+    { "key": "token",       "value": "<JWT_TOKEN>",           "type": "string" },
+    { "key": "document_id", "value": "1",                     "type": "string" },
+    { "key": "session_id",  "value": "<SESSION_ID>",          "type": "string" },
+    { "key": "batch_id",    "value": "<BATCH_ID>",            "type": "string" },
+    { "key": "job_id",      "value": "<JOB_ID>",              "type": "string" },
+    { "key": "entry_id",    "value": "1",                     "type": "string" },
+    { "key": "prompt_id",   "value": "1",                     "type": "string" },
+    { "key": "nit",         "value": "900123456",             "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "xml-processor",
+      "item": [
+        {
+          "name": "Procesar factura DIAN (ZIP o XML)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/documents", "host": ["{{base_url}}"], "path": ["api", "v1", "documents"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "", "description": "Archivo .zip o .xml DIAN" }
+              ]
+            },
+            "description": "POST /api/v1/documents — crea documento desde archivo ZIP o XML DIAN. Status 201."
+          }
+        },
+        {
+          "name": "Listar documentos por rango de fechas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents?from_date=2024-01-01&to_date=2024-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents"],
+              "query": [
+                { "key": "from_date", "value": "2024-01-01" },
+                { "key": "to_date",   "value": "2024-12-31" },
+                { "key": "status",    "value": "100", "disabled": true, "description": "0=Error 100=Procesado 200=Causado 300=Aprobado 400=Contabilizada" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener documento por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Detalle completo: XML + asiento contable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/full",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "full"]
+            }
+          }
+        },
+        {
+          "name": "Aprobar documento (Causado → Aprobado)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Revertir aprobación (Aprobado → Causado)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 200\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar receptores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/receivers", "host": ["{{base_url}}"], "path": ["api", "v1", "receivers"] }
+          }
+        },
+        {
+          "name": "Obtener emisor por NIT",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/issuers/{{nit}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "issuers", "{{nit}}"]
+            }
+          }
+        },
+        {
+          "name": "Catálogo — Centros de costo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/catalog/cost-centers", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "cost-centers"] }
+          }
+        },
+        {
+          "name": "Catálogo — Cuentas PUC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/catalog/puc-accounts", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "puc-accounts"] }
+          }
+        },
+        {
+          "name": "Catálogo — Tasas retención en la fuente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/catalog/retention-fuente-rates", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "retention-fuente-rates"] }
+          }
+        },
+        {
+          "name": "Catálogo — Tasas retención ICA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/catalog/retention-ica-rates", "host": ["{{base_url}}"], "path": ["api", "v1", "catalog", "retention-ica-rates"] }
+          }
+        },
+        {
+          "name": "Batch — Procesar todas las descargas pendientes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/batch-jobs/downloads", "host": ["{{base_url}}"], "path": ["api", "v1", "batch-jobs", "downloads"] },
+            "description": "Status 202 — procesa en background"
+          }
+        },
+        {
+          "name": "Batch — Procesar un ZIP específico",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/batch-jobs/file", "host": ["{{base_url}}"], "path": ["api", "v1", "batch-jobs", "file"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"documento_001.zip\",\n  \"job_id\": \"job-uuid-aqui\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Batch — Historial de procesamiento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/batch-logs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "batch-logs"],
+              "query": [
+                { "key": "status", "value": "added", "disabled": true, "description": "added | duplicate | error" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "rag-service",
+      "item": [
+        {
+          "name": "Indexar chunk con embedding",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/chunks", "host": ["{{base_url}}"], "path": ["api", "v1", "chunks"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_type\": \"document\",\n  \"source_id\": 1,\n  \"content\": \"Texto de la factura a indexar\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Búsqueda semántica top-k",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/chunks/search", "host": ["{{base_url}}"], "path": ["api", "v1", "chunks", "search"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"facturas de servicios de tecnología\",\n  \"top_k\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "llm-service",
+      "item": [
+        {
+          "name": "Consulta RAG-aumentada",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/query", "host": ["{{base_url}}"], "path": ["api", "v1", "query"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"¿Cuáles son los proveedores con mayor volumen de facturas?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Análisis directo con OpenAI (sin RAG)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/analyses", "host": ["{{base_url}}"], "path": ["api", "v1", "analyses"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Clasifica el siguiente texto contable: ...\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Generar asiento contable (LLM)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/accounting/entries", "host": ["{{base_url}}"], "path": ["api", "v1", "accounting", "entries"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_id\": {{document_id}},\n  \"top_k\": 5,\n  \"model\": \"gpt-4o-mini\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Consultar documento con asiento contable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounting/entries/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounting", "entries", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Recalcular causación por rango de fechas",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/accounting/recalculations", "host": ["{{base_url}}"], "path": ["api", "v1", "accounting", "recalculations"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateini\": \"2024-01-01\",\n  \"datefin\": \"2024-01-31\",\n  \"top_k\": 5,\n  \"model\": \"gpt-4o-mini\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Recalcular causación por documento",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounting/entries/{{document_id}}/recalculations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounting", "entries", "{{document_id}}", "recalculations"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"top_k\": 5,\n  \"model\": \"gpt-4o-mini\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar system prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/accounting/system-prompts", "host": ["{{base_url}}"], "path": ["api", "v1", "accounting", "system-prompts"] }
+          }
+        },
+        {
+          "name": "Crear system prompt",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/accounting/system-prompts", "host": ["{{base_url}}"], "path": ["api", "v1", "accounting", "system-prompts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PUC Colombia v2\",\n  \"content\": \"Eres un contador experto en PUC colombiano...\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Activar system prompt",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounting/system-prompts/{{prompt_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounting", "system-prompts", "{{prompt_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "session-proxy (DIAN)",
+      "item": [
+        {
+          "name": "Crear sesión DIAN con token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/dian/sessions", "host": ["{{base_url}}"], "path": ["api", "v1", "dian", "sessions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<TOKEN_DIAN>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Cerrar sesión DIAN",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dian/sessions/{{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dian", "sessions", "{{session_id}}"]
+            },
+            "description": "Status 204 — idempotente"
+          }
+        },
+        {
+          "name": "Crear sesión DIAN vía formulario empresa (Playwright)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/dian/sessions/company", "host": ["{{base_url}}"], "path": ["api", "v1", "dian", "sessions", "company"] }
+          }
+        },
+        {
+          "name": "[DEBUG] Probar login DIAN y ver cookies",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/dian/sessions/debug", "host": ["{{base_url}}"], "path": ["api", "v1", "dian", "sessions", "debug"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<TOKEN_DIAN>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "[DEBUG] Ver sesión DIAN almacenada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dian/sessions/{{session_id}}/debug",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dian", "sessions", "{{session_id}}", "debug"]
+            }
+          }
+        },
+        {
+          "name": "Encolar descarga de ZIPs por rango de fechas",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/dian/downloads", "host": ["{{base_url}}"], "path": ["api", "v1", "dian", "downloads"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"date_from\": \"2024-01-01\",\n  \"date_to\": \"2024-01-31\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Status 202 — retorna batch_id para monitoreo"
+          }
+        },
+        {
+          "name": "Estado del batch de descarga",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dian/documents/batches/{{batch_id}}?detail=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dian", "documents", "batches", "{{batch_id}}"],
+              "query": [{ "key": "detail", "value": "false", "description": "true incluye progreso por job" }]
+            }
+          }
+        },
+        {
+          "name": "Estado de un job individual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dian/documents/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dian", "documents", "jobs", "{{job_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Proxy — reenviar request al portal externo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/proxy/request", "host": ["{{base_url}}"], "path": ["api", "v1", "proxy", "request"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"method\": \"GET\",\n  \"path\": \"/api/endpoint\",\n  \"params\": {},\n  \"body\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "odoo-service",
+      "item": [
+        {
+          "name": "Sincronizar facturas de compra desde Odoo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/odoo/syncs", "host": ["{{base_url}}"], "path": ["api", "v1", "odoo", "syncs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date_from\": \"2024-01-01\",\n  \"date_to\": \"2024-01-31\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar asientos contables Odoo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/odoo/entries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "odoo", "entries"],
+              "query": [
+                { "key": "date_from",  "value": "2024-01-01", "disabled": true },
+                { "key": "date_to",    "value": "2024-01-31", "disabled": true },
+                { "key": "move_type",  "value": "in_invoice",  "disabled": true },
+                { "key": "state",      "value": "posted",      "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vincular asientos Odoo con documentos DIAN",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/odoo/entry-matches", "host": ["{{base_url}}"], "path": ["api", "v1", "odoo", "entry-matches"] }
+          }
+        },
+        {
+          "name": "Asiento vinculado a un documento DIAN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/odoo/entries/document/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "odoo", "entries", "document", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Detalle de asiento contable por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/odoo/entries/{{entry_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "odoo", "entries", "{{entry_id}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "siigo-service",
+      "item": [
+        {
+          "name": "Autenticar contra SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/siigo/sessions?account_key=default",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "siigo", "sessions"],
+              "query": [{ "key": "account_key", "value": "default" }]
+            }
+          }
+        },
+        {
+          "name": "Sincronizar plan de cuentas desde SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/siigo/chart-accounts/syncs", "host": ["{{base_url}}"], "path": ["api", "v1", "siigo", "chart-accounts", "syncs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_key\": \"default\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar plan de cuentas SIIGO local",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/siigo/chart-accounts?account_key=default",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "siigo", "chart-accounts"],
+              "query": [
+                { "key": "account_key", "value": "default" },
+                { "key": "active",      "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear parámetros de facturas de compra SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/siigo/purchase-invoice-parameters", "host": ["{{base_url}}"], "path": ["api", "v1", "siigo", "purchase-invoice-parameters"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_key\": \"default\",\n  \"voucher_document_id\": 1,\n  \"cost_center_id\": \"CC01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar parámetros de facturas de compra SIIGO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/siigo/purchase-invoice-parameters?account_key=default",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "siigo", "purchase-invoice-parameters"],
+              "query": [{ "key": "account_key", "value": "default" }]
+            }
+          }
+        },
+        {
+          "name": "Enviar causación a SIIGO",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/siigo/journal-entries", "host": ["{{base_url}}"], "path": ["api", "v1", "siigo", "journal-entries"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_key\": \"default\",\n  \"document_id\": {{document_id}},\n  \"voucher_document_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "integration-config-service",
+      "item": [
+        {
+          "name": "Registrar / actualizar credenciales de integración",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/integrations/credentials", "host": ["{{base_url}}"], "path": ["api", "v1", "integrations", "credentials"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"siigo\",\n  \"account_key\": \"default\",\n  \"username\": \"usuario@empresa.com\",\n  \"access_key\": \"<ACCESS_KEY>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar credenciales de integración",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/integrations/credentials",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "integrations", "credentials"],
+              "query": [{ "key": "provider", "value": "siigo", "disabled": true }]
+            }
+          }
+        },
+        {
+          "name": "Importar centros de costo desde Excel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/integrations/cost-centers/imports", "host": ["{{base_url}}"], "path": ["api", "v1", "integrations", "cost-centers", "imports"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "provider",    "value": "siigo",   "type": "text" },
+                { "key": "account_key", "value": "default", "type": "text" },
+                { "key": "sheet_name",  "value": "",        "type": "text", "disabled": true },
+                { "key": "file",        "src": "",          "type": "file", "description": "Archivo .xlsx" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Importar plan de cuentas desde Excel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/v1/integrations/chart-accounts/imports", "host": ["{{base_url}}"], "path": ["api", "v1", "integrations", "chart-accounts", "imports"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "provider",    "value": "siigo",   "type": "text" },
+                { "key": "account_key", "value": "default", "type": "text" },
+                { "key": "sheet_name",  "value": "",        "type": "text", "disabled": true },
+                { "key": "file",        "src": "",          "type": "file", "description": "Archivo .xlsx" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear parámetros de facturas de compra (genérico)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/integrations/purchase-invoice-parameters", "host": ["{{base_url}}"], "path": ["api", "v1", "integrations", "purchase-invoice-parameters"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"siigo\",\n  \"account_key\": \"default\",\n  \"voucher_document_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Listar parámetros de facturas de compra (genérico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/integrations/purchase-invoice-parameters",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "integrations", "purchase-invoice-parameters"],
+              "query": [
+                { "key": "provider",    "value": "siigo",   "disabled": true },
+                { "key": "account_key", "value": "default", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "health checks",
+      "item": [
+        {
+          "name": "Gateway",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] } }
+        },
+        {
+          "name": "xml-processor",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/xml-processor", "host": ["{{base_url}}"], "path": ["health", "xml-processor"] } }
+        },
+        {
+          "name": "rag-service",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/rag-service", "host": ["{{base_url}}"], "path": ["health", "rag-service"] } }
+        },
+        {
+          "name": "llm-service",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/llm-service", "host": ["{{base_url}}"], "path": ["health", "llm-service"] } }
+        },
+        {
+          "name": "session-proxy",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/session-proxy", "host": ["{{base_url}}"], "path": ["health", "session-proxy"] } }
+        },
+        {
+          "name": "odoo-service",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/odoo-service", "host": ["{{base_url}}"], "path": ["health", "odoo-service"] } }
+        },
+        {
+          "name": "siigo-service",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/siigo-service", "host": ["{{base_url}}"], "path": ["health", "siigo-service"] } }
+        },
+        {
+          "name": "integration-config-service",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{base_url}}/health/integration-config-service", "host": ["{{base_url}}"], "path": ["health", "integration-config-service"] } }
+        }
+      ]
+    }
+
+  ]
+}

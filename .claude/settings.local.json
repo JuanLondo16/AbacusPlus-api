@@ -20,7 +20,21 @@
       "Bash(curl -s http://localhost:8000/health/siigo-service)",
       "Bash(curl -s http://localhost:8000/api/v1/accounting/entries/7)",
       "Bash(curl -s \"http://localhost:8000/api/v1/siigo/credentials\")",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@acme.co\",\"password\":\"secret123\",\"tenant_slug\":\"acme\"}')",
+      "Bash(grep -v \"^$\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8000/api/v1/siigo/chart-accounts\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"http://localhost:8000/api/v1/siigo/auth\" -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8000/api/v1/catalog/cost-centers\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"http://localhost:8000/api/v1/chunks/search\" -H \"Content-Type: application/json\" -d '{\"query\":\"test\",\"top_k\":1}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"http://localhost:8000/api/v1/query\" -H \"Content-Type: application/json\" -d '{\"question\":\"test\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8006/api/v1/siigo/chart-accounts\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@ikbo.co\",\"password\":\"secret123\",\"tenant_slug\":\"ikbo\"}')",
+      "Bash(Get-ChildItem -Path \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\\\\llm-service\\\\app\\\\adapters\\\\api\\\\routers\" -Filter \"*.py\")"
     ]
   }
 }

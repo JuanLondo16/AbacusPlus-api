@@ -17,6 +17,44 @@ services:
       - odoo-service
       - siigo-service
       - integration-config-service
+      - auth-service
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Auth Service (JWT RS256, Tenants, Usuarios) ───────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: abacus_auth_service
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./services/auth-service/app:/app/app
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_NAME=abacus_meta
+      - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - APP_BASE_DOMAIN=${APP_BASE_DOMAIN:-app.abacusplus.com}
+      - XML_PROCESSOR_URL=http://xml-processor:8001
+      - RAG_SERVICE_URL=http://rag-service:8002
+      - LLM_SERVICE_URL=http://llm-service:8003
+      - ODOO_SERVICE_URL=http://odoo-service:8005
+      - SIIGO_SERVICE_URL=http://siigo-service:8006
+      - INTEGRATION_CONFIG_URL=http://integration-config-service:8007
+      - REDIS_URL=redis://redis:6379
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8008 --reload
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - abacus-network
     restart: unless-stopped
@@ -40,6 +78,8 @@ services:
       - LLM_SERVICE_URL=http://llm-service:8003
       - DOWNLOADS_DIR=/app/downloads
       - REDIS_URL=redis://redis:6379
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     depends_on:
       database:
@@ -66,6 +106,8 @@ services:
       - PYTHONUNBUFFERED=1
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_EMBED_MODEL=nomic-embed-text
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
     depends_on:
       database:
@@ -92,6 +134,8 @@ services:
       - PYTHONUNBUFFERED=1
       - RAG_SERVICE_URL=http://rag-service:8002
       - XML_PROCESSOR_URL=http://xml-processor:8001
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
     depends_on:
       database:
@@ -127,6 +171,7 @@ services:
       - BROWSER_TIMEOUT_MS=${BROWSER_TIMEOUT_MS:-60000}
       - REDIS_URL=redis://redis:6379
       - DOWNLOADS_DIR=/app/downloads
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload
     depends_on:
       - redis
@@ -179,6 +224,8 @@ services:
       - ODOO_USER=${ODOO_USER:-admin}
       - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
       - RAG_SERVICE_URL=http://rag-service:8002
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload --timeout-keep-alive 1200
     depends_on:
       database:
@@ -205,6 +252,8 @@ services:
       - PYTHONUNBUFFERED=1
       - SIIGO_BASE_URL=${SIIGO_BASE_URL:-https://api.siigo.com}
       - SIIGO_CHART_ACCOUNTS_PATH=${SIIGO_CHART_ACCOUNTS_PATH:-/v1/accounts}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8006 --reload
     depends_on:
       database:
@@ -227,6 +276,8 @@ services:
     env_file: .env
     environment:
       - PYTHONUNBUFFERED=1
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8007 --reload
     depends_on:
       database:

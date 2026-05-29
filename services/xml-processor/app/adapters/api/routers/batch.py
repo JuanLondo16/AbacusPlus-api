@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/batch/process-downloads",
+    "/batch-jobs/downloads",
     response_model=EnqueueBatchResponse,
     status_code=202,
     summary="Procesar descargas pendientes",
@@ -35,13 +35,13 @@ async def process_downloads(
 
 
 @router.post(
-    "/batch/process-file",
+    "/batch-jobs/file",
     response_model=EnqueueBatchResponse,
     status_code=202,
     summary="Procesar un ZIP específico por nombre de archivo",
     description=(
         "Encola el archivo ZIP indicado en `filename` para procesamiento inmediato. "
-        "A diferencia de `/batch/process-downloads`, este endpoint opera sobre un único archivo "
+        "A diferencia de `POST /api/v1/batch-jobs/downloads`, este endpoint opera sobre un único archivo "
         "y asocia el procesamiento al `job_id` del worker que lo descargó, "
         "permitiendo actualizar el progreso en Redis.\n\n"
         "El archivo debe existir en `DOWNLOADS_DIR`. Si no existe retorna 404."
@@ -65,7 +65,7 @@ async def process_single_file(
 
 
 @router.get(
-    "/batch/logs",
+    "/batch-logs",
     response_model=List[ProcessingLogResponse],
     summary="Historial de procesamiento batch",
     description=(

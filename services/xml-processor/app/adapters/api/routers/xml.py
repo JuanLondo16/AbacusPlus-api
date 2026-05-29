@@ -7,7 +7,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/readxml",
+    "/documents",
     response_model=ProcessXmlResponse,
     status_code=201,
     summary="Procesar factura DIAN (ZIP o XML)",

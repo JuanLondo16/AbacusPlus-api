@@ -3,7 +3,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.infrastructure.config.database import get_db
+from app.infrastructure.config.auth_dependency import get_tenant_db
 from app.infrastructure.ai.ollama_service import OllamaEmbeddingService
 from app.infrastructure.persistence.repositories.chunk_repository import ChunkRepository
 from app.application.use_cases.index_chunk import IndexChunkUseCase
@@ -19,7 +19,7 @@ def get_embedding_service() -> OllamaEmbeddingService:
 
 
 def get_index_chunk_use_case(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     embedding_service: OllamaEmbeddingService = Depends(get_embedding_service),
 ) -> IndexChunkUseCase:
     return IndexChunkUseCase(
@@ -29,7 +29,7 @@ def get_index_chunk_use_case(
 
 
 def get_search_chunks_use_case(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     embedding_service: OllamaEmbeddingService = Depends(get_embedding_service),
 ) -> SearchChunksUseCase:
     return SearchChunksUseCase(

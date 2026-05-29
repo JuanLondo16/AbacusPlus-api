@@ -18,6 +18,7 @@ from app.domain.ports.repositories import (
     ConceptRepositoryPort,
 )
 from app.domain.exceptions.base import DuplicateEntityException, FileProcessingException
+from app.domain.value_objects.document_status import DocumentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class ProcessXmlUseCase:
             total=float(totales.get('total') or 0),
             retefuente=retefuente,
             reteica=reteica,
-            status='Procesado',
+            status=DocumentStatus.PROCESADO,
         )
 
     def _build_details(self, document: Document, xml_data: dict) -> None:

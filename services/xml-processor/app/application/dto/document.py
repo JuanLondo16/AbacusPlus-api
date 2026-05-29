@@ -45,7 +45,7 @@ class DocumentResponse(BaseModel):
     reteica: float = 0.0
     total: float
     register_at: datetime
-    status: str
+    status: int
     accounting_entry_id: Optional[int] = None
     details: List[DocumentDetailResponse] = []
 
@@ -71,7 +71,7 @@ class DocumentSummaryResponse(BaseModel):
                 "retefuente": 0.0,
                 "reteica": 0.0,
                 "total": 119000.0,
-                "status": "processed",
+                "status": 100,
                 "register_at": "2024-01-15T10:30:00",
             }
         },
@@ -91,7 +91,7 @@ class DocumentSummaryResponse(BaseModel):
     retefuente: float = Field(..., description="Valor de retención en la fuente.")
     reteica: float = Field(..., description="Valor de reteICA.")
     total: float = Field(..., description="Valor total del documento.")
-    status: str = Field(..., description="Estado del procesamiento del documento.", examples=["processed"])
+    status: int = Field(..., description="Código de estado del documento. 0=Error, 100=Procesado, 200=Causado, 300=Aprobado, 400=Contabilizada.", examples=[100])
     register_at: datetime = Field(..., description="Fecha y hora de registro en el sistema.")
     accounting_entry_id: Optional[int] = Field(None, description="ID del asiento contable de Odoo asociado. Null si no se encontró coincidencia.")
 
@@ -154,6 +154,20 @@ class DocumentDetailWithAccountingResponse(BaseModel):
         None,
         description="Último asiento contable generado para el documento. Null si aún no se ha causado.",
     )
+
+
+class DocumentStatusUpdateRequest(BaseModel):
+    status: int = Field(
+        ...,
+        description=(
+            "Código de estado destino. Valores soportados: "
+            "200 (Causado — revierte aprobación, el documento debe estar en estado Aprobado)."
+        ),
+        examples=[200],
+    )
+    model_config = {
+        "json_schema_extra": {"example": {"status": 200}}
+    }
 
 
 class ProcessXmlResponse(BaseModel):

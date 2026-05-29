@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.infrastructure.config.logging import setup_logging
@@ -13,6 +13,7 @@ from app.infrastructure.persistence.repositories.system_prompt_repository import
 from app.adapters.api.routers.analyze import router as analyze_router
 from app.adapters.api.routers.query import router as query_router
 from app.adapters.api.routers.accounting import router as accounting_router
+from app.adapters.api.routers.internal import router as internal_router
 from app.domain.exceptions.base import DomainException
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 
@@ -117,7 +118,6 @@ def _migrate_generated_tables() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine, checkfirst=True)
-    _run_migrations()
     _migrate_generated_tables()
     db = SessionLocal()
     try:
@@ -141,6 +141,7 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 app.include_router(analyze_router, prefix="/api/v1", tags=["analyze"])
 app.include_router(query_router, prefix="/api/v1", tags=["query"])
 app.include_router(accounting_router, prefix="/api/v1", tags=["accounting"])
+app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 
 logger.info("LLM Service started on port 8003")
 
@@ -153,13 +154,3 @@ logger.info("LLM Service started on port 8003")
 )
 async def health_check():
     return {"status": "healthy", "service": "llm-service"}
-
-
-@app.get(
-    "/{path:path}",
-    summary="Ruta no encontrada",
-    description="Responde `404` para cualquier ruta no definida por el LLM Service.",
-    include_in_schema=False,
-)
-async def not_found(path: str):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")

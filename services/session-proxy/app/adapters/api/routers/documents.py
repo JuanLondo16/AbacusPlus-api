@@ -14,12 +14,13 @@ from app.dependencies import (
     get_job_status_use_case,
     get_batch_status_use_case,
 )
+from app.infrastructure.config.auth_dependency import get_token_data
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_token_data)])
 
 
 @router.post(
-    "/dian/documents/enqueue",
+    "/dian/downloads",
     response_model=EnqueueDownloadsResponse,
     status_code=202,
     summary="Consulta documentos DIAN por rango de fechas y encola descarga de ZIPs",
@@ -27,7 +28,7 @@ router = APIRouter()
         "Consulta el portal DIAN por rango de fechas, filtra documentos con `DocumentTypeId=96` "
         "y encola la descarga de cada ZIP en segundo plano.\n\n"
         "Retorna un `batch_id` que puedes usar en "
-        "`GET /dian/documents/batches/{batch_id}` para monitorear el progreso."
+        "`GET /api/v1/dian/documents/batches/{batch_id}` para monitorear el progreso."
     ),
     response_description="Batch creado con su ID, cantidad de jobs encolados y hora de inicio.",
 )

@@ -1,9 +1,10 @@
 import os
+from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.infrastructure.config.database import get_db
+from app.infrastructure.config.auth_dependency import get_tenant_db, get_token_data, TokenData
 from app.infrastructure.ai.openai_service import OpenAIService
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.clients.document_client import DocumentClient
@@ -26,26 +27,26 @@ def get_openai_service() -> OpenAIService:
     return OpenAIService(api_key=api_key)
 
 
-def get_rag_client() -> RagClient:
+def get_rag_client(token: Annotated[TokenData, Depends(get_token_data)]) -> RagClient:
     url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8002")
-    return RagClient(base_url=url)
+    return RagClient(base_url=url, bearer_token=token.raw_token)
 
 
-def get_document_client() -> DocumentClient:
+def get_document_client(token: Annotated[TokenData, Depends(get_token_data)]) -> DocumentClient:
     url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
-    return DocumentClient(base_url=url)
+    return DocumentClient(base_url=url, bearer_token=token.raw_token)
 
 
-def get_catalog_client() -> CatalogClient:
+def get_catalog_client(token: Annotated[TokenData, Depends(get_token_data)]) -> CatalogClient:
     url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
-    return CatalogClient(base_url=url)
+    return CatalogClient(base_url=url, bearer_token=token.raw_token)
 
 
-def get_system_prompt_repo(db: Session = Depends(get_db)) -> SystemPromptRepository:
+def get_system_prompt_repo(db: Session = Depends(get_tenant_db)) -> SystemPromptRepository:
     return SystemPromptRepository(db)
 
 
-def get_accounting_repo(db: Session = Depends(get_db)) -> AccountingRepository:
+def get_accounting_repo(db: Session = Depends(get_tenant_db)) -> AccountingRepository:
     return AccountingRepository(db)
 
 
@@ -53,20 +54,26 @@ def get_analyze_with_ai_use_case() -> AnalyzeWithAIUseCase:
     return AnalyzeWithAIUseCase(ai_service=get_openai_service())
 
 
-def get_query_with_rag_use_case() -> QueryWithRAGUseCase:
+def get_query_with_rag_use_case(
+    token: Annotated[TokenData, Depends(get_token_data)],
+) -> QueryWithRAGUseCase:
+    url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8002")
     return QueryWithRAGUseCase(
         ai_service=get_openai_service(),
-        rag_client=get_rag_client(),
+        rag_client=RagClient(base_url=url, bearer_token=token.raw_token),
     )
 
 
 def get_generate_accounting_use_case(
-    db: Session = Depends(get_db),
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_tenant_db),
 ) -> GenerateAccountingEntryUseCase:
+    xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    raw = token.raw_token if token else ""
     return GenerateAccountingEntryUseCase(
         ai_service=get_openai_service(),
-        document_client=get_document_client(),
-        catalog_client=get_catalog_client(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
+        catalog_client=CatalogClient(base_url=xml_url, bearer_token=raw),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
         chart_account_repo=ChartAccountRepository(db),
@@ -74,43 +81,52 @@ def get_generate_accounting_use_case(
 
 
 def get_query_accounting_use_case(
-    db: Session = Depends(get_db),
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_tenant_db),
 ) -> QueryAccountingUseCase:
+    xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    raw = token.raw_token if token else ""
     return QueryAccountingUseCase(
-        document_client=get_document_client(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
         accounting_repo=AccountingRepository(db),
     )
 
 
 def get_recalculate_accounting_batch_use_case(
-    db: Session = Depends(get_db),
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_tenant_db),
 ) -> RecalculateAccountingBatchUseCase:
+    xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    raw = token.raw_token if token else ""
     generate_use_case = GenerateAccountingEntryUseCase(
         ai_service=get_openai_service(),
-        document_client=get_document_client(),
-        catalog_client=get_catalog_client(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
+        catalog_client=CatalogClient(base_url=xml_url, bearer_token=raw),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
         chart_account_repo=ChartAccountRepository(db),
     )
     return RecalculateAccountingBatchUseCase(
-        document_client=get_document_client(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
         generate_use_case=generate_use_case,
     )
 
 
 def get_recalculate_accounting_document_use_case(
-    db: Session = Depends(get_db),
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_tenant_db),
 ) -> RecalculateAccountingDocumentUseCase:
+    xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    raw = token.raw_token if token else ""
     generate_use_case = GenerateAccountingEntryUseCase(
         ai_service=get_openai_service(),
-        document_client=get_document_client(),
-        catalog_client=get_catalog_client(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
+        catalog_client=CatalogClient(base_url=xml_url, bearer_token=raw),
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
         chart_account_repo=ChartAccountRepository(db),
     )
     return RecalculateAccountingDocumentUseCase(
-        document_client=get_document_client(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
         generate_use_case=generate_use_case,
     )

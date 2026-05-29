@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/siigo/auth",
+    "/siigo/sessions",
     response_model=AuthResponse,
     status_code=status.HTTP_200_OK,
     summary="Autenticar contra SIIGO",

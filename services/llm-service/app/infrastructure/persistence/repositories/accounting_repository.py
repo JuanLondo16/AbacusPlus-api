@@ -109,7 +109,7 @@ class AccountingRepository:
 
     def link_to_document(self, document_id: int, entry_id: int) -> None:
         self._db.execute(
-            text("UPDATE documents SET accounting_entry_id = :eid WHERE id = :did"),
+            text("UPDATE documents SET accounting_entry_id = :eid, status = 200 WHERE id = :did"),
             {"eid": entry_id, "did": document_id},
         )
         self._db.commit()

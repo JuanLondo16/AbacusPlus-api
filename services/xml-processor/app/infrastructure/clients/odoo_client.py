@@ -9,8 +9,9 @@ logger = logging.getLogger(__name__)
 class OdooClient:
     """Cliente HTTP para obtener causaciones contables sincronizadas desde Odoo."""
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, bearer_token: str = ""):
         self.base_url = base_url.rstrip("/")
+        self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
 
     async def get_accounting_entry(self, document_id: int) -> Optional[dict]:
         """
@@ -22,7 +23,7 @@ class OdooClient:
         url = f"{self.base_url}/api/v1/odoo/entries/by-document/{document_id}"
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=self._headers)
                 if response.status_code == 404:
                     return None
                 if response.status_code != 200:

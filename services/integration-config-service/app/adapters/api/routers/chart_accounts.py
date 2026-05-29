@@ -27,7 +27,7 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
 
 
 @router.post(
-    "/integrations/chart-accounts/import-excel",
+    "/integrations/chart-accounts/imports",
     response_model=ImportChartAccountsResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar plan de cuentas desde Excel",

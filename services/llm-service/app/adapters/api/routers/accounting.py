@@ -11,6 +11,8 @@ from app.application.dto.accounting import (
     RecalculateAccountingItemResult,
     SystemPromptRequest,
     SystemPromptResponse,
+    RecalculateDocumentBody,
+    SystemPromptActivateRequest,
 )
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
@@ -29,7 +31,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/accounting/generate",
+    "/accounting/entries",
     response_model=AccountingEntryResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Generar asiento contable con LLM",
@@ -81,14 +83,14 @@ async def get_document_with_accounting(
 
 
 @router.post(
-    "/accounting/recalculate-batch",
+    "/accounting/recalculations",
     response_model=RecalculateAccountingBatchResponse,
     summary="Recalcular causación contable por rango de fechas",
     description=(
         "Recalcula la causación contable para todos los documentos dentro de un rango de fechas.\n\n"
         "**Flujo interno:**\n"
         "1. Lista documentos desde xml-processor en el rango `dateini`–`datefin` (y opcionalmente por `status`).\n"
-        "2. Para cada documento ejecuta el mismo proceso de `POST /api/v1/accounting/generate`.\n"
+        "2. Para cada documento ejecuta el mismo proceso de `POST /api/v1/accounting/entries`.\n"
         "3. Retorna un resumen con totales y el detalle por documento.\n\n"
         "Nota: este proceso crea nuevos asientos (no reemplaza los anteriores)."
     ),
@@ -105,14 +107,15 @@ async def recalculate_accounting_batch(
 
 
 @router.post(
-    "/accounting/recalculate-document",
+    "/accounting/entries/{document_id}/recalculations",
     response_model=RecalculateAccountingItemResult,
+    status_code=status.HTTP_201_CREATED,
     summary="Recalcular causación contable por ID de documento",
     description=(
-        "Recalcula la causación contable para una factura específica identificada por el `id` de la tabla `documents`.\n\n"
+        "Recalcula la causación contable para una factura específica identificada por `document_id` en la ruta.\n\n"
         "**Flujo interno:**\n"
         "1. Valida que el documento exista en xml-processor usando `document_id`.\n"
-        "2. Ejecuta el mismo proceso de `POST /api/v1/accounting/generate`.\n"
+        "2. Ejecuta el mismo proceso de `POST /api/v1/accounting/entries`.\n"
         "3. Retorna el resultado del recálculo para ese documento.\n\n"
         "Nota: este proceso crea un nuevo asiento (no reemplaza los anteriores)."
     ),
@@ -123,9 +126,15 @@ async def recalculate_accounting_batch(
     },
 )
 async def recalculate_accounting_document(
-    request: RecalculateAccountingDocumentRequest,
+    document_id: int,
+    body: RecalculateDocumentBody,
     use_case: RecalculateAccountingDocumentUseCase = Depends(get_recalculate_accounting_document_use_case),
 ):
+    request = RecalculateAccountingDocumentRequest(
+        document_id=document_id,
+        top_k=body.top_k,
+        model=body.model,
+    )
     return await use_case.execute(request)
 
 
@@ -169,22 +178,30 @@ def create_system_prompt(
 
 
 @router.patch(
-    "/accounting/system-prompts/{prompt_id}/activate",
+    "/accounting/system-prompts/{prompt_id}",
     response_model=SystemPromptResponse,
-    summary="Activar un system prompt",
+    summary="Actualizar system prompt (activar)",
     description=(
-        "Marca el system prompt indicado como activo y desactiva todos los demás. "
+        "Actualiza el system prompt indicado. Cuando `is_active` es `true`, "
+        "lo marca como activo y desactiva todos los demás. "
         "A partir de ese momento, todas las nuevas generaciones de asientos usarán este prompt."
     ),
-    response_description="System prompt actualizado con `is_active: true`.",
+    response_description="System prompt actualizado.",
     responses={
         404: {"description": "System prompt no encontrado."},
+        422: {"description": "Solo se soporta `is_active: true` por ahora."},
     },
 )
-def activate_system_prompt(
+def update_system_prompt(
     prompt_id: int,
+    request: SystemPromptActivateRequest,
     repo: SystemPromptRepository = Depends(get_system_prompt_repo),
 ):
+    if not request.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only is_active=true is currently supported.",
+        )
     prompt = repo.activate(prompt_id)
     if not prompt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt {prompt_id} not found")

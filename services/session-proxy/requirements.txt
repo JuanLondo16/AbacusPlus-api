@@ -1,4 +1,6 @@
 fastapi>=0.100.0,<1.0
+PyJWT>=2.8.0,<3.0
+cryptography>=41.0.0,<44.0
 uvicorn==0.22.0
 python-dotenv==1.0.0
 pydantic>=2.0,<3.0

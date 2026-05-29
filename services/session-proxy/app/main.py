@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI
 
 from app.infrastructure.config.logging import setup_logging
 from app.adapters.api.routers.auth import router as auth_router
@@ -36,13 +36,3 @@ logger.info("Session Proxy Service iniciado en puerto 8004")
 )
 async def health_check():
     return {"status": "healthy", "service": "session-proxy"}
-
-
-@app.get(
-    "/{path:path}",
-    summary="Ruta no encontrada",
-    description="Responde `404` para cualquier ruta no definida por el Session Proxy.",
-    include_in_schema=False,
-)
-async def not_found(path: str):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")

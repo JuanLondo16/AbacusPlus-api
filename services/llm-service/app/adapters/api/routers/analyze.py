@@ -1,13 +1,15 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends
 from app.application.dto.ai import AIAnalyzeRequest, AIAnalyzeResponse
 from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
 from app.dependencies import get_analyze_with_ai_use_case
+from app.infrastructure.config.auth_dependency import get_token_data, TokenData
 
 router = APIRouter()
 
 
 @router.post(
-    "/ai/analyze",
+    "/analyses",
     response_model=AIAnalyzeResponse,
     summary="Análisis directo con OpenAI (sin RAG)",
     description=(
@@ -24,6 +26,7 @@ router = APIRouter()
 )
 async def analyze_with_ai(
     request: AIAnalyzeRequest,
+    _: Annotated[TokenData, Depends(get_token_data)],
     use_case: AnalyzeWithAIUseCase = Depends(get_analyze_with_ai_use_case),
 ):
     return await use_case.execute(request)

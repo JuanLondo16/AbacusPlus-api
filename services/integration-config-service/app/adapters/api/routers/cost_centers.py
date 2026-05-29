@@ -23,7 +23,7 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
 
 
 @router.post(
-    "/integrations/cost-centers/import-excel",
+    "/integrations/cost-centers/imports",
     response_model=ImportCostCentersResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar centros de costo desde Excel",

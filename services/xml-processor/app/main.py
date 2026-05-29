@@ -2,13 +2,14 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI
 
 from sqlalchemy import text
 
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.persistence.models import document, issuer, receiver, tax, concept, processing_log  # noqa: F401
+from app.infrastructure.persistence.models.document import DocumentStatus  # noqa: F401
 from app.infrastructure.persistence.models import puc, retention_ica, retention_fuente, cost_center  # noqa: F401
 from app.infrastructure.queue.download_queue import process_queue_worker
 from app.adapters.api.routers.xml import router as xml_router
@@ -17,6 +18,7 @@ from app.adapters.api.routers.receivers import router as receivers_router
 from app.adapters.api.routers.issuers import router as issuers_router
 from app.adapters.api.routers.catalog import router as catalog_router
 from app.adapters.api.routers.batch import router as batch_router
+from app.adapters.api.routers.internal import router as internal_router
 from app.domain.exceptions.base import DomainException
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 
@@ -28,6 +30,34 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine, checkfirst=True)
     with engine.connect() as conn:
+        conn.execute(text("""
+            INSERT INTO document_statuses (id, name) VALUES
+                (0, 'Error'), (100, 'Procesado'), (200, 'Causado'),
+                (300, 'Aprobado'), (400, 'Contabilizada')
+            ON CONFLICT (id) DO NOTHING
+        """))
+        conn.execute(text("""
+            DO $$
+            BEGIN
+                IF (SELECT data_type FROM information_schema.columns
+                    WHERE table_name='documents' AND column_name='status') = 'character varying' THEN
+                    ALTER TABLE documents ALTER COLUMN status TYPE INTEGER USING
+                        CASE status
+                            WHEN 'Procesado'      THEN 100
+                            WHEN 'procesado'      THEN 100
+                            WHEN 'processed'      THEN 100
+                            WHEN 'Causado'        THEN 200
+                            WHEN 'causado'        THEN 200
+                            WHEN 'Aprobado'       THEN 300
+                            WHEN 'aprobado'       THEN 300
+                            WHEN 'Contabilizada'  THEN 400
+                            WHEN 'contabilizada'  THEN 400
+                            ELSE 0
+                        END;
+                END IF;
+            END $$;
+        """))
+        conn.commit()
         conn.execute(text(
             "ALTER TABLE processing_logs "
             "ADD COLUMN IF NOT EXISTS xml_filename VARCHAR(255)"
@@ -74,6 +104,7 @@ app.include_router(receivers_router, prefix="/api/v1", tags=["receivers"])
 app.include_router(issuers_router, prefix="/api/v1", tags=["issuers"])
 app.include_router(catalog_router, prefix="/api/v1", tags=["catalog"])
 app.include_router(batch_router, prefix="/api/v1", tags=["batch"])
+app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 
 logger.info("XML Processor Service started on port 8001")
 
@@ -86,13 +117,3 @@ logger.info("XML Processor Service started on port 8001")
 )
 async def health_check():
     return {"status": "healthy", "service": "xml-processor"}
-
-
-@app.get(
-    "/{path:path}",
-    summary="Ruta no encontrada",
-    description="Responde `404` para cualquier ruta no definida por el XML Processor.",
-    include_in_schema=False,
-)
-async def not_found(path: str):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")

@@ -3,7 +3,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.infrastructure.config.database import get_db
+from app.infrastructure.config.auth_dependency import get_tenant_db
 from app.infrastructure.odoo.odoo_client import OdooXmlRpcClient
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
@@ -28,12 +28,12 @@ def get_rag_client() -> RagClient:
     return RagClient(base_url=url)
 
 
-def get_accounting_entry_repo(db: Session = Depends(get_db)) -> AccountingEntryRepository:
+def get_accounting_entry_repo(db: Session = Depends(get_tenant_db)) -> AccountingEntryRepository:
     return AccountingEntryRepository(db)
 
 
 def get_sync_use_case(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ) -> SyncJournalEntriesUseCase:
     return SyncJournalEntriesUseCase(
         odoo_client=get_odoo_client(),
@@ -43,7 +43,7 @@ def get_sync_use_case(
 
 
 def get_query_use_case(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ) -> QueryJournalEntriesUseCase:
     return QueryJournalEntriesUseCase(
         repository=AccountingEntryRepository(db),
@@ -51,7 +51,7 @@ def get_query_use_case(
 
 
 def get_match_use_case(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
 ) -> MatchEntriesUseCase:
     return MatchEntriesUseCase(
         repository=AccountingEntryRepository(db),

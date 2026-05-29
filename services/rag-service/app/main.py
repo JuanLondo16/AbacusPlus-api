@@ -1,10 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.persistence.models import chunk as _chunk_model  # noqa: F401
 from app.adapters.api.routers.chunks import router as chunks_router
+from app.adapters.api.routers.internal import router as internal_router
 from app.domain.exceptions.base import DomainException
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 
@@ -30,6 +31,7 @@ app.add_exception_handler(DomainException, domain_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(chunks_router, prefix="/api/v1", tags=["chunks"])
+app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 
 logger.info("RAG Service started on port 8002")
 
@@ -42,13 +44,3 @@ logger.info("RAG Service started on port 8002")
 )
 async def health_check():
     return {"status": "healthy", "service": "rag-service"}
-
-
-@app.get(
-    "/{path:path}",
-    summary="Ruta no encontrada",
-    description="Responde `404` para cualquier ruta no definida por el RAG Service.",
-    include_in_schema=False,
-)
-async def not_found(path: str):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Route not found: {path}")

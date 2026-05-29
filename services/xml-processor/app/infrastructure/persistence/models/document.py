@@ -1,7 +1,14 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, Float
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from app.infrastructure.config.database import Base
+
+
+class DocumentStatus(Base):
+    __tablename__ = "document_statuses"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False, unique=True)
 
 
 class Document(Base):
@@ -30,7 +37,7 @@ class Document(Base):
     reteica = Column(Float, nullable=True, default=0.0)
     total = Column(Float, nullable=False)
     register_at = Column(DateTime, default=datetime.now(timezone.utc))
-    status = Column(String(50), nullable=False)
+    status = Column(Integer, ForeignKey("document_statuses.id"), nullable=False, default=100)
     accounting_entry_id = Column(Integer, nullable=True, index=True)  # ref a accounting_entries.id
 
     # Relación con DocumentDetail

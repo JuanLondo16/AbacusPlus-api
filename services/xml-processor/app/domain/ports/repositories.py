@@ -20,11 +20,15 @@ class DocumentRepositoryPort(ABC):
         ...
 
     @abstractmethod
-    def get_by_date_range(self, date_start: date, date_end: date, status: Optional[str] = None) -> List[object]:
+    def get_by_date_range(self, date_start: date, date_end: date, status: Optional[int] = None) -> List[object]:
         ...
 
     @abstractmethod
     def create(self, document: object) -> object:
+        ...
+
+    @abstractmethod
+    def update_status(self, document_id: int, new_status: str) -> object:
         ...
 
 

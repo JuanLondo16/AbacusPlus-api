@@ -1,5 +1,7 @@
 import logging
 
+from fastapi import HTTPException
+
 from app.application.dto.accounting import AccountingEntryResponse, DocumentWithAccountingResponse
 from app.infrastructure.clients.document_client import DocumentClient
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
@@ -18,6 +20,8 @@ class QueryAccountingUseCase:
 
     async def execute(self, document_id: int) -> DocumentWithAccountingResponse:
         document = await self._doc_client.get_document(document_id)
+        if document is None:
+            raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
         entry = self._accounting_repo.get_latest_by_document_id(document_id)
 
         accounting_entry = None

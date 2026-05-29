@@ -11,12 +11,13 @@ from app.domain.exceptions.base import BrowserLoginException
 from app.infrastructure.session.in_memory_store import InMemorySessionStore
 from app.infrastructure.clients.external_client import HttpxExternalClient
 from app.dependencies import get_login_use_case, get_session_store, get_external_client, get_company_login_use_case
+from app.infrastructure.config.auth_dependency import get_token_data
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_token_data)])
 
 
 @router.post(
-    "/dian/auth",
+    "/dian/sessions",
     response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear sesión DIAN con token",
@@ -42,7 +43,7 @@ async def login(
 
 
 @router.delete(
-    "/dian/logout/{session_id}",
+    "/dian/sessions/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Cerrar sesión DIAN local",
     description=(
@@ -60,7 +61,7 @@ async def logout(
 
 
 @router.post(
-    "/dian/auth/debug",
+    "/dian/sessions/debug",
     summary="[DEBUG] Probar login DIAN y ver cookies",
     description=(
         "Endpoint de diagnóstico para ejecutar el login contra el portal externo y "
@@ -88,7 +89,7 @@ async def login_debug(
 
 
 @router.post(
-    "/dian/company-login",
+    "/dian/sessions/company",
     response_model=CompanyLoginResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear sesión DIAN mediante formulario de empresa",
@@ -117,7 +118,7 @@ async def company_login(
 
 
 @router.get(
-    "/dian/debug/{session_id}",
+    "/dian/sessions/{session_id}/debug",
     summary="[DEBUG] Ver sesión DIAN almacenada",
     description=(
         "Retorna las cookies y metadatos de una sesión almacenada en memoria. "
