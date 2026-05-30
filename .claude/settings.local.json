@@ -34,7 +34,15 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"http://localhost:8000/api/v1/query\" -H \"Content-Type: application/json\" -d '{\"question\":\"test\"}')",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:8006/api/v1/siigo/chart-accounts\")",
       "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@ikbo.co\",\"password\":\"secret123\",\"tenant_slug\":\"ikbo\"}')",
-      "Bash(Get-ChildItem -Path \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\\\\llm-service\\\\app\\\\adapters\\\\api\\\\routers\" -Filter \"*.py\")"
+      "Bash(Get-ChildItem -Path \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\\\\llm-service\\\\app\\\\adapters\\\\api\\\\routers\" -Filter \"*.py\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(echo === $svc === *)",
+      "Bash(grep -E \"^[^/]*\\\\.\\(yaml|yml\\)$|\\\\.github|docker\")",
+      "PowerShell(head *)",
+      "Bash(grep -E \"\\\\.\\(yml|yaml|toml|cfg|ini\\)$\")",
+      "PowerShell(Get-ChildItem *)",
+      "Bash([ -f \"C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api/services/$svc/pytest.ini\" ])"
     ]
   }
 }
