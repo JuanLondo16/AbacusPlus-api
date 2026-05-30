@@ -152,6 +152,7 @@ class GenerateAccountingEntryUseCase:
         system_prompt_repo: SystemPromptRepository,
         catalog_client: Optional[CatalogClient] = None,
         chart_account_repo: Optional[ChartAccountRepository] = None,
+        accounting_rules_client=None,
     ):
         self._ai = ai_service
         self._doc_client = document_client
@@ -159,6 +160,7 @@ class GenerateAccountingEntryUseCase:
         self._accounting_repo = accounting_repo
         self._prompt_repo = system_prompt_repo
         self._chart_account_repo = chart_account_repo
+        self._rules_client = accounting_rules_client
         self._adj_account = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT", "539520")
         self._adj_name = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT_NAME", "Ajuste por redondeo")
         self._fallback_accounts = [
@@ -260,6 +262,30 @@ class GenerateAccountingEntryUseCase:
                 issuer_nit,
             )
 
+        # 5.5 Consultar reglas de causación aprobadas — best-effort, no bloquea el flujo
+        rules_prompt = ""
+        if self._rules_client:
+            try:
+                items_payload = [
+                    {"description": d.get("description", ""), "subtotal": d.get("subtotal", 0.0)}
+                    for d in document.get("details", [])
+                ]
+                rules_result = await self._rules_client.lookup_rules(
+                    issuer_nit=issuer_nit,
+                    items=items_payload,
+                    document_id=request.document_id,
+                )
+                rules_prompt = self._build_rules_prompt(rules_result)
+                logger.info(
+                    "Rules lookup: %s (confianza=%.2f) para NIT=%s doc_id=%d",
+                    rules_result.get("match_level", "MISS"),
+                    rules_result.get("confidence", 0.0),
+                    issuer_nit,
+                    request.document_id,
+                )
+            except Exception as exc:
+                logger.warning("Accounting rules lookup failed (non-blocking): %s", exc)
+
         # 6. Construir prompt de usuario
         doc_json = json.dumps(document, ensure_ascii=False, default=str, indent=2)
 
@@ -295,6 +321,7 @@ class GenerateAccountingEntryUseCase:
         ) if issuer_notes else ""
 
         user_prompt = (
+            f"{rules_prompt}"
             f"{catalog_prompt}"
             f"{issuer_notes_block}"
             f"{historical_prompt}"
@@ -369,6 +396,32 @@ class GenerateAccountingEntryUseCase:
             saved = self._accounting_repo.create(entry, lines_data=[])
 
         return AccountingEntryResponse.model_validate(saved)
+
+    def _build_rules_prompt(self, lookup: dict) -> str:
+        level = lookup.get("match_level", "MISS")
+        entry = lookup.get("suggested_entry")
+        if level == "HIT" and entry:
+            return (
+                "== CAUSACIÓN SUGERIDA POR HISTORIAL APROBADO ==\n"
+                "El sistema de reglas aprobadas sugiere:\n"
+                f"  - Débito: {entry.get('debit_account')}\n"
+                f"  - Crédito: {entry.get('credit_account')}\n"
+                f"  - Impuestos: {entry.get('tax_accounts', {})}\n"
+                f"  - Centro de costo: {entry.get('cost_center') or 'No especificado'}\n"
+                "Valida que esto sea correcto para este documento específico "
+                "y ajusta si hay alguna particularidad.\n\n"
+            )
+        if level == "PARTIAL" and entry:
+            known = lookup.get("known_fields", [])
+            return (
+                "== CONTEXTO PARCIAL DE HISTORIAL APROBADO ==\n"
+                f"El historial aprobado indica parcialmente (campos conocidos: {', '.join(known)}):\n"
+                f"  - Débito: {entry.get('debit_account')}\n"
+                f"  - Crédito: {entry.get('credit_account')}\n"
+                f"  - Impuestos: {entry.get('tax_accounts', {})}\n"
+                "Completa la causación para los campos que faltan.\n\n"
+            )
+        return ""
 
     def _build_catalog_prompt(
         self,

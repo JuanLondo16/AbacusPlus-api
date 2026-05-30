@@ -14,6 +14,7 @@ from app.infrastructure.persistence.repositories.processing_log_repository impor
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.clients.llm_client import LlmClient
 from app.infrastructure.clients.odoo_client import OdooClient
+from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
 from app.infrastructure.queue.download_queue import get_queue
 from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
@@ -112,8 +113,22 @@ def get_processing_log_repo(db: Session = Depends(get_tenant_db)) -> ProcessingL
     return ProcessingLogRepository(db)
 
 
-def get_approve_document_use_case(db: Session = Depends(get_tenant_db)) -> ApproveDocumentUseCase:
-    return ApproveDocumentUseCase(document_repo=DocumentRepository(db))
+def get_accounting_rules_client(token: Annotated[TokenData, Depends(get_token_data)]) -> AccountingRulesClient:
+    url = os.getenv("ACCOUNTING_RULES_SERVICE_URL", "http://accounting-rules-service:8009")
+    return AccountingRulesClient(base_url=url, bearer_token=token.raw_token)
+
+
+def get_approve_document_use_case(
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_tenant_db),
+) -> ApproveDocumentUseCase:
+    llm_url = os.getenv("LLM_SERVICE_URL", "http://llm-service:8003")
+    rules_url = os.getenv("ACCOUNTING_RULES_SERVICE_URL", "http://accounting-rules-service:8009")
+    return ApproveDocumentUseCase(
+        document_repo=DocumentRepository(db),
+        llm_client=LlmClient(base_url=llm_url, bearer_token=token.raw_token),
+        accounting_rules_client=AccountingRulesClient(base_url=rules_url, bearer_token=token.raw_token),
+    )
 
 
 def get_unapprove_document_use_case(db: Session = Depends(get_tenant_db)) -> UnapproveDocumentUseCase:

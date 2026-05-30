@@ -163,7 +163,7 @@ async def approve_document(
     concept_repo: ConceptRepository = Depends(get_concept_repo),
 ):
     try:
-        doc = use_case.execute(document_id)
+        doc = await use_case.execute(document_id)
     except EntityNotFoundException:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found")
     except ValueError as e:

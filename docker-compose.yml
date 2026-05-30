@@ -18,6 +18,7 @@ services:
       - siigo-service
       - integration-config-service
       - auth-service
+      - accounting-rules-service
     networks:
       - abacus-network
     restart: unless-stopped
@@ -76,6 +77,7 @@ services:
       - PYTHONUNBUFFERED=1
       - RAG_SERVICE_URL=http://rag-service:8002
       - LLM_SERVICE_URL=http://llm-service:8003
+      - ACCOUNTING_RULES_SERVICE_URL=http://accounting-rules-service:8009
       - DOWNLOADS_DIR=/app/downloads
       - REDIS_URL=redis://redis:6379
       - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
@@ -134,6 +136,7 @@ services:
       - PYTHONUNBUFFERED=1
       - RAG_SERVICE_URL=http://rag-service:8002
       - XML_PROCESSOR_URL=http://xml-processor:8001
+      - ACCOUNTING_RULES_SERVICE_URL=http://accounting-rules-service:8009
       - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
@@ -258,6 +261,37 @@ services:
     depends_on:
       database:
         condition: service_healthy
+    networks:
+      - abacus-network
+    restart: unless-stopped
+
+  # ── Microservicio 8: Reglas de causación aprobadas (memoria estructurada) ─
+  accounting-rules-service:
+    build:
+      context: ./services/accounting-rules-service
+      dockerfile: Dockerfile
+    container_name: abacus_accounting_rules_service
+    ports:
+      - "8009:8009"
+    volumes:
+      - ./services/accounting-rules-service/app:/app/app
+      - ./services/accounting-rules-service/tests:/app/tests
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_EMBED_MODEL=nomic-embed-text
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
+      - RULES_HIT_THRESHOLD=0.85
+      - RULES_PARTIAL_THRESHOLD=0.50
+      - RULES_DECAY_MONTHLY_FACTOR=0.995
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8009 --reload
+    depends_on:
+      database:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     networks:
       - abacus-network
     restart: unless-stopped

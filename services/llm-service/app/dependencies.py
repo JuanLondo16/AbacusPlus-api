@@ -9,6 +9,7 @@ from app.infrastructure.ai.openai_service import OpenAIService
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.clients.document_client import DocumentClient
 from app.infrastructure.clients.catalog_client import CatalogClient
+from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
 from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
 from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
@@ -64,11 +65,17 @@ def get_query_with_rag_use_case(
     )
 
 
+def get_accounting_rules_client(token: Annotated[TokenData, Depends(get_token_data)]) -> AccountingRulesClient:
+    url = os.getenv("ACCOUNTING_RULES_SERVICE_URL", "http://accounting-rules-service:8009")
+    return AccountingRulesClient(base_url=url, bearer_token=token.raw_token)
+
+
 def get_generate_accounting_use_case(
     token: Annotated[TokenData, Depends(get_token_data)],
     db: Session = Depends(get_tenant_db),
 ) -> GenerateAccountingEntryUseCase:
     xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    rules_url = os.getenv("ACCOUNTING_RULES_SERVICE_URL", "http://accounting-rules-service:8009")
     raw = token.raw_token if token else ""
     return GenerateAccountingEntryUseCase(
         ai_service=get_openai_service(),
@@ -77,6 +84,7 @@ def get_generate_accounting_use_case(
         accounting_repo=AccountingRepository(db),
         system_prompt_repo=SystemPromptRepository(db),
         chart_account_repo=ChartAccountRepository(db),
+        accounting_rules_client=AccountingRulesClient(base_url=rules_url, bearer_token=raw),
     )
 
 

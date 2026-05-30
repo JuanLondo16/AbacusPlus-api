@@ -52,6 +52,11 @@ Cliente
                    ├─ GET|POST /api/v1/integrations ──►  integration-config-service :8007
                    │                                      (credenciales, centros costo, import)
                    │
+                   ├─ GET|POST /api/v1/rules  ──►  accounting-rules-service :8009
+                   │                                │  memoria estructurada de causaciones aprobadas
+                   │                                │  ◄── recibe aprobaciones de xml-processor
+                   │                                └── ◄── lookup pre-LLM desde llm-service
+                   │
                    ├─ POST /api/v1/dian       ──►  session-proxy :8004
                    │  POST /api/v1/proxy            (auth DIAN, descarga ZIPs, cola arq)
                    │
@@ -65,6 +70,22 @@ api/
 ├── services/
 │   ├── gateway/                # Puerto 8000 (entrada única)
 │   │   └── nginx.conf
+│   │
+│   ├── xml-processor/          # Puerto 8001
+│   │
+│   ├── accounting-rules-service/   # Puerto 8009
+│   │   ├── app/
+│   │   │   ├── adapters/api/routers/   rules.py · lookups.py · internal.py
+│   │   │   ├── application/use_cases/  lookup_rules.py · record_approved_entry.py · compute_rule_stats.py
+│   │   │   ├── application/dto/        rule.py · lookup.py
+│   │   │   ├── domain/                 entities/ · value_objects/ · ports/ · exceptions/
+│   │   │   └── infrastructure/
+│   │   │       ├── ai/                 ollama_service.py  ← embeddings para matching semántico
+│   │   │       ├── config/             database.py · auth_dependency.py · tenant_connection_manager.py
+│   │   │       └── persistence/        models/ (accounting_rule, rule_match_attempt) · repositories/
+│   │   ├── tests/
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
 │   │
 │   ├── xml-processor/          # Puerto 8001
 │   │   ├── app/
@@ -315,6 +336,17 @@ api/
 | GET  | `/api/v1/integrations/purchase-invoice-parameters` | Lista plantillas (filtros: provider, account_key) |
 | GET  | `/health` | Health check |
 
+### accounting-rules-service (:8009) — interno
+| Método | Path | Descripción |
+|--------|------|-------------|
+| POST  | `/api/v1/rules` | Crear regla de causación manual |
+| GET   | `/api/v1/rules` | Listar reglas (filtros: `nit`, `match_key_type`, `min_confidence`) |
+| PATCH | `/api/v1/rules/{id}` | Activar/desactivar o ajustar score manualmente |
+| GET   | `/api/v1/rules/stats` | Métricas: hit_rate, miss_rate, precision |
+| POST  | `/api/v1/rules/lookups` | Consulta pre-LLM → retorna HIT/PARTIAL/MISS + causación sugerida |
+| POST  | `/api/v1/rules/approvals` | Recibe notificación de aprobación desde xml-processor (best-effort) |
+| GET   | `/health` | Health check |
+
 ## Infraestructura
 
 ### PostgreSQL + pgvector
@@ -391,6 +423,12 @@ SESSION_TTL_SECONDS=3600
 
 # Redis (session-proxy + xml-processor batch)
 REDIS_URL=redis://redis:6379
+
+# accounting-rules-service
+ACCOUNTING_RULES_SERVICE_URL=http://accounting-rules-service:8009
+RULES_HIT_THRESHOLD=0.85
+RULES_PARTIAL_THRESHOLD=0.50
+RULES_DECAY_MONTHLY_FACTOR=0.995
 ```
 
 ## Reglas de desarrollo
@@ -468,3 +506,4 @@ Los specs OpenAPI de cada servicio también se exponen en el gateway:
 - **Dominio independiente**: las entidades de dominio no se comparten entre servicios. Cada uno define sus propios contratos.
 - **pgvector nativo**: la búsqueda vectorial usa el operador `<=>` directamente en SQL para máximo rendimiento.
 - **Ollama en contenedor separado**: permite cambiar el modelo de embeddings sin tocar el código de rag-service (solo variable `OLLAMA_EMBED_MODEL`).
+- **accounting-rules-service como memoria estructurada de causaciones aprobadas**: la fuente de verdad es `PATCH /approve` en xml-processor. Al aprobar, xml-processor busca las líneas del asiento en llm-service y notifica al rules-service (best-effort). El rules-service aprende: refuerza reglas cuando el contador aprueba sin editar, penaliza cuando edita antes de aprobar. Antes de cada llamada a OpenAI, llm-service consulta el rules-service (POST /rules/lookups): HIT → incluye causación sugerida en prompt; PARTIAL → incluye lo conocido y pide al LLM completar; MISS → llama al LLM sin contexto adicional. El fallo del rules-service nunca bloquea el flujo principal (neither xml-processor approve ni llm-service generate).
