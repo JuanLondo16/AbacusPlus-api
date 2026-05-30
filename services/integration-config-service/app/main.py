@@ -7,6 +7,7 @@ from app.adapters.api.error_handlers import domain_exception_handler, unhandled_
 from app.adapters.api.routers.chart_accounts import router as chart_accounts_router
 from app.adapters.api.routers.cost_centers import router as cost_centers_router
 from app.adapters.api.routers.credentials import router as credentials_router
+from app.adapters.api.routers.products import router as products_router
 from app.adapters.api.routers.purchase_invoice_parameters import router as purchase_invoice_parameters_router
 from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
@@ -14,6 +15,7 @@ from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.persistence.models import chart_account as _chart_account_model  # noqa: F401
 from app.infrastructure.persistence.models import cost_center as _cost_center_model  # noqa: F401
 from app.infrastructure.persistence.models import integration as _integration_model  # noqa: F401
+from app.infrastructure.persistence.models import product as _product_model  # noqa: F401
 from app.infrastructure.persistence.models import purchase_invoice_parameter as _purchase_param_model  # noqa: F401
 from app.adapters.api.routers.internal import router as internal_router
 
@@ -45,6 +47,7 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 app.include_router(chart_accounts_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(cost_centers_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(credentials_router, prefix="/api/v1", tags=["integrations"])
+app.include_router(products_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(purchase_invoice_parameters_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 

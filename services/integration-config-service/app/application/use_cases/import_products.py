@@ -3,36 +3,30 @@ from typing import Any, Dict, List, Optional
 
 from openpyxl import load_workbook
 
-from app.application.dto.cost_center import ImportCostCentersResponse
+from app.application.dto.product import ImportProductsResponse
 from app.domain.exceptions.base import ValidationException
-from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
+from app.infrastructure.persistence.repositories.product_repository import ProductRepository
+
+VALID_TYPES = {"product", "service"}
 
 
-_DEFAULT_PROVIDER = "default"
-_DEFAULT_ACCOUNT_KEY = "default"
+class ImportProductsUseCase:
+    REQUIRED_COLUMNS = {"code", "type", "description"}
+    OPTIONAL_COLUMNS = {"active"}
 
-
-class ImportCostCentersUseCase:
-    REQUIRED_COLUMNS = {"code", "name"}
-    OPTIONAL_COLUMNS = {"external_id", "active"}
-
-    def __init__(self, repository: CostCenterRepository):
+    def __init__(self, repository: ProductRepository):
         self.repository = repository
 
     def execute(
         self,
         file_content: bytes,
         sheet_name: Optional[str] = None,
-    ) -> ImportCostCentersResponse:
-        cost_centers = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(
-            provider=_DEFAULT_PROVIDER,
-            account_key=_DEFAULT_ACCOUNT_KEY,
-            cost_centers=cost_centers,
-        )
-        return ImportCostCentersResponse(
+    ) -> ImportProductsResponse:
+        products = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
+        imported = self.repository.upsert_many(products=products)
+        return ImportProductsResponse(
             imported=imported,
-            cost_centers=self.repository.list(provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY),
+            products=self.repository.list(),
         )
 
     def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> List[Dict[str, Any]]:
@@ -60,42 +54,52 @@ class ImportCostCentersUseCase:
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
 
-        cost_centers: List[Dict[str, Any]] = []
+        products: List[Dict[str, Any]] = []
         seen_codes = set()
         for row_number, row in enumerate(rows, start=2):
             if self._is_empty_row(row):
                 continue
 
             code = self._cell(row, header_map["code"])
-            name = self._cell(row, header_map["name"])
+            type_val = self._cell(row, header_map["type"])
+            description = self._cell(row, header_map["description"])
+
             if code is None or str(code).strip() == "":
                 raise ValidationException(f"Row {row_number}: code is required")
-            if name is None or str(name).strip() == "":
-                raise ValidationException(f"Row {row_number}: name is required")
+            if type_val is None or str(type_val).strip() == "":
+                raise ValidationException(f"Row {row_number}: type is required")
+            if description is None or str(description).strip() == "":
+                raise ValidationException(f"Row {row_number}: description is required")
 
             normalized_code = self._as_code(code)
             if normalized_code in seen_codes:
                 raise ValidationException(f"Row {row_number}: duplicated code {normalized_code}")
             seen_codes.add(normalized_code)
 
+            normalized_type = str(type_val).strip().lower()
+            if normalized_type not in VALID_TYPES:
+                raise ValidationException(
+                    f"Row {row_number}: type must be 'product' or 'service', got '{normalized_type}'"
+                )
+
             raw_payload = {
                 column: self._cell(row, index)
                 for column, index in header_map.items()
                 if column in self.REQUIRED_COLUMNS or column in self.OPTIONAL_COLUMNS
             }
-            cost_centers.append(
+            products.append(
                 {
-                    "external_id": self._as_optional_text(self._optional_cell(row, header_map, "external_id")),
                     "code": normalized_code,
-                    "name": str(name).strip(),
+                    "type": normalized_type,
+                    "description": str(description).strip(),
                     "active": self._as_bool(self._optional_cell(row, header_map, "active"), default=True),
                     "raw_payload": raw_payload,
                 }
             )
 
-        if not cost_centers:
-            raise ValidationException("The Excel file does not contain cost center rows")
-        return cost_centers
+        if not products:
+            raise ValidationException("The Excel file does not contain product rows")
+        return products
 
     @staticmethod
     def _normalize_header(value: Any) -> str:
@@ -117,12 +121,6 @@ class ImportCostCentersUseCase:
     def _as_code(value: Any) -> str:
         if isinstance(value, float) and value.is_integer():
             return str(int(value))
-        return str(value).strip()
-
-    @staticmethod
-    def _as_optional_text(value: Any) -> Optional[str]:
-        if value is None or str(value).strip() == "":
-            return None
         return str(value).strip()
 
     def _as_bool(self, value: Any, default: bool) -> bool:
