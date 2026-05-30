@@ -24,26 +24,38 @@ class ImportChartAccountsUseCase:
 
     def execute(
         self,
-        provider: str,
-        account_key: str,
         file_content: bytes,
         sheet_name: Optional[str] = None,
+        mode: str = "upsert",
     ) -> ImportChartAccountsResponse:
-        provider = provider.strip().lower()
-        account_key = account_key.strip()
-        if not provider:
-            raise ValidationException("provider is required")
-        if not account_key:
-            raise ValidationException("account_key is required")
-
+        if mode not in ("upsert", "replace"):
+            raise ValidationException("mode must be 'upsert' or 'replace'")
         accounts = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(provider=provider, account_key=account_key, accounts=accounts)
+        if mode == "replace":
+            self.repository.delete_all()
+        imported = self.repository.upsert_many(accounts=accounts)
+        self._recalculate_accepts_movements(accounts)
         return ImportChartAccountsResponse(
-            provider=provider,
-            account_key=account_key,
             imported=imported,
-            accounts=self.repository.list(provider=provider, account_key=account_key),
+            accounts=self.repository.list(),
         )
+
+    def _recalculate_accepts_movements(self, accounts: List[Dict[str, Any]]) -> None:
+        codes = [a["code"] for a in accounts]
+        numeric_codes = {c for c in codes if c.isdigit() and len(c) >= 4}
+        # A code is a leaf if no other code in the dataset starts with it and is longer.
+        # This handles branches with different max depths (e.g. 22xxxx tops at 8 digits,
+        # while 51xxxx tops at 10 digits — both sets of leaves get accepts_movements=True).
+        movements = {
+            c: not any(other.startswith(c) and len(other) > len(c) for other in numeric_codes)
+            for c in codes
+            if c.isdigit() and len(c) >= 4
+        }
+        # Non-numeric codes (e.g. alphanumeric) never accept movements.
+        for c in codes:
+            if not (c.isdigit() and len(c) >= 4):
+                movements[c] = False
+        self.repository.set_accepts_movements(movements)
 
     def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> List[Dict[str, Any]]:
         try:

@@ -29,10 +29,10 @@ class SyncChartAccountsUseCase:
 
         raw_accounts = SiigoApiClient(credential).get_paginated(path, page_size=request.page_size)
         accounts = [self._normalize_account(item) for item in raw_accounts]
-        synced = self.repository.upsert_many("siigo", request.account_key, accounts)
+        synced = self.repository.upsert_many(accounts)
         return SyncChartAccountsResponse(
             synced=synced,
-            accounts=self.repository.list("siigo", request.account_key),
+            accounts=self.repository.list(),
         )
 
     @staticmethod

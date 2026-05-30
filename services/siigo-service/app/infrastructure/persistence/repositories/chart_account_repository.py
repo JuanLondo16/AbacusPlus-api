@@ -9,21 +9,17 @@ class ChartAccountRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def upsert_many(self, provider: str, account_key: str, accounts: Iterable[dict]) -> int:
+    def upsert_many(self, accounts: Iterable[dict]) -> int:
         synced = 0
         for account in accounts:
             code = str(account["code"])
             model = (
                 self.db.query(ChartAccount)
-                .filter(
-                    ChartAccount.provider == provider,
-                    ChartAccount.account_key == account_key,
-                    ChartAccount.code == code,
-                )
+                .filter(ChartAccount.code == code)
                 .one_or_none()
             )
             if model is None:
-                model = ChartAccount(provider=provider, account_key=account_key, code=code)
+                model = ChartAccount(code=code)
                 self.db.add(model)
 
             model.external_id = account.get("external_id")
@@ -39,11 +35,8 @@ class ChartAccountRepository:
         self.db.commit()
         return synced
 
-    def list(self, provider: str, account_key: str, active: Optional[bool] = None) -> List[ChartAccount]:
-        query = self.db.query(ChartAccount).filter(
-            ChartAccount.provider == provider,
-            ChartAccount.account_key == account_key,
-        )
+    def list(self, active: Optional[bool] = None) -> List[ChartAccount]:
+        query = self.db.query(ChartAccount)
         if active is not None:
             query = query.filter(ChartAccount.active.is_(active))
         return query.order_by(ChartAccount.code.asc()).all()

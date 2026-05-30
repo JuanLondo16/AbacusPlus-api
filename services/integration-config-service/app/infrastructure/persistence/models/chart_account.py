@@ -5,12 +5,10 @@ from app.infrastructure.config.database import Base
 class ChartAccount(Base):
     __tablename__ = "integration_chart_accounts"
     __table_args__ = (
-        UniqueConstraint("provider", "account_key", "code", name="uq_chart_account_provider_key_code"),
+        UniqueConstraint("code", name="uq_chart_account_code"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    provider = Column(String(50), nullable=False, index=True)
-    account_key = Column(String(120), nullable=False, default="default")
     external_id = Column(String(120), nullable=True, index=True)
     code = Column(String(80), nullable=False, index=True)
     name = Column(String(255), nullable=False)

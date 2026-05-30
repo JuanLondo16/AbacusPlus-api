@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from typing import List
 
 from app.application.dto.accounting import (
@@ -127,7 +127,7 @@ async def recalculate_accounting_batch(
 )
 async def recalculate_accounting_document(
     document_id: int,
-    body: RecalculateDocumentBody,
+    body: RecalculateDocumentBody = Body(default_factory=RecalculateDocumentBody),
     use_case: RecalculateAccountingDocumentUseCase = Depends(get_recalculate_accounting_document_use_case),
 ):
     request = RecalculateAccountingDocumentRequest(

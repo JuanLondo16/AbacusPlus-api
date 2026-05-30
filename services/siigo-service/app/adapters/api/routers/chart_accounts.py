@@ -1,16 +1,11 @@
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, status
 
 from app.application.dto.chart_account import (
-    ChartAccountResponse,
     SyncChartAccountsRequest,
     SyncChartAccountsResponse,
 )
 from app.application.use_cases.sync_chart_accounts import SyncChartAccountsUseCase
 from app.dependencies import get_sync_chart_accounts_use_case
-from app.infrastructure.config.auth_dependency import get_tenant_db
-from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
 
 router = APIRouter()
 
@@ -42,21 +37,3 @@ def sync_chart_accounts(
 ) -> SyncChartAccountsResponse:
     return use_case.execute(request)
 
-
-@router.get(
-    "/siigo/chart-accounts",
-    response_model=List[ChartAccountResponse],
-    status_code=status.HTTP_200_OK,
-    summary="Listar cuentas contables almacenadas",
-    description=(
-        "Retorna el plan de cuentas previamente sincronizado desde SIIGO. "
-        "No realiza llamadas externas; consulta unicamente PostgreSQL."
-    ),
-    response_description="Listado local de cuentas contables.",
-)
-def list_chart_accounts(
-    account_key: str = "default",
-    active: Optional[bool] = None,
-    db=Depends(get_tenant_db),
-) -> List[ChartAccountResponse]:
-    return ChartAccountRepository(db).list("siigo", account_key, active=active)

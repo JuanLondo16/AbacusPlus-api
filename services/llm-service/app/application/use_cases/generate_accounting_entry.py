@@ -159,8 +159,6 @@ class GenerateAccountingEntryUseCase:
         self._accounting_repo = accounting_repo
         self._prompt_repo = system_prompt_repo
         self._chart_account_repo = chart_account_repo
-        self._chart_account_provider = os.getenv("INTEGRATION_CHART_ACCOUNT_PROVIDER", "siigo").strip().lower()
-        self._chart_account_key = os.getenv("INTEGRATION_CHART_ACCOUNT_KEY", "default").strip()
         self._adj_account = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT", "539520")
         self._adj_name = os.getenv("ACCOUNTING_ADJUSTMENT_ACCOUNT_NAME", "Ajuste por redondeo")
         self._fallback_accounts = [
@@ -220,10 +218,8 @@ class GenerateAccountingEntryUseCase:
         if chart_accounts:
             puc_accounts = chart_accounts
             logger.info(
-                "Plan de cuentas validado desde integration_chart_accounts: %d cuentas provider=%s account_key=%s",
+                "Plan de cuentas validado desde integration_chart_accounts: %d cuentas",
                 len(chart_accounts),
-                self._chart_account_provider,
-                self._chart_account_key,
             )
 
         # 4. Obtener system prompt activo
@@ -393,9 +389,16 @@ class GenerateAccountingEntryUseCase:
         if puc_accounts:
             puc_lines = "\n".join(f"  {a['code']} — {a['name']}" for a in puc_accounts)
             parts.append(
-                "== CUENTAS PUC CONFIGURADAS PARA ESTA EMPRESA ==\n"
-                "Usa UNICAMENTE estas cuentas; la causación será rechazada si incluye "
-                "cuentas no registradas o inactivas en el sistema:\n"
+                "== PLAN DE CUENTAS OBLIGATORIO — CUMPLIMIENTO ESTRICTO ==\n"
+                "Se ha proporcionado el plan de cuentas configurado para esta empresa. "
+                "Su uso es OBLIGATORIO e IRRESTRICTO:\n"
+                "  • Usa EXCLUSIVAMENTE los códigos de cuenta que aparecen en esta lista.\n"
+                "  • PROHIBIDO usar cuentas que no estén en esta lista, aunque conozcas el PUC colombiano general.\n"
+                "  • PROHIBIDO inventar, aproximar o inferir códigos de cuenta fuera de este plan.\n"
+                "  • Si ninguna cuenta del plan corresponde al concepto, elige la más cercana semánticamente "
+                "según el nombre; NO uses una cuenta de tu conocimiento externo.\n"
+                "  • El asiento será rechazado automáticamente si contiene cuentas fuera de este plan.\n\n"
+                "Cuentas disponibles:\n"
                 f"{puc_lines}"
             )
 
@@ -727,10 +730,7 @@ class GenerateAccountingEntryUseCase:
         if not self._chart_account_repo:
             return []
         try:
-            return self._chart_account_repo.list_active(
-                provider=self._chart_account_provider,
-                account_key=self._chart_account_key,
-            )
+            return self._chart_account_repo.list_active()
         except Exception as e:
             raise ValueError(
                 "No fue posible consultar integration_chart_accounts para validar el plan de cuentas."

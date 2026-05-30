@@ -299,7 +299,6 @@ api/
 |--------|------|-------------|
 | POST | `/api/v1/siigo/sessions` | Autentica en SIIGO, persiste token |
 | POST | `/api/v1/siigo/chart-accounts/syncs` | Sincroniza plan de cuentas desde SIIGO |
-| GET  | `/api/v1/siigo/chart-accounts` | Lista plan de cuentas local |
 | POST | `/api/v1/siigo/purchase-invoice-parameters` | Guarda plantilla para facturas de compra |
 | GET  | `/api/v1/siigo/purchase-invoice-parameters` | Lista plantillas locales |
 | GET  | `/health` | Health check |
@@ -310,6 +309,7 @@ api/
 | PUT  | `/api/v1/integrations/credentials` | Crear/actualizar credenciales de integración |
 | GET  | `/api/v1/integrations/credentials` | Lista credenciales (sin secretos) |
 | POST | `/api/v1/integrations/cost-centers/imports` | Importa centros de costo desde .xlsx |
+| GET  | `/api/v1/integrations/chart-accounts` | Lista plan de cuentas local (agnóstico al proveedor) |
 | POST | `/api/v1/integrations/chart-accounts/imports` | Importa plan de cuentas desde .xlsx |
 | POST | `/api/v1/integrations/purchase-invoice-parameters` | Guarda plantilla proveedor-agnóstica |
 | GET  | `/api/v1/integrations/purchase-invoice-parameters` | Lista plantillas (filtros: provider, account_key) |
@@ -394,6 +394,21 @@ REDIS_URL=redis://redis:6379
 ```
 
 ## Reglas de desarrollo
+
+### Estándares REST API (obligatorio en todos los endpoints)
+
+Todo endpoint nuevo o modificado **debe** cumplir con los estándares REST:
+
+- **Rutas orientadas a recursos**: usar sustantivos, nunca verbos. `POST /documents` ✅ — `POST /uploadDocument` ❌
+- **Plurales para colecciones**: `/documents`, `/entries`, `/sessions` — no `/document`, `/entry`, `/session`
+- **Métodos HTTP semánticos**: `POST` crea, `GET` lee, `PUT`/`PATCH` actualiza, `DELETE` elimina
+- **Sub-recursos para relaciones**: `/documents/{id}/full`, `/entries/{id}/recalculations`
+- **Filtros en query params**: `GET /entries?document_id=1&from_date=2024-01-01` — nunca en el path (`/entries/by-document/{id}` ❌)
+- **Sin verbos de acción en paths**: evitar `/sync`, `/auth`, `/logout`, `/enqueue`, `/import-excel` como segmentos finales; reemplazar con el sustantivo del recurso creado (`/syncs`, `/sessions`, `/downloads`, `/imports`)
+- **Transiciones de estado vía PATCH con body**: `PATCH /documents/{id}` con `{"status": 300}` — no `PATCH /documents/{id}/approve-action` ❌
+- **Códigos de estado correctos**: `201 Created` al crear recursos, `200 OK` al leer/actualizar, `204 No Content` al eliminar, `404` recurso no existe, `409` conflicto de estado, `422` datos inválidos
+- **POST con body para búsqueda**: aceptable cuando los parámetros de búsqueda son complejos o exceden límites de URL (RFC 9110 §9.3.1) — documentar la razón en la descripción del endpoint
+- **Excepción documentada**: `PATCH /{id}/approve` es idiomático para transiciones de estado (RFC 5023) y se mantiene; solo evitar la negación (`/unapprove` ❌)
 
 ### Documentación Swagger (obligatoria en todos los endpoints)
 
