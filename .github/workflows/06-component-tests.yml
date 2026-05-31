@@ -1,0 +1,83 @@
+name: 06 - Component Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  component:
+    name: component (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - xml-processor
+          - rag-service
+          - llm-service
+          - accounting-rules-service
+          - siigo-service
+          - integration-config-service
+          - auth-service
+          - odoo-service
+          - session-proxy
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: master
+          POSTGRES_PASSWORD: master
+          POSTGRES_DB: xml2data
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U master"
+          --health-interval 10s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.service == 'auth-service' && '3.11' || '3.9' }}
+          cache: "pip"
+          cache-dependency-path: services/${{ matrix.service }}/requirements.txt
+
+      - name: Instalar dependencias del servicio
+        run: pip install -r services/${{ matrix.service }}/requirements.txt respx==0.21.1 pytest-cov==5.0.0
+
+      - name: Correr component tests
+        run: python -m pytest tests/component/${{ matrix.service }}/ -v
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: "5432"
+          DATABASE_USER: master
+          DATABASE_PASSWORD: master
+          DATABASE_NAME: xml2data
+          REDIS_URL: redis://localhost:6379
+          OPENAI_API_KEY: sk-test
+          OLLAMA_HOST: http://localhost:11434
+          OLLAMA_EMBED_MODEL: nomic-embed-text
+          RAG_SERVICE_URL: http://localhost:18002
+          LLM_SERVICE_URL: http://localhost:18003
+          XML_PROCESSOR_URL: http://localhost:18001
+          ACCOUNTING_RULES_SERVICE_URL: http://localhost:18009
+          SECRET_KEY: test-secret-key-for-ci
+          RULES_HIT_THRESHOLD: "0.85"
+          RULES_PARTIAL_THRESHOLD: "0.50"
+          EXTERNAL_BASE_URL: https://catalogo-vpfe.dian.gov.co
+          EXTERNAL_LOGIN_PATH: /User/AuthToken
+          SESSION_TTL_SECONDS: "3600"
+          ODOO_URL: http://localhost:8069
+          ODOO_DB: odoo
+          ODOO_USER: admin
+          ODOO_PASSWORD: admin
+          SIIGO_BASE_URL: https://api.siigo.com
