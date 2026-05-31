@@ -1,0 +1,89 @@
+name: 07 - E2E
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Guardar modelo de Ollama en caché
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-nomic-embed-text-v1
+
+      - name: Crear .env mínimo para CI
+        run: |
+          cat > .env << 'EOF'
+          DATABASE_HOST=database
+          DATABASE_PORT=5432
+          DATABASE_USER=master
+          DATABASE_PASSWORD=master
+          DATABASE_NAME=xml2data
+          OPENAI_API_KEY=sk-e2e-test
+          OLLAMA_HOST=http://ollama:11434
+          OLLAMA_EMBED_MODEL=nomic-embed-text
+          RAG_SERVICE_URL=http://rag-service:8002
+          LLM_SERVICE_URL=http://llm-service:8003
+          XML_PROCESSOR_URL=http://xml-processor:8001
+          ACCOUNTING_RULES_SERVICE_URL=http://accounting-rules-service:8009
+          SECRET_KEY=e2e-test-secret-key-not-for-production
+          REDIS_URL=redis://redis:6379
+          RULES_HIT_THRESHOLD=0.85
+          RULES_PARTIAL_THRESHOLD=0.50
+          SESSION_TTL_SECONDS=3600
+          EXTERNAL_BASE_URL=https://catalogo-vpfe.dian.gov.co
+          EXTERNAL_LOGIN_PATH=/User/AuthToken
+          EOF
+
+      - name: Levantar infraestructura base
+        run: |
+          docker compose up -d --build database redis ollama
+          echo "Esperando que Postgres esté listo..."
+          for i in {1..30}; do
+            docker compose exec -T database pg_isready -U master && break
+            sleep 3
+          done
+
+      - name: Levantar servicios de la aplicación
+        run: |
+          docker compose up -d --build \
+            gateway \
+            xml-processor \
+            rag-service \
+            llm-service \
+            accounting-rules-service \
+            auth-service \
+            integration-config-service \
+            session-proxy
+          docker compose ps
+
+      - name: Esperar que el gateway responda en /health
+        run: |
+          for i in {1..60}; do
+            curl -fsS http://localhost:8000/health && break
+            echo "Intento $i — gateway aún no responde..."
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/health || (docker compose logs --tail=50 && exit 1)
+
+      - name: Instalar dependencias de tests E2E
+        run: pip install httpx==0.27.0 pytest==8.3.4
+
+      - name: Correr tests E2E
+        run: python -m pytest tests/e2e/ -v -m e2e
+        env:
+          GATEWAY_URL: http://localhost:8000
+
+      - name: Mostrar logs si los tests fallan
+        if: failure()
+        run: docker compose logs --tail=200
