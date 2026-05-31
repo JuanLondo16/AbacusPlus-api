@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -13,11 +13,7 @@ class ChartAccountRepository:
         synced = 0
         for account in accounts:
             code = str(account["code"])
-            model = (
-                self.db.query(ChartAccount)
-                .filter(ChartAccount.code == code)
-                .one_or_none()
-            )
+            model = self.db.query(ChartAccount).filter(ChartAccount.code == code).one_or_none()
             if model is None:
                 model = ChartAccount(code=code)
                 self.db.add(model)
@@ -35,7 +31,7 @@ class ChartAccountRepository:
         self.db.commit()
         return synced
 
-    def list(self, active: Optional[bool] = None) -> List[ChartAccount]:
+    def list(self, active: Optional[bool] = None) -> list[ChartAccount]:
         query = self.db.query(ChartAccount)
         if active is not None:
             query = query.filter(ChartAccount.active.is_(active))

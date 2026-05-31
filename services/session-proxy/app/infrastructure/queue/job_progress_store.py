@@ -15,6 +15,7 @@ Estructura del hash Redis  job_progress:{job_id}:
   accounting_status "triggered" | "error" | ""
   accounting_error  str | ""
 """
+
 import logging
 from typing import Optional
 
@@ -42,20 +43,23 @@ class JobProgressStore:
         """Crea el registro inicial del job con todos los pasos en pending."""
         client = await self._get_client()
         key = self._key(job_id)
-        await client.hset(key, mapping={
-            "track_id": track_id,
-            "downloaded_done": "0",
-            "downloaded_at": "",
-            "xml_done": "0",
-            "xml_at": "",
-            "xml_status": "",
-            "xml_document_id": "",
-            "xml_error": "",
-            "accounting_done": "0",
-            "accounting_at": "",
-            "accounting_status": "",
-            "accounting_error": "",
-        })
+        await client.hset(
+            key,
+            mapping={
+                "track_id": track_id,
+                "downloaded_done": "0",
+                "downloaded_at": "",
+                "xml_done": "0",
+                "xml_at": "",
+                "xml_status": "",
+                "xml_document_id": "",
+                "xml_error": "",
+                "accounting_done": "0",
+                "accounting_at": "",
+                "accounting_status": "",
+                "accounting_error": "",
+            },
+        )
         await client.expire(key, _TTL_SECONDS)
         logger.debug("JobProgress init — job_id=%s track_id=%s", job_id, track_id)
 

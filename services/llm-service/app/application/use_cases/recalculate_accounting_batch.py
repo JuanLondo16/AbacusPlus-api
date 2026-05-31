@@ -33,7 +33,10 @@ class RecalculateAccountingBatchUseCase:
         )
         logger.info(
             "Recálculo batch: %d documentos entre %s y %s (status=%s)",
-            len(documents), request.dateini, request.datefin, request.status_filter,
+            len(documents),
+            request.dateini,
+            request.datefin,
+            request.status_filter,
         )
 
         results: list[RecalculateAccountingItemResult] = []

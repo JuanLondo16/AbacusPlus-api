@@ -1,12 +1,11 @@
 from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from openpyxl import load_workbook
 
 from app.application.dto.cost_center import ImportCostCentersResponse
 from app.domain.exceptions.base import ValidationException
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
-
 
 _DEFAULT_PROVIDER = "default"
 _DEFAULT_ACCOUNT_KEY = "default"
@@ -32,10 +31,12 @@ class ImportCostCentersUseCase:
         )
         return ImportCostCentersResponse(
             imported=imported,
-            cost_centers=self.repository.list(provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY),
+            cost_centers=self.repository.list(
+                provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY
+            ),
         )
 
-    def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> List[Dict[str, Any]]:
+    def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> list[dict[str, Any]]:
         try:
             workbook = load_workbook(filename=BytesIO(file_content), read_only=True, data_only=True)
         except Exception as exc:
@@ -60,7 +61,7 @@ class ImportCostCentersUseCase:
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
 
-        cost_centers: List[Dict[str, Any]] = []
+        cost_centers: list[dict[str, Any]] = []
         seen_codes = set()
         for row_number, row in enumerate(rows, start=2):
             if self._is_empty_row(row):
@@ -85,10 +86,14 @@ class ImportCostCentersUseCase:
             }
             cost_centers.append(
                 {
-                    "external_id": self._as_optional_text(self._optional_cell(row, header_map, "external_id")),
+                    "external_id": self._as_optional_text(
+                        self._optional_cell(row, header_map, "external_id")
+                    ),
                     "code": normalized_code,
                     "name": str(name).strip(),
-                    "active": self._as_bool(self._optional_cell(row, header_map, "active"), default=True),
+                    "active": self._as_bool(
+                        self._optional_cell(row, header_map, "active"), default=True
+                    ),
                     "raw_payload": raw_payload,
                 }
             )
@@ -109,7 +114,7 @@ class ImportCostCentersUseCase:
     def _cell(row: tuple, index: int) -> Any:
         return row[index] if index < len(row) else None
 
-    def _optional_cell(self, row: tuple, header_map: Dict[str, int], column: str) -> Any:
+    def _optional_cell(self, row: tuple, header_map: dict[str, int], column: str) -> Any:
         index = header_map.get(column)
         return self._cell(row, index) if index is not None else None
 

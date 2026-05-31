@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+
 from app.application.dto.query import QueryRequest, QueryResponse
 from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.dependencies import get_query_with_rag_use_case

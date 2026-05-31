@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import os
 import re
@@ -6,10 +7,11 @@ import shutil
 import unicodedata
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import Optional, Tuple
+from typing import Optional
 
 import httpx
 
+from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.domain.exceptions.base import DuplicateEntityException
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.config.database import SessionLocal
@@ -17,10 +19,11 @@ from app.infrastructure.persistence.models.processing_log import ProcessingLog
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
 from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
-from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
+from app.infrastructure.persistence.repositories.processing_log_repository import (
+    ProcessingLogRepository,
+)
 from app.infrastructure.persistence.repositories.receiver_repository import ReceiverRepository
 from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
-from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.infrastructure.queue.job_progress_store import JobProgressStore
 
 logger = logging.getLogger(__name__)
@@ -39,24 +42,20 @@ def get_queue() -> asyncio.Queue:
 def get_progress_store() -> JobProgressStore:
     global _progress_store
     if _progress_store is None:
-        _progress_store = JobProgressStore(
-            redis_url=os.getenv("REDIS_URL", "redis://redis:6379")
-        )
+        _progress_store = JobProgressStore(redis_url=os.getenv("REDIS_URL", "redis://redis:6379"))
     return _progress_store
 
 
 def _peek_xml_filename(file_path: Path) -> Optional[str]:
     """Lee solo la tabla del ZIP para obtener el nombre del primer XML, sin descomprimir."""
-    try:
-        with zipfile.ZipFile(str(file_path)) as zf:
-            xml_files = [
-                n for n in zf.namelist()
-                if n.lower().endswith('.xml') and not n.startswith(('__MACOSX/', '._'))
-            ]
-            if xml_files:
-                return PurePosixPath(xml_files[0]).name
-    except Exception:
-        pass
+    with contextlib.suppress(Exception), zipfile.ZipFile(str(file_path)) as zf:
+        xml_files = [
+            n
+            for n in zf.namelist()
+            if n.lower().endswith(".xml") and not n.startswith(("__MACOSX/", "._"))
+        ]
+        if xml_files:
+            return PurePosixPath(xml_files[0]).name
     return None
 
 
@@ -69,7 +68,9 @@ def _sanitize_name(text: str) -> str:
     return text
 
 
-def _build_pdf_name(document_date, document_type: str, document_number: str, issuer_name: str) -> str:
+def _build_pdf_name(
+    document_date, document_type: str, document_number: str, issuer_name: str
+) -> str:
     """
     Construye el nombre del PDF con la nomenclatura:
     IKB - DOCU - AAAAMMDD - V01 - {tipo_documento} {numero_documento} {tercero}
@@ -184,15 +185,17 @@ async def _process_single_file(file_path: Path, job_id: Optional[str]) -> None:
 
         acc_status, acc_error = await _trigger_accounting(result["document_id"])
 
-        log_repo.create(ProcessingLog(
-            filename=file_path.name,
-            xml_filename=xml_filename or result.get("filename"),
-            status="added",
-            document_id=result["document_id"],
-            document_number=result["data"]["document_number"],
-            accounting_status=acc_status,
-            accounting_error=acc_error,
-        ))
+        log_repo.create(
+            ProcessingLog(
+                filename=file_path.name,
+                xml_filename=xml_filename or result.get("filename"),
+                status="added",
+                document_id=result["document_id"],
+                document_number=result["data"]["document_number"],
+                accounting_status=acc_status,
+                accounting_error=acc_error,
+            )
+        )
         shutil.move(str(file_path), str(processed_dir / file_path.name))
         logger.info("ZIP procesado → XML: %s — movido a processed/", xml_filename)
 
@@ -214,35 +217,41 @@ async def _process_single_file(file_path: Path, job_id: Optional[str]) -> None:
             else:
                 logger.info("Documento duplicado %s ya tiene causación — omitiendo", doc_number)
 
-        log_repo.create(ProcessingLog(
-            filename=file_path.name,
-            xml_filename=xml_filename,
-            status="duplicate",
-            document_number=doc_number,
-            accounting_status=acc_status,
-            accounting_error=acc_error,
-        ))
+        log_repo.create(
+            ProcessingLog(
+                filename=file_path.name,
+                xml_filename=xml_filename,
+                status="duplicate",
+                document_number=doc_number,
+                accounting_status=acc_status,
+                accounting_error=acc_error,
+            )
+        )
         shutil.move(str(file_path), str(processed_dir / file_path.name))
         logger.info("ZIP duplicado → XML: %s — movido a processed/", xml_filename)
 
         if progress:
-            await progress.mark_xml_done(job_id, "duplicate", document_id=existing_doc.id if existing_doc else None)
+            await progress.mark_xml_done(
+                job_id, "duplicate", document_id=existing_doc.id if existing_doc else None
+            )
             if acc_status:
                 await progress.mark_accounting_done(job_id, acc_status, error=acc_error)
 
     except Exception as e:
-        try:
+        with contextlib.suppress(Exception):
             log_repo = ProcessingLogRepository(db)
-            log_repo.create(ProcessingLog(
-                filename=file_path.name,
-                xml_filename=xml_filename,
-                status="error",
-                error_message=str(e),
-            ))
-        except Exception:
-            pass
+            log_repo.create(
+                ProcessingLog(
+                    filename=file_path.name,
+                    xml_filename=xml_filename,
+                    status="error",
+                    error_message=str(e),
+                )
+            )
         shutil.move(str(file_path), str(errors_dir / file_path.name))
-        logger.error("Error procesando %s (XML: %s): %s — movido a errors/", file_path.name, xml_filename, e)
+        logger.error(
+            "Error procesando %s (XML: %s): %s — movido a errors/", file_path.name, xml_filename, e
+        )
 
         if progress:
             await progress.mark_xml_done(job_id, "error", error=str(e))

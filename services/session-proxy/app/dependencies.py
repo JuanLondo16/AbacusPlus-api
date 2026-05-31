@@ -2,26 +2,24 @@ import os
 
 from dotenv import load_dotenv
 
-from app.infrastructure.session.in_memory_store import InMemorySessionStore
-from app.infrastructure.clients.external_client import HttpxExternalClient
+from app.application.use_cases.company_login import CompanyLoginUseCase
+from app.application.use_cases.fetch_and_enqueue_documents import FetchAndEnqueueDocumentsUseCase
+from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
+from app.application.use_cases.get_job_status import GetJobStatusUseCase
+from app.application.use_cases.login import LoginUseCase
+from app.application.use_cases.proxy_request import ProxyRequestUseCase
 from app.infrastructure.browser.playwright_client import PlaywrightBrowserClient
+from app.infrastructure.clients.external_client import HttpxExternalClient
 from app.infrastructure.queue.arq_queue import ArqJobQueue
 from app.infrastructure.queue.batch_store import RedisBatchStore
 from app.infrastructure.queue.job_progress_store import JobProgressStore
-from app.application.use_cases.login import LoginUseCase
-from app.application.use_cases.proxy_request import ProxyRequestUseCase
-from app.application.use_cases.company_login import CompanyLoginUseCase
-from app.application.use_cases.fetch_and_enqueue_documents import FetchAndEnqueueDocumentsUseCase
-from app.application.use_cases.get_job_status import GetJobStatusUseCase
-from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
+from app.infrastructure.session.in_memory_store import InMemorySessionStore
 
 load_dotenv()
 
 # Singleton: se crea una sola vez al importar este módulo.
 # Todos los request handlers comparten esta instancia.
-_SESSION_STORE = InMemorySessionStore(
-    ttl_seconds=int(os.getenv("SESSION_TTL_SECONDS", "3600"))
-)
+_SESSION_STORE = InMemorySessionStore(ttl_seconds=int(os.getenv("SESSION_TTL_SECONDS", "3600")))
 
 
 def get_session_store() -> InMemorySessionStore:

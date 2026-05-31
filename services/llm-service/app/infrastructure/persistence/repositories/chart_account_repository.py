@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Iterable
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ class ChartAccountRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list_active(self) -> List[dict]:
+    def list_active(self) -> list[dict]:
         rows = self.db.execute(
             text(
                 """

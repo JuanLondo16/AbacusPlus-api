@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Optional
+from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -17,11 +17,7 @@ class ChartAccountRepository:
         synced = 0
         for account in accounts:
             code = str(account["code"])
-            model = (
-                self.db.query(ChartAccount)
-                .filter(ChartAccount.code == code)
-                .one_or_none()
-            )
+            model = self.db.query(ChartAccount).filter(ChartAccount.code == code).one_or_none()
             if model is None:
                 model = ChartAccount(code=code)
                 self.db.add(model)
@@ -39,7 +35,7 @@ class ChartAccountRepository:
         self.db.commit()
         return synced
 
-    def set_accepts_movements(self, movements: Dict[str, bool]) -> None:
+    def set_accepts_movements(self, movements: dict[str, bool]) -> None:
         true_codes = [c for c, v in movements.items() if v]
         false_codes = [c for c, v in movements.items() if not v]
         if true_codes:
@@ -52,7 +48,7 @@ class ChartAccountRepository:
             )
         self.db.commit()
 
-    def list(self, active: Optional[bool] = None) -> List[ChartAccount]:
+    def list(self, active: Optional[bool] = None) -> list[ChartAccount]:
         query = self.db.query(ChartAccount)
         if active is not None:
             query = query.filter(ChartAccount.active.is_(active))

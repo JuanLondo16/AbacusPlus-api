@@ -1,5 +1,4 @@
 import os
-import pytest
 
 os.environ.setdefault("DATABASE_HOST", "localhost")
 os.environ.setdefault("DATABASE_PORT", "5432")

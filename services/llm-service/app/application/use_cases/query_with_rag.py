@@ -1,6 +1,7 @@
 import logging
+
+from app.application.dto.query import ContextChunk, QueryRequest, QueryResponse
 from app.domain.ports.services import AIServicePort, RagClientPort
-from app.application.dto.query import QueryRequest, QueryResponse, ContextChunk
 
 logger = logging.getLogger(__name__)
 

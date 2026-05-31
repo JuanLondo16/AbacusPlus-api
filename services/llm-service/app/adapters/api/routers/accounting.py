@@ -1,30 +1,33 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from typing import List
 
 from app.application.dto.accounting import (
-    GenerateAccountingRequest,
     AccountingEntryResponse,
     DocumentWithAccountingResponse,
+    GenerateAccountingRequest,
     RecalculateAccountingBatchRequest,
     RecalculateAccountingBatchResponse,
     RecalculateAccountingDocumentRequest,
     RecalculateAccountingItemResult,
-    SystemPromptRequest,
-    SystemPromptResponse,
     RecalculateDocumentBody,
     SystemPromptActivateRequest,
+    SystemPromptRequest,
+    SystemPromptResponse,
 )
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
 from app.application.use_cases.recalculate_accounting_batch import RecalculateAccountingBatchUseCase
-from app.application.use_cases.recalculate_accounting_document import RecalculateAccountingDocumentUseCase
-from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
+from app.application.use_cases.recalculate_accounting_document import (
+    RecalculateAccountingDocumentUseCase,
+)
 from app.dependencies import (
     get_generate_accounting_use_case,
     get_query_accounting_use_case,
     get_recalculate_accounting_batch_use_case,
     get_recalculate_accounting_document_use_case,
     get_system_prompt_repo,
+)
+from app.infrastructure.persistence.repositories.system_prompt_repository import (
+    SystemPromptRepository,
 )
 
 router = APIRouter()
@@ -101,7 +104,9 @@ async def get_document_with_accounting(
 )
 async def recalculate_accounting_batch(
     request: RecalculateAccountingBatchRequest,
-    use_case: RecalculateAccountingBatchUseCase = Depends(get_recalculate_accounting_batch_use_case),
+    use_case: RecalculateAccountingBatchUseCase = Depends(
+        get_recalculate_accounting_batch_use_case
+    ),
 ):
     return await use_case.execute(request)
 
@@ -128,7 +133,9 @@ async def recalculate_accounting_batch(
 async def recalculate_accounting_document(
     document_id: int,
     body: RecalculateDocumentBody = Body(default_factory=RecalculateDocumentBody),
-    use_case: RecalculateAccountingDocumentUseCase = Depends(get_recalculate_accounting_document_use_case),
+    use_case: RecalculateAccountingDocumentUseCase = Depends(
+        get_recalculate_accounting_document_use_case
+    ),
 ):
     request = RecalculateAccountingDocumentRequest(
         document_id=document_id,
@@ -140,7 +147,7 @@ async def recalculate_accounting_document(
 
 @router.get(
     "/accounting/system-prompts",
-    response_model=List[SystemPromptResponse],
+    response_model=list[SystemPromptResponse],
     summary="Listar system prompts disponibles",
     description=(
         "Retorna todos los system prompts almacenados en la BD. "
@@ -204,5 +211,7 @@ def update_system_prompt(
         )
     prompt = repo.activate(prompt_id)
     if not prompt:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt {prompt_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt {prompt_id} not found"
+        )
     return prompt

@@ -1,6 +1,6 @@
+from app.application.dto.chunk import ChunkResult, SearchRequest, SearchResponse
 from app.domain.ports.repositories import ChunkRepositoryPort
 from app.domain.ports.services import EmbeddingServicePort
-from app.application.dto.chunk import SearchRequest, SearchResponse, ChunkResult
 
 
 class SearchChunksUseCase:

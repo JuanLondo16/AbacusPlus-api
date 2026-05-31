@@ -1,7 +1,6 @@
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import jwt
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
@@ -26,7 +25,9 @@ def _load_public_key():
     return _public_key
 
 
-def issue_access_token(user_id: str, tenant_id: str, tenant_slug: str, email: str, roles: list[str]) -> str:
+def issue_access_token(
+    user_id: str, tenant_id: str, tenant_slug: str, email: str, roles: list[str]
+) -> str:
     expire_minutes = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
     now = datetime.now(timezone.utc)
     payload = {

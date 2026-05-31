@@ -1,4 +1,5 @@
 import logging
+
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -27,5 +28,7 @@ class RagClient:
                 response.raise_for_status()
                 return response.json()
         except Exception as exc:
-            logger.warning("No se pudo indexar chunk en rag-service (source_id=%s): %s", source_id, exc)
+            logger.warning(
+                "No se pudo indexar chunk en rag-service (source_id=%s): %s", source_id, exc
+            )
             return {}

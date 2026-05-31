@@ -1,7 +1,11 @@
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-from app.application.dto.journal_entry import JournalEntryLine, SendJournalEntryRequest, SendJournalEntryResponse
+from app.application.dto.journal_entry import (
+    JournalEntryLine,
+    SendJournalEntryRequest,
+    SendJournalEntryResponse,
+)
 from app.application.use_cases.manage_credentials import ManageCredentialsUseCase
 from app.domain.exceptions.base import ValidationException
 from app.infrastructure.siigo.siigo_client import SiigoApiClient
@@ -39,10 +43,10 @@ class SendJournalEntryUseCase:
                 f"Asiento no cuadra: debitos={total_debit} creditos={total_credit} diferencia={diff}"
             )
 
-    def _build_payload(self, request: SendJournalEntryRequest) -> Dict[str, Any]:
+    def _build_payload(self, request: SendJournalEntryRequest) -> dict[str, Any]:
         items = [self._build_item(line) for line in request.lines]
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "document": {"id": request.voucher_document_id},
             "date": request.entry_date.isoformat(),
             "currency": {
@@ -57,8 +61,8 @@ class SendJournalEntryUseCase:
 
         return payload
 
-    def _build_item(self, line: JournalEntryLine) -> Dict[str, Any]:
-        item: Dict[str, Any] = {
+    def _build_item(self, line: JournalEntryLine) -> dict[str, Any]:
+        item: dict[str, Any] = {
             "account": {"code": line.cuenta},
             "debit": float(line.debito),
             "credit": float(line.credito),
@@ -81,7 +85,7 @@ class SendJournalEntryUseCase:
         return item
 
     @staticmethod
-    def _extract_id(response: Dict[str, Any]) -> Optional[str]:
+    def _extract_id(response: dict[str, Any]) -> Optional[str]:
         for key in ("id", "voucher_id", "number", "consecutive"):
             val = response.get(key)
             if val is not None:

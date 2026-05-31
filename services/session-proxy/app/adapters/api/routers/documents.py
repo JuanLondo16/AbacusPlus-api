@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.application.dto.documents import (
-    DocumentsRangeRequest,
-    EnqueueDownloadsResponse,
-    DownloadJobStatus,
     BatchStatusResponse,
+    DocumentsRangeRequest,
+    DownloadJobStatus,
+    EnqueueDownloadsResponse,
 )
 from app.application.use_cases.fetch_and_enqueue_documents import FetchAndEnqueueDocumentsUseCase
-from app.application.use_cases.get_job_status import GetJobStatusUseCase
 from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
+from app.application.use_cases.get_job_status import GetJobStatusUseCase
 from app.dependencies import (
+    get_batch_status_use_case,
     get_fetch_and_enqueue_use_case,
     get_job_status_use_case,
-    get_batch_status_use_case,
 )
 from app.infrastructure.config.auth_dependency import get_token_data
 
@@ -58,7 +58,10 @@ async def enqueue_document_downloads(
 )
 async def get_batch_status(
     batch_id: str,
-    detail: bool = Query(False, description="Si es true, incluye el detalle de progreso de cada job en el campo `jobs`."),
+    detail: bool = Query(
+        False,
+        description="Si es true, incluye el detalle de progreso de cada job en el campo `jobs`.",
+    ),
     use_case: GetBatchStatusUseCase = Depends(get_batch_status_use_case),
 ):
     result = await use_case.execute(batch_id, detail=detail)

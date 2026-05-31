@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, List, Tuple
 
 from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
@@ -17,8 +16,8 @@ class PlaywrightBrowserClient:
         self._nit = nit
         self._timeout = timeout  # ms
 
-    async def company_login(self, login_url: str) -> Tuple[Dict[str, str], List[str]]:
-        steps: List[str] = []
+    async def company_login(self, login_url: str) -> tuple[dict[str, str], list[str]]:
+        steps: list[str] = []
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
@@ -87,7 +86,7 @@ class PlaywrightBrowserClient:
             finally:
                 await browser.close()
 
-    async def _handle_cloudflare(self, page, steps: List[str]) -> None:
+    async def _handle_cloudflare(self, page, steps: list[str]) -> None:
         """Detecta y resuelve Cloudflare challenge (JS automático o widget interactivo con clic)."""
         for attempt in range(15):
             title = (await page.title()).lower()
@@ -105,7 +104,9 @@ class PlaywrightBrowserClient:
                 f"Cloudflare detectado (intento {attempt + 1}/15) — "
                 f"título: '{title}', iframes: {len(cf_frames)}"
             )
-            logger.info("Cloudflare detectado (intento %d/15) — iframes: %d", attempt + 1, len(cf_frames))
+            logger.info(
+                "Cloudflare detectado (intento %d/15) — iframes: %d", attempt + 1, len(cf_frames)
+            )
 
             if cf_frames:
                 cf_frame = cf_frames[0]
@@ -124,7 +125,9 @@ class PlaywrightBrowserClient:
                         checkbox = cf_frame.locator(selector).first
                         await checkbox.wait_for(timeout=5000, state="attached")
                         await checkbox.click(force=True)
-                        steps.append(f"Clic en checkbox Cloudflare completado (selector: '{selector}')")
+                        steps.append(
+                            f"Clic en checkbox Cloudflare completado (selector: '{selector}')"
+                        )
                         logger.info("Clic en checkbox Cloudflare completado: %s", selector)
                         clicked = True
                         break

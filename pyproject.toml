@@ -1,0 +1,36 @@
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+extend-exclude = ["**/migrations/**", "**/__pycache__/**", ".venv", ".claude"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "ASYNC", "S"]
+ignore = [
+    "S101",   # assert — OK in tests (per-file-ignores handles tests; assert used in prod too)
+    "B008",   # do not perform function call in default arguments — FastAPI Depends pattern
+    "E501",   # line too long — 538 violations; long strings/docstrings, not worth reformatting now
+    "UP035",  # deprecated-import — 138 violations; typing.List/Dict/Optional still valid in py39
+    "B904",   # raise-without-from-inside-except — 41 violations; requires careful review per site
+    "E741",   # ambiguous-variable-name — 6 violations; l/O/I in existing domain code
+    "S314",   # suspicious-xml-element-tree-usage — expected in xml-processor service
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S", "B"]
+"**/conftest.py" = ["S", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.bandit]
+exclude_dirs = ["tests", "**/tests", ".venv"]
+skips = ["B101"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = ["**/tests/**", "**/migrations/**", "**/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "raise NotImplementedError", "if TYPE_CHECKING:"]

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional
 
 
 @dataclass
@@ -45,4 +45,4 @@ class DocumentEntity:
     id: Optional[int] = None
     register_at: Optional[datetime] = None
     accounting_entry_id: Optional[int] = None
-    details: List[DocumentDetailEntity] = field(default_factory=list)
+    details: list[DocumentDetailEntity] = field(default_factory=list)

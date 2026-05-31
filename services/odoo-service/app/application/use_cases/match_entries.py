@@ -1,6 +1,8 @@
 import logging
 
-from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
+from app.infrastructure.persistence.repositories.accounting_entry_repository import (
+    AccountingEntryRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +36,21 @@ class MatchEntriesUseCase:
             except Exception as exc:
                 logger.error(
                     "Error al intentar vincular entry id=%s source_id=%s: %s",
-                    entry.id, entry.source_id, exc, exc_info=True,
+                    entry.id,
+                    entry.source_id,
+                    exc,
+                    exc_info=True,
                 )
-                errors.append({"entry_id": entry.id, "source_id": entry.source_id, "error": str(exc)})
+                errors.append(
+                    {"entry_id": entry.id, "source_id": entry.source_id, "error": str(exc)}
+                )
 
         logger.info(
             "Matching completado: total=%d matched=%d unmatched=%d errors=%d",
-            total, matched, unmatched, len(errors),
+            total,
+            matched,
+            unmatched,
+            len(errors),
         )
 
         return {

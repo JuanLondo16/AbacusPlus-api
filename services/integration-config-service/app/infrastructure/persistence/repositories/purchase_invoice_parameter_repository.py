@@ -1,8 +1,10 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.infrastructure.persistence.models.purchase_invoice_parameter import PurchaseInvoiceParameter
+from app.infrastructure.persistence.models.purchase_invoice_parameter import (
+    PurchaseInvoiceParameter,
+)
 
 
 class PurchaseInvoiceParameterRepository:
@@ -16,7 +18,9 @@ class PurchaseInvoiceParameterRepository:
         self.db.refresh(model)
         return model
 
-    def list(self, provider: Optional[str] = None, account_key: Optional[str] = None) -> List[PurchaseInvoiceParameter]:
+    def list(
+        self, provider: Optional[str] = None, account_key: Optional[str] = None
+    ) -> list[PurchaseInvoiceParameter]:
         query = self.db.query(PurchaseInvoiceParameter)
         if provider:
             query = query.filter(PurchaseInvoiceParameter.provider == provider)

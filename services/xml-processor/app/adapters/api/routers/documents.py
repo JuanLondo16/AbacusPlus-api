@@ -1,27 +1,31 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from typing import List, Optional
 from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.application.dto.document import (
-    DocumentSummaryResponse,
-    DocumentResponse,
-    DocumentDetailWithAccountingResponse,
     AccountingEntryData,
     AccountingLineResponse,
+    DocumentDetailWithAccountingResponse,
+    DocumentResponse,
     DocumentStatusUpdateRequest,
+    DocumentSummaryResponse,
 )
-from app.application.use_cases.query_documents import (
-    GetDocumentsByDateRangeUseCase,
-    GetDocumentByIdUseCase,
+from app.application.use_cases.approve_document import (
+    ApproveDocumentUseCase,
+    UnapproveDocumentUseCase,
 )
 from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
-from app.application.use_cases.approve_document import ApproveDocumentUseCase, UnapproveDocumentUseCase
+from app.application.use_cases.query_documents import (
+    GetDocumentByIdUseCase,
+    GetDocumentsByDateRangeUseCase,
+)
 from app.dependencies import (
-    get_documents_by_date_range_use_case,
+    get_approve_document_use_case,
+    get_concept_repo,
     get_document_by_id_use_case,
     get_document_detail_use_case,
-    get_concept_repo,
-    get_approve_document_use_case,
+    get_documents_by_date_range_use_case,
     get_unapprove_document_use_case,
 )
 from app.domain.exceptions.base import EntityNotFoundException
@@ -39,7 +43,7 @@ def _enrich_details(doc_response: DocumentResponse, concept_repo: ConceptReposit
 
 @router.get(
     "/documents",
-    response_model=List[DocumentSummaryResponse],
+    response_model=list[DocumentSummaryResponse],
     summary="Listar documentos por rango de fechas",
     description=(
         "Retorna un resumen de los documentos (facturas electrónicas DIAN) procesados dentro del rango "
@@ -55,9 +59,16 @@ def _enrich_details(doc_response: DocumentResponse, concept_repo: ConceptReposit
     },
 )
 async def get_documents(
-    from_date: date = Query(..., description="Fecha de inicio del rango (inclusive). Formato: YYYY-MM-DD"),
-    to_date: date = Query(..., description="Fecha de fin del rango (inclusive). Formato: YYYY-MM-DD"),
-    status: Optional[int] = Query(None, description="Filtrar por código de estado. 0=Error, 100=Procesado, 200=Causado, 300=Aprobado, 400=Contabilizada."),
+    from_date: date = Query(
+        ..., description="Fecha de inicio del rango (inclusive). Formato: YYYY-MM-DD"
+    ),
+    to_date: date = Query(
+        ..., description="Fecha de fin del rango (inclusive). Formato: YYYY-MM-DD"
+    ),
+    status: Optional[int] = Query(
+        None,
+        description="Filtrar por código de estado. 0=Error, 100=Procesado, 200=Causado, 300=Aprobado, 400=Contabilizada.",
+    ),
     use_case: GetDocumentsByDateRangeUseCase = Depends(get_documents_by_date_range_use_case),
 ):
     documents = use_case.execute(from_date, to_date, status)
@@ -119,7 +130,9 @@ async def get_document_detail(
     try:
         result = await use_case.execute(document_id)
     except EntityNotFoundException:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
+        )
 
     xml_reading = DocumentResponse.model_validate(result["document"], from_attributes=True)
     _enrich_details(xml_reading, concept_repo)
@@ -165,7 +178,9 @@ async def approve_document(
     try:
         doc = await use_case.execute(document_id)
     except EntityNotFoundException:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     return DocumentSummaryResponse.model_validate(doc, from_attributes=True)
@@ -198,7 +213,9 @@ async def update_document_status(
         try:
             doc = use_case.execute(document_id)
         except EntityNotFoundException:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
+            )
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
         return DocumentSummaryResponse.model_validate(doc, from_attributes=True)

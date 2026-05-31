@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, status
-from typing import List
 
 from app.application.dto.receiver import ReceiverResponse
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
@@ -10,7 +9,7 @@ router = APIRouter()
 
 @router.get(
     "/receivers",
-    response_model=List[ReceiverResponse],
+    response_model=list[ReceiverResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar receptores de facturas",
     description=(

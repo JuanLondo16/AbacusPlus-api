@@ -1,7 +1,6 @@
 import pytest
-
-from app.application.use_cases.proxy_request import ProxyRequestUseCase
 from app.application.dto.proxy import ProxyRequest
+from app.application.use_cases.proxy_request import ProxyRequestUseCase
 from app.domain.ports.services import ExternalClientPort
 
 _FAKE_RESPONSE = {"status_code": 200, "body": {"result": "ok"}, "headers": {}}
@@ -40,7 +39,9 @@ class FakeExternalClient(ExternalClientPort):
         cookies = await self.login(login_url=login_url, credentials=credentials)
         return await self.request(method=method, url=url, cookies=cookies, body=body, params=params)
 
-    async def login_and_download(self, login_url: str, credentials: dict, download_url: str) -> bytes:
+    async def login_and_download(
+        self, login_url: str, credentials: dict, download_url: str
+    ) -> bytes:
         return b""
 
 
@@ -60,9 +61,7 @@ def _make_use_case(
 @pytest.mark.asyncio
 async def test_returns_proxy_response():
     use_case = _make_use_case()
-    result = await use_case.execute(
-        ProxyRequest(token="mi-token", method="GET", path="/api/data")
-    )
+    result = await use_case.execute(ProxyRequest(token="mi-token", method="GET", path="/api/data"))
     assert result.status_code == 200
     assert result.body == {"result": "ok"}
 
@@ -71,9 +70,7 @@ async def test_returns_proxy_response():
 async def test_full_url_is_constructed_correctly():
     client = FakeExternalClient()
     use_case = _make_use_case(client=client, base_url="https://portal.example.com")
-    await use_case.execute(
-        ProxyRequest(token="mi-token", method="GET", path="/api/invoices")
-    )
+    await use_case.execute(ProxyRequest(token="mi-token", method="GET", path="/api/invoices"))
     assert client.last_call["url"] == "https://portal.example.com/api/invoices"
 
 

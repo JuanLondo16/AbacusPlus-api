@@ -1,20 +1,20 @@
 import logging
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 
 from app.application.dto.journal_entry import (
+    JournalEntryDetailResponse,
+    JournalEntryResponse,
+    MatchEntriesResponse,
     SyncRequest,
     SyncResponse,
-    JournalEntryResponse,
-    JournalEntryDetailResponse,
-    MatchEntriesResponse,
 )
-from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
-from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
 from app.application.use_cases.match_entries import MatchEntriesUseCase
-from app.dependencies import get_sync_use_case, get_query_use_case, get_match_use_case
+from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
+from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
+from app.dependencies import get_match_use_case, get_query_use_case, get_sync_use_case
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ def sync_journal_entries(
 
 @router.get(
     "/odoo/entries",
-    response_model=List[JournalEntryResponse],
+    response_model=list[JournalEntryResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar asientos contables almacenados",
     description=(
@@ -67,7 +67,7 @@ def list_journal_entries(
     move_type: Optional[str] = None,
     state: Optional[str] = None,
     use_case: QueryJournalEntriesUseCase = Depends(get_query_use_case),
-) -> List[JournalEntryResponse]:
+) -> list[JournalEntryResponse]:
     return use_case.get_list(
         date_from=date_from,
         date_to=date_to,

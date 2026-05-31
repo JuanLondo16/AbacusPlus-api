@@ -9,7 +9,7 @@ def setup_logging():
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler("app.log", encoding="utf-8")
+            logging.FileHandler("app.log", encoding="utf-8"),
         ],
     )
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

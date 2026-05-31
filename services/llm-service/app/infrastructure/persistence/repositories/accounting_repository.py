@@ -1,18 +1,20 @@
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
-from sqlalchemy import func, text
-from sqlalchemy.orm import Session
-
-from app.infrastructure.persistence.models.accounting_entry import AccountingEntry, AccountingEntryLine
+from app.infrastructure.persistence.models.accounting_entry import (
+    AccountingEntry,
+    AccountingEntryLine,
+)
 from app.infrastructure.persistence.models.chart_account import IntegrationChartAccount
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
 class AccountingRepository:
     def __init__(self, db: Session):
         self._db = db
 
-    def create(self, entry: AccountingEntry, lines_data: List[dict]) -> AccountingEntry:
+    def create(self, entry: AccountingEntry, lines_data: list[dict]) -> AccountingEntry:
         """
         Persiste el asiento contable y crea cada línea como registro independiente.
         lines_data es una lista de dicts con claves: cuenta, nombre, debito, credito,
@@ -22,16 +24,18 @@ class AccountingRepository:
         self._db.flush()  # obtiene entry.id antes del commit
 
         for line in lines_data:
-            self._db.add(AccountingEntryLine(
-                entry_id=entry.id,
-                cuenta=line.get("cuenta", ""),
-                nombre=line.get("nombre", ""),
-                debito=float(line.get("debito") or 0),
-                credito=float(line.get("credito") or 0),
-                tercero=line.get("tercero") or None,
-                centro_costo=line.get("centro_costo") or None,
-                descripcion=line.get("descripcion") or None,
-            ))
+            self._db.add(
+                AccountingEntryLine(
+                    entry_id=entry.id,
+                    cuenta=line.get("cuenta", ""),
+                    nombre=line.get("nombre", ""),
+                    debito=float(line.get("debito") or 0),
+                    credito=float(line.get("credito") or 0),
+                    tercero=line.get("tercero") or None,
+                    centro_costo=line.get("centro_costo") or None,
+                    descripcion=line.get("descripcion") or None,
+                )
+            )
 
         self._db.commit()
         self._db.refresh(entry)
@@ -42,7 +46,7 @@ class AccountingRepository:
         issuer_nit: str,
         months_back: int = 12,
         limit: int = 50,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Devuelve hasta `limit` asientos generados del mismo emisor (por NIT exacto)
         dentro de los últimos `months_back` meses, ordenados del más reciente al más antiguo.
@@ -94,14 +98,14 @@ class AccountingRepository:
             .first()
         )
 
-    def get_chart_account_name_map(self, codes: List[str]) -> Dict[str, str]:
+    def get_chart_account_name_map(self, codes: list[str]) -> dict[str, str]:
         if not codes:
             return {}
         rows = (
             self._db.query(IntegrationChartAccount)
             .filter(
                 IntegrationChartAccount.code.in_(codes),
-                IntegrationChartAccount.active == True,
+                IntegrationChartAccount.active is True,
             )
             .all()
         )
@@ -113,4 +117,3 @@ class AccountingRepository:
             {"eid": entry_id, "did": document_id},
         )
         self._db.commit()
-

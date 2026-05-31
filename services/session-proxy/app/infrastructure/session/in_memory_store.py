@@ -1,7 +1,7 @@
 import logging
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Optional
 
 from app.domain.entities.session import SessionEntity
 from app.domain.ports.repositories import SessionStorePort
@@ -20,7 +20,7 @@ class InMemorySessionStore(SessionStorePort):
 
     def __init__(self, ttl_seconds: int = 3600):
         self._ttl = timedelta(seconds=ttl_seconds)
-        self._store: Dict[str, SessionEntity] = {}
+        self._store: dict[str, SessionEntity] = {}
         self._lock = threading.Lock()
 
     def save(self, session: SessionEntity) -> None:

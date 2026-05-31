@@ -1,9 +1,11 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Depends
+
 from app.application.dto.ai import AIAnalyzeRequest, AIAnalyzeResponse
 from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
 from app.dependencies import get_analyze_with_ai_use_case
-from app.infrastructure.config.auth_dependency import get_token_data, TokenData
+from app.infrastructure.config.auth_dependency import TokenData, get_token_data
 
 router = APIRouter()
 

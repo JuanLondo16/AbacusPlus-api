@@ -1,5 +1,3 @@
-from typing import Optional
-
 from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
 
 

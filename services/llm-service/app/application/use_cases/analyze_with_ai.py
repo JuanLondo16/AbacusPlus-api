@@ -1,5 +1,5 @@
-from app.domain.ports.services import AIServicePort
 from app.application.dto.ai import AIAnalyzeRequest, AIAnalyzeResponse
+from app.domain.ports.services import AIServicePort
 
 
 class AnalyzeWithAIUseCase:

@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends
 
 from app.application.dto.catalog import (
@@ -22,7 +20,7 @@ router = APIRouter()
 
 @router.get(
     "/catalog/cost-centers",
-    response_model=List[CostCenterResponse],
+    response_model=list[CostCenterResponse],
     summary="Listar centros de costo activos",
     description=(
         "Retorna todos los centros de costo activos configurados en el sistema. "
@@ -39,7 +37,7 @@ def get_cost_centers(
 
 @router.get(
     "/catalog/puc-accounts",
-    response_model=List[PucAccountResponse],
+    response_model=list[PucAccountResponse],
     summary="Listar cuentas PUC activas",
     description=(
         "Retorna todas las cuentas del Plan Único de Cuentas (PUC) marcadas como activas. "
@@ -56,7 +54,7 @@ def get_puc_accounts(
 
 @router.get(
     "/catalog/retention-fuente-rates",
-    response_model=List[RetentionFuenteRateResponse],
+    response_model=list[RetentionFuenteRateResponse],
     summary="Listar tasas de retención en la fuente",
     description=(
         "Retorna las tasas de retención en la fuente configuradas por concepto y contribuyente. "
@@ -74,7 +72,9 @@ def get_retention_fuente_rates(
             retention_concept=r.retention_concept,
             taxpayer_type=r.taxpayer_type,
             minimum_base_uvt=float(r.minimum_base_uvt) if r.minimum_base_uvt is not None else None,
-            minimum_base_pesos=float(r.minimum_base_pesos) if r.minimum_base_pesos is not None else None,
+            minimum_base_pesos=float(r.minimum_base_pesos)
+            if r.minimum_base_pesos is not None
+            else None,
             rate_percentage=float(r.rate_percentage),
         )
         for r in items
@@ -83,7 +83,7 @@ def get_retention_fuente_rates(
 
 @router.get(
     "/catalog/retention-ica-rates",
-    response_model=List[RetentionIcaRateResponse],
+    response_model=list[RetentionIcaRateResponse],
     summary="Listar tasas de retención ICA por municipio",
     description=(
         "Retorna las tasas de reteICA configuradas por municipio (código DANE). "

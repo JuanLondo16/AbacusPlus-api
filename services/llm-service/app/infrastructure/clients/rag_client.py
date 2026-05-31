@@ -1,5 +1,5 @@
 import logging
-from typing import List
+
 import httpx
 
 from app.domain.ports.services import RagClientPort
@@ -14,7 +14,7 @@ class RagClient(RagClientPort):
         self._base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
 
-    async def search(self, query: str, top_k: int = 5) -> List[dict]:
+    async def search(self, query: str, top_k: int = 5) -> list[dict]:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
                 f"{self._base_url}/api/v1/chunks/search",

@@ -1,5 +1,6 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 class QueryRequest(BaseModel):
@@ -37,7 +38,9 @@ class ContextChunk(BaseModel):
     source_type: str = Field(..., description="Tipo de fuente del chunk (ej: `document`).")
     source_id: Optional[int] = Field(None, description="ID del documento origen del chunk.")
     content: str = Field(..., description="Texto del fragmento recuperado.")
-    similarity: float = Field(..., description="Score de similitud coseno con la consulta (0.0 a 1.0).")
+    similarity: float = Field(
+        ..., description="Score de similitud coseno con la consulta (0.0 a 1.0)."
+    )
 
 
 class AIUsage(BaseModel):
@@ -47,8 +50,12 @@ class AIUsage(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    response: str = Field(..., description="Respuesta generada por el LLM con base en el contexto RAG.")
+    response: str = Field(
+        ..., description="Respuesta generada por el LLM con base en el contexto RAG."
+    )
     model: str = Field(..., description="Modelo de OpenAI que procesó la solicitud.")
     query: str = Field(..., description="Consulta original del usuario.")
-    context_chunks: List[ContextChunk] = Field(..., description="Fragmentos recuperados del RAG utilizados como contexto.")
+    context_chunks: list[ContextChunk] = Field(
+        ..., description="Fragmentos recuperados del RAG utilizados como contexto."
+    )
     usage: AIUsage = Field(..., description="Métricas de consumo de tokens.")

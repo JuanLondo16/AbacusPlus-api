@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Optional
 
 from app.application.dto.lookup import LookupItem, LookupRequest, LookupResponse, SuggestedEntry
 from app.domain.entities.accounting_rule import AccountingRule
@@ -76,7 +76,9 @@ class LookupRulesUseCase:
                     if rule is None or not rule.is_active:
                         continue
                     months_idle = _months_since(rule.last_approved_at)
-                    decayed = ConfidenceScore(rule.confidence_score).with_decay(months_idle, _DECAY_FACTOR)
+                    decayed = ConfidenceScore(rule.confidence_score).with_decay(
+                        months_idle, _DECAY_FACTOR
+                    )
                     effective = float(decayed)
                     if effective > best_confidence:
                         best_confidence = effective
@@ -84,7 +86,9 @@ class LookupRulesUseCase:
                         best_key_type = "nit_semantic"
                         best_similarity = h["similarity"]
             except Exception as exc:
-                logger.warning("Semantic embedding failed for item '%s': %s", item.description[:50], exc)
+                logger.warning(
+                    "Semantic embedding failed for item '%s': %s", item.description[:50], exc
+                )
 
         # Cascade level 2: nit_only
         if best_confidence < _HIT_THRESHOLD:
@@ -93,7 +97,9 @@ class LookupRulesUseCase:
                 if not rule.is_active:
                     continue
                 months_idle = _months_since(rule.last_approved_at)
-                decayed = float(ConfidenceScore(rule.confidence_score).with_decay(months_idle, _DECAY_FACTOR))
+                decayed = float(
+                    ConfidenceScore(rule.confidence_score).with_decay(months_idle, _DECAY_FACTOR)
+                )
                 if decayed > best_confidence:
                     best_confidence = decayed
                     best_rule = rule
@@ -108,17 +114,25 @@ class LookupRulesUseCase:
                     if not rule.is_active:
                         continue
                     months_idle = _months_since(rule.last_approved_at)
-                    decayed = float(ConfidenceScore(rule.confidence_score).with_decay(months_idle, _DECAY_FACTOR))
+                    decayed = float(
+                        ConfidenceScore(rule.confidence_score).with_decay(
+                            months_idle, _DECAY_FACTOR
+                        )
+                    )
                     if decayed > best_confidence:
                         best_confidence = decayed
                         best_rule = rule
                         best_key_type = "keyword_only"
 
         match_level = ConfidenceScore(best_confidence).classify(_HIT_THRESHOLD, _PARTIAL_THRESHOLD)
-        suggested = _rule_to_suggested(best_rule) if best_rule and match_level != MatchLevel.MISS else None
+        suggested = (
+            _rule_to_suggested(best_rule) if best_rule and match_level != MatchLevel.MISS else None
+        )
         known_fields = _resolve_known_fields(best_rule, match_level)
 
-        explanation = _build_explanation(match_level, best_rule, best_key_type, best_confidence, best_similarity)
+        explanation = _build_explanation(
+            match_level, best_rule, best_key_type, best_confidence, best_similarity
+        )
 
         # Record attempt
         if request.document_id is not None:
@@ -135,7 +149,9 @@ class LookupRulesUseCase:
                 )
                 self._attempt_repo.create(attempt)
             except Exception as exc:
-                logger.warning("Could not persist match attempt for doc=%s: %s", request.document_id, exc)
+                logger.warning(
+                    "Could not persist match attempt for doc=%s: %s", request.document_id, exc
+                )
 
         return LookupResponse(
             match_level=match_level,
@@ -148,8 +164,24 @@ class LookupRulesUseCase:
         )
 
 
-def _extract_keywords(items: List[LookupItem]) -> List[str]:
-    stop = {"de", "del", "la", "el", "los", "las", "y", "o", "en", "por", "para", "con", "a", "un", "una"}
+def _extract_keywords(items: list[LookupItem]) -> list[str]:
+    stop = {
+        "de",
+        "del",
+        "la",
+        "el",
+        "los",
+        "las",
+        "y",
+        "o",
+        "en",
+        "por",
+        "para",
+        "con",
+        "a",
+        "un",
+        "una",
+    }
     words = []
     for item in items:
         for w in item.description.lower().split():
@@ -159,7 +191,7 @@ def _extract_keywords(items: List[LookupItem]) -> List[str]:
     return list(set(words))[:20]
 
 
-def _resolve_known_fields(rule: Optional[AccountingRule], level: MatchLevel) -> List[str]:
+def _resolve_known_fields(rule: Optional[AccountingRule], level: MatchLevel) -> list[str]:
     if rule is None or level == MatchLevel.MISS:
         return []
     fields = ["debit_account", "credit_account"]

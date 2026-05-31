@@ -1,24 +1,31 @@
 import os
 from typing import Annotated
+
+from dotenv import load_dotenv
 from fastapi import Depends
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
 
-from app.infrastructure.config.auth_dependency import get_tenant_db, get_token_data, TokenData
-from app.infrastructure.ai.openai_service import OpenAIService
-from app.infrastructure.clients.rag_client import RagClient
-from app.infrastructure.clients.document_client import DocumentClient
-from app.infrastructure.clients.catalog_client import CatalogClient
-from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
-from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
-from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
-from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
 from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
-from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
+from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.application.use_cases.recalculate_accounting_batch import RecalculateAccountingBatchUseCase
-from app.application.use_cases.recalculate_accounting_document import RecalculateAccountingDocumentUseCase
+from app.application.use_cases.recalculate_accounting_document import (
+    RecalculateAccountingDocumentUseCase,
+)
+from app.infrastructure.ai.openai_service import OpenAIService
+from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
+from app.infrastructure.clients.catalog_client import CatalogClient
+from app.infrastructure.clients.document_client import DocumentClient
+from app.infrastructure.clients.rag_client import RagClient
+from app.infrastructure.config.auth_dependency import TokenData, get_tenant_db, get_token_data
+from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import (
+    ChartAccountRepository,
+)
+from app.infrastructure.persistence.repositories.system_prompt_repository import (
+    SystemPromptRepository,
+)
 
 load_dotenv()
 
@@ -65,7 +72,9 @@ def get_query_with_rag_use_case(
     )
 
 
-def get_accounting_rules_client(token: Annotated[TokenData, Depends(get_token_data)]) -> AccountingRulesClient:
+def get_accounting_rules_client(
+    token: Annotated[TokenData, Depends(get_token_data)],
+) -> AccountingRulesClient:
     url = os.getenv("ACCOUNTING_RULES_SERVICE_URL", "http://accounting-rules-service:8009")
     return AccountingRulesClient(base_url=url, bearer_token=token.raw_token)
 

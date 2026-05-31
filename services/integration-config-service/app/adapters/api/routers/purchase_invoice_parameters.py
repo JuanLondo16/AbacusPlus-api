@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 
@@ -31,14 +31,16 @@ router = APIRouter()
 )
 def create_purchase_invoice_parameters(
     request: PurchaseInvoiceParameterCreate,
-    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(get_purchase_invoice_parameters_use_case),
+    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(
+        get_purchase_invoice_parameters_use_case
+    ),
 ) -> PurchaseInvoiceParameterResponse:
     return use_case.create(request)
 
 
 @router.get(
     "/integrations/purchase-invoice-parameters",
-    response_model=List[PurchaseInvoiceParameterResponse],
+    response_model=list[PurchaseInvoiceParameterResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar parametros de facturas de compra",
     description=(
@@ -50,6 +52,8 @@ def create_purchase_invoice_parameters(
 def list_purchase_invoice_parameters(
     provider: Optional[str] = None,
     account_key: Optional[str] = None,
-    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(get_purchase_invoice_parameters_use_case),
-) -> List[PurchaseInvoiceParameterResponse]:
+    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(
+        get_purchase_invoice_parameters_use_case
+    ),
+) -> list[PurchaseInvoiceParameterResponse]:
     return use_case.list(provider=provider, account_key=account_key)

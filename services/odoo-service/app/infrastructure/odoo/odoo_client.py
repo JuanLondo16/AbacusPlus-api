@@ -1,7 +1,6 @@
 import logging
 import socket
 import xmlrpc.client
-from typing import List, Dict
 
 from app.domain.exceptions.base import OdooConnectionException
 from app.domain.ports.services import OdooClientPort
@@ -35,11 +34,16 @@ class OdooXmlRpcClient(OdooClientPort):
 
     def _call(self, model: str, method: str, args, kwargs=None):
         return self._models.execute_kw(
-            self._db, self._uid, self._password,
-            model, method, args, kwargs or {},
+            self._db,
+            self._uid,
+            self._password,
+            model,
+            method,
+            args,
+            kwargs or {},
         )
 
-    def search_moves(self, date_from: str, date_to: str) -> List[dict]:
+    def search_moves(self, date_from: str, date_to: str) -> list[dict]:
         """
         Busca facturas de compra publicadas en el rango de fechas dado.
         """
@@ -54,13 +58,22 @@ class OdooXmlRpcClient(OdooClientPort):
             return []
 
         moves = self._call(
-            "account.move", "read",
+            "account.move",
+            "read",
             [move_ids],
             {
                 "fields": [
-                    "name", "date", "ref", "move_type", "state",
-                    "journal_id", "partner_id", "currency_id",
-                    "amount_untaxed", "amount_tax", "amount_total",
+                    "name",
+                    "date",
+                    "ref",
+                    "move_type",
+                    "state",
+                    "journal_id",
+                    "partner_id",
+                    "currency_id",
+                    "amount_untaxed",
+                    "amount_tax",
+                    "amount_total",
                     "narration",
                 ]
             },
@@ -68,7 +81,7 @@ class OdooXmlRpcClient(OdooClientPort):
         logger.info("Odoo: %d asientos encontrados (%s → %s)", len(moves), date_from, date_to)
         return moves
 
-    def get_move_lines(self, move_ids: List[int]) -> List[dict]:
+    def get_move_lines(self, move_ids: list[int]) -> list[dict]:
         """
         Retorna todas las líneas contables de los asientos indicados,
         excluyendo líneas de sección y nota (sin cuenta contable).
@@ -82,47 +95,59 @@ class OdooXmlRpcClient(OdooClientPort):
             return []
 
         lines = self._call(
-            "account.move.line", "read",
+            "account.move.line",
+            "read",
             [line_ids],
             {
                 "fields": [
-                    "move_id", "sequence", "account_id", "partner_id",
-                    "name", "debit", "credit", "amount_currency",
-                    "analytic_distribution", "date_maturity", "display_type",
+                    "move_id",
+                    "sequence",
+                    "account_id",
+                    "partner_id",
+                    "name",
+                    "debit",
+                    "credit",
+                    "amount_currency",
+                    "analytic_distribution",
+                    "date_maturity",
+                    "display_type",
                 ]
             },
         )
         logger.info("Odoo: %d líneas obtenidas para %d asientos", len(lines), len(move_ids))
         return lines
 
-    def get_partner_details(self, partner_ids: List[int]) -> Dict[int, dict]:
+    def get_partner_details(self, partner_ids: list[int]) -> dict[int, dict]:
         """Retorna nombre y VAT/NIT de los terceros indicados."""
         if not partner_ids:
             return {}
         partners = self._call(
-            "res.partner", "read",
+            "res.partner",
+            "read",
             [partner_ids],
             {"fields": ["name", "vat"]},
         )
         return {p["id"]: p for p in partners}
 
-    def get_account_details(self, account_ids: List[int]) -> Dict[int, dict]:
+    def get_account_details(self, account_ids: list[int]) -> dict[int, dict]:
         """Retorna código y nombre de las cuentas contables."""
         if not account_ids:
             return {}
         accounts = self._call(
-            "account.account", "read",
+            "account.account",
+            "read",
             [account_ids],
             {"fields": ["code", "name"]},
         )
         return {a["id"]: a for a in accounts}
 
-    def get_analytic_account_details(self, analytic_ids: List[int]) -> Dict[int, dict]:
+    def get_analytic_account_details(self, analytic_ids: list[int]) -> dict[int, dict]:
         """Retorna nombre y plan de las cuentas analíticas (centros de costo) en Odoo 17."""
         if not analytic_ids:
             return {}
         accounts = self._call(
-            "account.analytic.account", "read",
+            "account.analytic.account",
+            "read",
             [analytic_ids],
             {"fields": ["name", "plan_id"]},
         )

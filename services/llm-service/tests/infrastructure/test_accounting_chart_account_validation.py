@@ -1,5 +1,4 @@
 import pytest
-
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 
 
@@ -11,11 +10,7 @@ class FakeChartAccountRepository:
         return list(self.accounts.values())
 
     def find_active_by_codes(self, provider: str, account_key: str, codes):
-        return {
-            code: self.accounts[code]
-            for code in codes
-            if code in self.accounts
-        }
+        return {code: self.accounts[code] for code in codes if code in self.accounts}
 
 
 def _use_case(accounts):

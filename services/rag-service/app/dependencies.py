@@ -1,13 +1,14 @@
 import os
+
+from dotenv import load_dotenv
 from fastapi import Depends
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
 
-from app.infrastructure.config.auth_dependency import get_tenant_db
-from app.infrastructure.ai.ollama_service import OllamaEmbeddingService
-from app.infrastructure.persistence.repositories.chunk_repository import ChunkRepository
 from app.application.use_cases.index_chunk import IndexChunkUseCase
 from app.application.use_cases.search_chunks import SearchChunksUseCase
+from app.infrastructure.ai.ollama_service import OllamaEmbeddingService
+from app.infrastructure.config.auth_dependency import get_tenant_db
+from app.infrastructure.persistence.repositories.chunk_repository import ChunkRepository
 
 load_dotenv()
 

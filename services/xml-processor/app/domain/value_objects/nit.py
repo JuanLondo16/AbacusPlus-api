@@ -9,16 +9,16 @@ class NIT:
     verification_digit: int
 
     def __post_init__(self):
-        cleaned = ''.join(filter(str.isdigit, self.value))
+        cleaned = "".join(filter(str.isdigit, self.value))
         if not cleaned:
             raise ValueError("NIT must contain at least one digit")
-        object.__setattr__(self, 'value', cleaned)
+        object.__setattr__(self, "value", cleaned)
 
     @staticmethod
     def calculate_dv(nit: str) -> int:
         """Compute DIAN verification digit for a given NIT."""
         weights = [71, 67, 59, 53, 47, 43, 41, 37, 29, 23, 19, 17, 13, 7, 3]
-        nit = ''.join(filter(str.isdigit, nit))
+        nit = "".join(filter(str.isdigit, nit))
         total = 0
         for i, digit in enumerate(reversed(nit)):
             total += int(digit) * weights[-(i + 1)]
@@ -28,7 +28,7 @@ class NIT:
     @classmethod
     def from_raw(cls, raw_nit: str) -> "NIT":
         """Create a NIT instance from a raw string, computing the DV automatically."""
-        cleaned = ''.join(filter(str.isdigit, raw_nit))
+        cleaned = "".join(filter(str.isdigit, raw_nit))
         dv = cls.calculate_dv(cleaned)
         return cls(value=cleaned, verification_digit=dv)
 

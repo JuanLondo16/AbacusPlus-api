@@ -1,11 +1,11 @@
-import uuid
 import logging
+import uuid
 
+from app.application.dto.auth import LoginRequest, LoginResponse
 from app.domain.entities.session import SessionEntity
+from app.domain.exceptions.base import ExternalAuthException
 from app.domain.ports.repositories import SessionStorePort
 from app.domain.ports.services import ExternalClientPort
-from app.domain.exceptions.base import ExternalAuthException
-from app.application.dto.auth import LoginRequest, LoginResponse
 
 logger = logging.getLogger(__name__)
 

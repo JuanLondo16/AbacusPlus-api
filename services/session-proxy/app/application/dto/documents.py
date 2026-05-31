@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -23,9 +23,12 @@ class DocumentsRangeRequest(BaseModel):
 
 
 class EnqueueDownloadsResponse(BaseModel):
-    batch_id: str = Field(..., description="Identificador único del batch. Úsalo en GET /dian/documents/batches/{batch_id} para consultar el estado.")
+    batch_id: str = Field(
+        ...,
+        description="Identificador único del batch. Úsalo en GET /dian/documents/batches/{batch_id} para consultar el estado.",
+    )
     enqueued: int = Field(..., description="Número de documentos encolados para descarga.")
-    job_ids: List[str] = Field(..., description="IDs individuales de cada job ARQ.")
+    job_ids: list[str] = Field(..., description="IDs individuales de cada job ARQ.")
     StartDate: str
     EndDate: str
     started_at: str = Field(..., description="Fecha y hora de inicio del batch (ISO 8601 UTC).")
@@ -34,10 +37,11 @@ class EnqueueDownloadsResponse(BaseModel):
 class DownloadJobStatus(BaseModel):
     job_id: str
     status: str
-    result: Optional[Dict[str, Any]] = None
+    result: Optional[dict[str, Any]] = None
 
 
 # ── Detalle de progreso por paso ───────────────────────────────────────────────
+
 
 class StepDownloaded(BaseModel):
     done: bool
@@ -68,11 +72,14 @@ class JobSteps(BaseModel):
 class JobProgressDetail(BaseModel):
     job_id: str
     track_id: str
-    current_step: str = Field(..., description="downloaded | xml_processed | accounting | done | error")
+    current_step: str = Field(
+        ..., description="downloaded | xml_processed | accounting | done | error"
+    )
     steps: JobSteps
 
 
 # ── Resumen por paso del batch ─────────────────────────────────────────────────
+
 
 class StepSummary(BaseModel):
     done: int
@@ -88,12 +95,19 @@ class BatchStepSummary(BaseModel):
 
 # ── Respuesta del batch ────────────────────────────────────────────────────────
 
+
 class BatchStatusResponse(BaseModel):
     batch_id: str = Field(..., description="Identificador del batch.")
     total: int = Field(..., description="Total de documentos encolados en el batch.")
     elapsed_seconds: float = Field(..., description="Segundos transcurridos desde el inicio.")
-    total_time_seconds: Optional[float] = Field(None, description="Tiempo total. Solo presente cuando el batch está completado.")
-    is_done: bool = Field(..., description="True si todos los jobs completaron sus 3 pasos (con éxito o error).")
+    total_time_seconds: Optional[float] = Field(
+        None, description="Tiempo total. Solo presente cuando el batch está completado."
+    )
+    is_done: bool = Field(
+        ..., description="True si todos los jobs completaron sus 3 pasos (con éxito o error)."
+    )
     started_at: str = Field(..., description="Fecha y hora de inicio (ISO 8601 UTC).")
     summary: BatchStepSummary = Field(..., description="Conteo de jobs por estado en cada etapa.")
-    jobs: Optional[List[JobProgressDetail]] = Field(None, description="Detalle por job. Solo presente cuando se solicita con ?detail=true.")
+    jobs: Optional[list[JobProgressDetail]] = Field(
+        None, description="Detalle por job. Solo presente cuando se solicita con ?detail=true."
+    )

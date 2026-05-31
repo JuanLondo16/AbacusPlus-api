@@ -1,6 +1,9 @@
+import contextlib
 import logging
 from typing import Any, Optional
+
 from openai import AsyncOpenAI
+
 from app.domain.ports.services import AIServicePort
 
 logger = logging.getLogger(__name__)
@@ -31,29 +34,31 @@ class OpenAIService(AIServicePort):
         # Si se provee un JSON schema, exigimos salida estructurada (JSON estricto).
         # Algunos modelos/SDKs pueden no soportarlo; en ese caso degradamos a salida libre.
         if json_schema is not None:
-            try:
+            with contextlib.suppress(Exception):
                 create_kwargs["response_format"] = {
                     "type": "json_schema",
                     "json_schema": json_schema,
                 }
-            except Exception:
-                # fallback silencioso: dejamos salida libre
-                pass
 
         try:
             response = await self._client.chat.completions.create(**create_kwargs)
         except Exception as exc:
             # Fallback: si el modelo o la cuenta no soportan json_schema, reintenta sin response_format.
             if json_schema is not None and "response_format" in create_kwargs:
-                logger.warning("OpenAI rechazó response_format json_schema; reintentando sin schema: %s", exc)
+                logger.warning(
+                    "OpenAI rechazó response_format json_schema; reintentando sin schema: %s", exc
+                )
                 create_kwargs.pop("response_format", None)
-                messages.insert(0, {
-                    "role": "system",
-                    "content": (
-                        "IMPORTANTE: aunque no haya schema técnico disponible, responde solo JSON válido "
-                        "con la forma {\"entries\": [...]} y mínimo dos líneas contables."
-                    ),
-                })
+                messages.insert(
+                    0,
+                    {
+                        "role": "system",
+                        "content": (
+                            "IMPORTANTE: aunque no haya schema técnico disponible, responde solo JSON válido "
+                            'con la forma {"entries": [...]} y mínimo dos líneas contables.'
+                        ),
+                    },
+                )
                 response = await self._client.chat.completions.create(**create_kwargs)
             else:
                 raise

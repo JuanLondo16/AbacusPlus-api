@@ -7,8 +7,8 @@
 
 Marca cada casilla al completar la fase. Sirve como punto de retoma entre sesiones.
 
-- [ ] **Fase 0** — `pyproject.toml` raíz + base de archivos compartidos
-- [ ] **Fase 1** — Lint y formato (`ruff`) → `.github/workflows/01-lint.yml`
+- [x] **Fase 0** — `pyproject.toml` raíz + base de archivos compartidos
+- [x] **Fase 1** — Lint y formato (`ruff`) → `.github/workflows/01-lint.yml`
 - [ ] **Fase 2** — Seguridad (`bandit` + `pip-audit` + `semgrep`) → `02-security.yml`
 - [ ] **Fase 3** — PR checks + branch protection + coverage gate → `03-pr-checks.yml`
 - [ ] **Fase 4** — Unit tests en pipeline → `04-tests.yml`
@@ -22,8 +22,8 @@ Anotar fecha, commit/PR y observaciones cuando se complete cada fase.
 
 | Fase | Fecha | Commit / PR | Notas |
 |---|---|---|---|
-| 0 |  |  |  |
-| 1 |  |  |  |
+| 0 | 2026-05-30 | feature/implement_ci | pyproject.toml + .pre-commit-config.yaml creados |
+| 1 | 2026-05-30 | feature/implement_ci | 01-lint.yml creado; ruff clean (158 archivos formateados, 9 errores suprimidos con noqa/contextlib.suppress) |
 | 2 |  |  |  |
 | 3 |  |  |  |
 | 4 |  |  |  |

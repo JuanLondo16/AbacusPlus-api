@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 
 class JobQueuePort(ABC):
@@ -9,6 +9,6 @@ class JobQueuePort(ABC):
         ...
 
     @abstractmethod
-    async def get_job_status(self, job_id: str) -> Dict[str, Any]:
+    async def get_job_status(self, job_id: str) -> dict[str, Any]:
         """Retorna el estado actual de un job."""
         ...

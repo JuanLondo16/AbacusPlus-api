@@ -42,7 +42,8 @@
       "PowerShell(head *)",
       "Bash(grep -E \"\\\\.\\(yml|yaml|toml|cfg|ini\\)$\")",
       "PowerShell(Get-ChildItem *)",
-      "Bash([ -f \"C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api/services/$svc/pytest.ini\" ])"
+      "Bash([ -f \"C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api/services/$svc/pytest.ini\" ])",
+      "Bash(python *)"
     ]
   }
 }

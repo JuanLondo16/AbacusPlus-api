@@ -3,15 +3,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.infrastructure.config.logging import setup_logging
+from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
+from app.adapters.api.routers.internal import router as internal_router
+from app.adapters.api.routers.lookups import router as lookups_router
+from app.adapters.api.routers.rules import router as rules_router
+from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
+from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.persistence.models import accounting_rule as _ar_model  # noqa: F401
 from app.infrastructure.persistence.models import rule_match_attempt as _rma_model  # noqa: F401
-from app.adapters.api.routers.rules import router as rules_router
-from app.adapters.api.routers.lookups import router as lookups_router
-from app.adapters.api.routers.internal import router as internal_router
-from app.domain.exceptions.base import DomainException
-from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 
 setup_logging()
 logger = logging.getLogger(__name__)

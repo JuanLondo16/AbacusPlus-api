@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
@@ -25,7 +25,7 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
 
 @router.get(
     "/integrations/products",
-    response_model=List[ProductResponse],
+    response_model=list[ProductResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar productos y servicios",
     description=(
@@ -36,10 +36,12 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
     response_description="Lista de productos ordenada por codigo.",
 )
 def list_products(
-    active: Optional[bool] = Query(None, description="Filtrar por estado activo. Si se omite, retorna todos."),
+    active: Optional[bool] = Query(
+        None, description="Filtrar por estado activo. Si se omite, retorna todos."
+    ),
     type: Optional[str] = Query(None, description="Filtrar por tipo: 'product' o 'service'."),
     repository: ProductRepository = Depends(get_product_repository),
-) -> List[ProductResponse]:
+) -> list[ProductResponse]:
     products = repository.list(active=active)
     if type is not None:
         products = [p for p in products if p.type == type.strip().lower()]
@@ -60,11 +62,15 @@ def list_products(
     ),
     response_description="Resumen de productos importados y listado resultante.",
     responses={
-        400: {"description": "Archivo invalido, columnas faltantes, tipo invalido o filas con datos incorrectos."},
+        400: {
+            "description": "Archivo invalido, columnas faltantes, tipo invalido o filas con datos incorrectos."
+        },
     },
 )
 async def import_products_from_excel(
-    sheet_name: Optional[str] = Form(None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."),
+    sheet_name: Optional[str] = Form(
+        None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."
+    ),
     file: UploadFile = File(..., description="Archivo Excel .xlsx con los productos."),
     use_case: ImportProductsUseCase = Depends(get_import_products_use_case),
 ) -> ImportProductsResponse:

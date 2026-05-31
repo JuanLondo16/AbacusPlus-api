@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float
 from datetime import datetime, timezone
+
+from sqlalchemy import Column, DateTime, Float, Integer, String
+
 from app.infrastructure.config.database import Base
 
 

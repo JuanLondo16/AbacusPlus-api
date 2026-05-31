@@ -5,7 +5,6 @@ from app.application.dto.auth import LoginRequest, LoginResponse
 from app.infrastructure.config import jwt as jwt_service
 from app.infrastructure.config.redis_client import store_refresh_token
 from app.infrastructure.config.tenant_connection import get_session_for_tenant
-from app.infrastructure.persistence.models.user import User
 from app.infrastructure.persistence.repositories.tenant_repository import TenantRepository
 from app.infrastructure.persistence.repositories.user_repository import UserRepository
 
@@ -26,7 +25,9 @@ class LoginUseCase:
         try:
             user_repo = UserRepository(tenant_db)
             user = user_repo.get_by_email(request.email)
-            if user is None or not bcrypt.checkpw(request.password.encode(), user.password_hash.encode()):
+            if user is None or not bcrypt.checkpw(
+                request.password.encode(), user.password_hash.encode()
+            ):
                 raise ValueError("Invalid credentials")
 
             roles = user_repo.get_roles(user.id)
@@ -36,7 +37,9 @@ class LoginUseCase:
         access_token = jwt_service.issue_access_token(
             str(user.id), str(tenant.id), tenant.slug, user.email, roles
         )
-        refresh_token, jti = jwt_service.issue_refresh_token(str(user.id), str(tenant.id), tenant.slug)
+        refresh_token, jti = jwt_service.issue_refresh_token(
+            str(user.id), str(tenant.id), tenant.slug
+        )
 
         expire_days = 7
         store_refresh_token(jti, str(user.id), expire_days)

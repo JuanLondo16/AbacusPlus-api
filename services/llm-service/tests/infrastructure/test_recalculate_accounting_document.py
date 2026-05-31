@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
 
 import pytest
-from fastapi import HTTPException
-
 from app.application.dto.accounting import (
     AccountingEntryResponse,
     RecalculateAccountingDocumentRequest,
 )
-from app.application.use_cases.recalculate_accounting_document import RecalculateAccountingDocumentUseCase
+from app.application.use_cases.recalculate_accounting_document import (
+    RecalculateAccountingDocumentUseCase,
+)
+from fastapi import HTTPException
 
 
 class FakeDocumentClient:
@@ -68,8 +69,6 @@ class TestRecalculateAccountingDocumentUseCase:
         )
 
         with pytest.raises(HTTPException) as exc_info:
-            await use_case.execute(
-                RecalculateAccountingDocumentRequest(document_id=999)
-            )
+            await use_case.execute(RecalculateAccountingDocumentRequest(document_id=999))
 
         assert exc_info.value.status_code == 404

@@ -1,12 +1,22 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.application.dto.batch import EnqueueBatchResponse, ProcessFileRequest, ProcessingLogResponse
+from app.application.dto.batch import (
+    EnqueueBatchResponse,
+    ProcessFileRequest,
+    ProcessingLogResponse,
+)
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
 from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
-from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
-from app.dependencies import get_process_downloads_use_case, get_process_single_file_use_case, get_processing_log_repo
+from app.dependencies import (
+    get_process_downloads_use_case,
+    get_process_single_file_use_case,
+    get_processing_log_repo,
+)
+from app.infrastructure.persistence.repositories.processing_log_repository import (
+    ProcessingLogRepository,
+)
 
 router = APIRouter()
 
@@ -66,7 +76,7 @@ async def process_single_file(
 
 @router.get(
     "/batch-logs",
-    response_model=List[ProcessingLogResponse],
+    response_model=list[ProcessingLogResponse],
     summary="Historial de procesamiento batch",
     description=(
         "Retorna el historial de todos los archivos procesados por el worker batch, "

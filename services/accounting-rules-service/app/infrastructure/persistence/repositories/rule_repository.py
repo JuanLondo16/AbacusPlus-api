@@ -1,6 +1,7 @@
+import builtins
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -83,7 +84,7 @@ class RuleRepository(RuleRepositoryPort):
         match_key_type: Optional[str] = None,
         min_confidence: Optional[float] = None,
         is_active: Optional[bool] = None,
-    ) -> List[AccountingRule]:
+    ) -> list[AccountingRule]:
         q = self.db.query(AccountingRuleModel)
         if nit is not None:
             q = q.filter(AccountingRuleModel.issuer_nit == nit)
@@ -93,7 +94,9 @@ class RuleRepository(RuleRepositoryPort):
             q = q.filter(AccountingRuleModel.confidence_score >= min_confidence)
         if is_active is not None:
             q = q.filter(AccountingRuleModel.is_active == is_active)
-        return [_to_entity(m) for m in q.order_by(AccountingRuleModel.confidence_score.desc()).all()]
+        return [
+            _to_entity(m) for m in q.order_by(AccountingRuleModel.confidence_score.desc()).all()
+        ]
 
     def update(self, rule: AccountingRule) -> AccountingRule:
         m = self.db.query(AccountingRuleModel).filter(AccountingRuleModel.id == rule.id).first()
@@ -114,7 +117,7 @@ class RuleRepository(RuleRepositoryPort):
         rule.updated_at = m.updated_at
         return rule
 
-    def find_by_nit(self, nit: str) -> List[AccountingRule]:
+    def find_by_nit(self, nit: str) -> builtins.list[AccountingRule]:
         rows = (
             self.db.query(AccountingRuleModel)
             .filter(
@@ -127,7 +130,9 @@ class RuleRepository(RuleRepositoryPort):
         )
         return [_to_entity(m) for m in rows]
 
-    def search_semantic(self, nit: str, embedding: List[float], top_k: int = 5) -> List[Dict]:
+    def search_semantic(
+        self, nit: str, embedding: builtins.list[float], top_k: int = 5
+    ) -> builtins.list[dict]:
         emb_str = f"[{','.join(map(str, embedding))}]"
         rows = self.db.execute(
             text("""
@@ -145,7 +150,9 @@ class RuleRepository(RuleRepositoryPort):
         ).fetchall()
         return [{"rule_id": r[0], "similarity": round(float(r[1]), 4)} for r in rows]
 
-    def search_by_keywords(self, keywords: List[str], top_k: int = 5) -> List[AccountingRule]:
+    def search_by_keywords(
+        self, keywords: builtins.list[str], top_k: int = 5
+    ) -> builtins.list[AccountingRule]:
         if not keywords:
             return []
         rows = self.db.execute(

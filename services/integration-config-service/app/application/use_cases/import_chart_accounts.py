@@ -1,11 +1,13 @@
 from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from openpyxl import load_workbook
 
 from app.application.dto.chart_account import ImportChartAccountsResponse
 from app.domain.exceptions.base import ValidationException
-from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import (
+    ChartAccountRepository,
+)
 
 
 class ImportChartAccountsUseCase:
@@ -40,7 +42,7 @@ class ImportChartAccountsUseCase:
             accounts=self.repository.list(),
         )
 
-    def _recalculate_accepts_movements(self, accounts: List[Dict[str, Any]]) -> None:
+    def _recalculate_accepts_movements(self, accounts: list[dict[str, Any]]) -> None:
         codes = [a["code"] for a in accounts]
         numeric_codes = {c for c in codes if c.isdigit() and len(c) >= 4}
         # A code is a leaf if no other code in the dataset starts with it and is longer.
@@ -57,7 +59,7 @@ class ImportChartAccountsUseCase:
                 movements[c] = False
         self.repository.set_accepts_movements(movements)
 
-    def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> List[Dict[str, Any]]:
+    def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> list[dict[str, Any]]:
         try:
             workbook = load_workbook(filename=BytesIO(file_content), read_only=True, data_only=True)
         except Exception as exc:
@@ -82,7 +84,7 @@ class ImportChartAccountsUseCase:
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
 
-        accounts: List[Dict[str, Any]] = []
+        accounts: list[dict[str, Any]] = []
         seen_codes = set()
         for row_number, row in enumerate(rows, start=2):
             if self._is_empty_row(row):
@@ -107,18 +109,28 @@ class ImportChartAccountsUseCase:
             }
             accounts.append(
                 {
-                    "external_id": self._as_optional_text(self._optional_cell(row, header_map, "external_id")),
+                    "external_id": self._as_optional_text(
+                        self._optional_cell(row, header_map, "external_id")
+                    ),
                     "code": normalized_code,
                     "name": str(name).strip(),
-                    "account_type": self._as_optional_text(self._optional_cell(row, header_map, "account_type")),
-                    "level": self._as_optional_int(self._optional_cell(row, header_map, "level"), row_number, "level"),
-                    "parent_code": self._as_optional_code(self._optional_cell(row, header_map, "parent_code")),
+                    "account_type": self._as_optional_text(
+                        self._optional_cell(row, header_map, "account_type")
+                    ),
+                    "level": self._as_optional_int(
+                        self._optional_cell(row, header_map, "level"), row_number, "level"
+                    ),
+                    "parent_code": self._as_optional_code(
+                        self._optional_cell(row, header_map, "parent_code")
+                    ),
                     "accepts_movements": self._as_optional_bool(
                         self._optional_cell(row, header_map, "accepts_movements"),
                         row_number,
                         "accepts_movements",
                     ),
-                    "active": self._as_bool(self._optional_cell(row, header_map, "active"), default=True),
+                    "active": self._as_bool(
+                        self._optional_cell(row, header_map, "active"), default=True
+                    ),
                     "raw_payload": raw_payload,
                 }
             )
@@ -139,7 +151,7 @@ class ImportChartAccountsUseCase:
     def _cell(row: tuple, index: int) -> Any:
         return row[index] if index < len(row) else None
 
-    def _optional_cell(self, row: tuple, header_map: Dict[str, int], column: str) -> Any:
+    def _optional_cell(self, row: tuple, header_map: dict[str, int], column: str) -> Any:
         index = header_map.get(column)
         return self._cell(row, index) if index is not None else None
 

@@ -1,5 +1,5 @@
-from app.domain.ports.repositories import DocumentRepositoryPort
 from app.domain.exceptions.base import EntityNotFoundException
+from app.domain.ports.repositories import DocumentRepositoryPort
 from app.infrastructure.clients.llm_client import LlmClient
 from app.infrastructure.clients.odoo_client import OdooClient
 

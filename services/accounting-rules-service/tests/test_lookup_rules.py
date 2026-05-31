@@ -1,6 +1,6 @@
-import pytest
 from datetime import datetime, timezone
 
+import pytest
 from app.application.dto.lookup import LookupItem, LookupRequest
 from app.application.use_cases.lookup_rules import LookupRulesUseCase
 from app.domain.entities.accounting_rule import AccountingRule

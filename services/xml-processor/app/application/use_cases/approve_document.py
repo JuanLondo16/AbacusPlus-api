@@ -1,8 +1,7 @@
 import logging
-from typing import Optional
 
-from app.domain.ports.repositories import DocumentRepositoryPort
 from app.domain.exceptions.base import EntityNotFoundException
+from app.domain.ports.repositories import DocumentRepositoryPort
 from app.domain.value_objects.document_status import DocumentStatus
 
 logger = logging.getLogger(__name__)
@@ -39,12 +38,13 @@ class ApproveDocumentUseCase:
         try:
             entry = await self._llm_client.get_accounting_entry(document_id)
             if not entry:
-                logger.info("Sin asiento en llm-service para doc=%s, skip notificación", document_id)
+                logger.info(
+                    "Sin asiento en llm-service para doc=%s, skip notificación", document_id
+                )
                 return
 
             items = [
-                {"description": d.description, "subtotal": d.subtotal}
-                for d in (doc.details or [])
+                {"description": d.description, "subtotal": d.subtotal} for d in (doc.details or [])
             ]
             approved_lines = [
                 {
@@ -67,7 +67,9 @@ class ApproveDocumentUseCase:
             }
             await self._accounting_rules_client.notify_approval(payload)
         except Exception as exc:
-            logger.warning("Error preparando notificación de aprobación para doc=%s: %s", document_id, exc)
+            logger.warning(
+                "Error preparando notificación de aprobación para doc=%s: %s", document_id, exc
+            )
 
 
 class UnapproveDocumentUseCase:

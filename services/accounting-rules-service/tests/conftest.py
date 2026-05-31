@@ -1,17 +1,17 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from typing import Dict, List, Optional
+import builtins
 from datetime import datetime
+from typing import Optional
 
+import pytest
 from app.domain.entities.accounting_rule import AccountingRule
 from app.domain.entities.rule_match_attempt import RuleMatchAttempt
-from app.domain.ports.repositories import RuleRepositoryPort, MatchAttemptRepositoryPort
+from app.domain.ports.repositories import MatchAttemptRepositoryPort, RuleRepositoryPort
 from app.domain.ports.services import EmbeddingServicePort
 
 
 class MockRuleRepository(RuleRepositoryPort):
     def __init__(self):
-        self._rules: Dict[int, AccountingRule] = {}
+        self._rules: dict[int, AccountingRule] = {}
         self._counter = 1
 
     def create(self, rule: AccountingRule) -> AccountingRule:
@@ -25,7 +25,9 @@ class MockRuleRepository(RuleRepositoryPort):
     def get_by_id(self, rule_id: int) -> Optional[AccountingRule]:
         return self._rules.get(rule_id)
 
-    def list(self, nit=None, match_key_type=None, min_confidence=None, is_active=None) -> List[AccountingRule]:
+    def list(
+        self, nit=None, match_key_type=None, min_confidence=None, is_active=None
+    ) -> list[AccountingRule]:
         result = list(self._rules.values())
         if nit is not None:
             result = [r for r in result if r.issuer_nit == nit]
@@ -42,13 +44,16 @@ class MockRuleRepository(RuleRepositoryPort):
         self._rules[rule.id] = rule
         return rule
 
-    def find_by_nit(self, nit: str) -> List[AccountingRule]:
+    def find_by_nit(self, nit: str) -> builtins.list[AccountingRule]:
         return [
-            r for r in self._rules.values()
+            r
+            for r in self._rules.values()
             if r.issuer_nit == nit and r.match_key_type == "nit_only" and r.is_active
         ]
 
-    def search_semantic(self, nit: str, embedding: List[float], top_k: int = 5) -> List[Dict]:
+    def search_semantic(
+        self, nit: str, embedding: builtins.list[float], top_k: int = 5
+    ) -> builtins.list[dict]:
         # Return all nit_semantic rules for this NIT with configurable similarity
         return [
             {"rule_id": r.id, "similarity": getattr(r, "_test_similarity", 0.9)}
@@ -56,17 +61,18 @@ class MockRuleRepository(RuleRepositoryPort):
             if r.issuer_nit == nit and r.match_key_type == "nit_semantic" and r.is_active
         ][:top_k]
 
-    def search_by_keywords(self, keywords: List[str], top_k: int = 5) -> List[AccountingRule]:
+    def search_by_keywords(
+        self, keywords: builtins.list[str], top_k: int = 5
+    ) -> builtins.list[AccountingRule]:
         return [
-            r for r in self._rules.values()
-            if r.match_key_type == "keyword_only" and r.is_active
+            r for r in self._rules.values() if r.match_key_type == "keyword_only" and r.is_active
         ][:top_k]
 
 
 class MockMatchAttemptRepository(MatchAttemptRepositoryPort):
     def __init__(self):
-        self._attempts: Dict[int, RuleMatchAttempt] = {}
-        self._by_document: Dict[int, RuleMatchAttempt] = {}
+        self._attempts: dict[int, RuleMatchAttempt] = {}
+        self._by_document: dict[int, RuleMatchAttempt] = {}
         self._counter = 1
 
     def create(self, attempt: RuleMatchAttempt) -> RuleMatchAttempt:
@@ -85,7 +91,7 @@ class MockMatchAttemptRepository(MatchAttemptRepositoryPort):
         self._by_document[attempt.document_id] = attempt
         return attempt
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         all_attempts = list(self._attempts.values())
         total = len(all_attempts)
         by_level = {}
@@ -94,7 +100,8 @@ class MockMatchAttemptRepository(MatchAttemptRepositoryPort):
 
         with_context = sum(1 for a in all_attempts if a.match_level in ("HIT", "PARTIAL"))
         approved_no_edit = sum(
-            1 for a in all_attempts
+            1
+            for a in all_attempts
             if a.match_level in ("HIT", "PARTIAL") and a.final_approved is True
         )
         by_key_type = {}
@@ -112,7 +119,7 @@ class MockMatchAttemptRepository(MatchAttemptRepositoryPort):
 
 
 class MockEmbeddingService(EmbeddingServicePort):
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         # Deterministic fake embedding based on first char
         return [float(ord(text[0]) % 10) / 10.0] * 768 if text else [0.0] * 768
 

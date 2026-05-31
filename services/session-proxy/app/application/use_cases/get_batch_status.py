@@ -1,18 +1,18 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.infrastructure.queue.batch_store import RedisBatchStore
-from app.infrastructure.queue.job_progress_store import JobProgressStore
 from app.application.dto.documents import (
     BatchStatusResponse,
     BatchStepSummary,
-    StepSummary,
     JobProgressDetail,
     JobSteps,
-    StepDownloaded,
-    StepXmlProcessed,
     StepAccounting,
+    StepDownloaded,
+    StepSummary,
+    StepXmlProcessed,
 )
+from app.infrastructure.queue.batch_store import RedisBatchStore
+from app.infrastructure.queue.job_progress_store import JobProgressStore
 
 
 def _parse_bool(val: str) -> bool:

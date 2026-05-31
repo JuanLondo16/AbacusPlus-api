@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from arq import create_pool
 from arq.connections import RedisSettings
@@ -26,7 +26,7 @@ class ArqJobQueue(JobQueuePort):
         logger.info("Job encolado: %s → %s", function_name, job.job_id)
         return job.job_id
 
-    async def get_job_status(self, job_id: str) -> Dict[str, Any]:
+    async def get_job_status(self, job_id: str) -> dict[str, Any]:
         pool = await self._get_pool()
         job = Job(job_id, pool)
         status = await job.status()

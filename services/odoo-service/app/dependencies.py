@@ -1,15 +1,18 @@
 import os
+
+from dotenv import load_dotenv
 from fastapi import Depends
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
 
+from app.application.use_cases.match_entries import MatchEntriesUseCase
+from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
+from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
+from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.config.auth_dependency import get_tenant_db
 from app.infrastructure.odoo.odoo_client import OdooXmlRpcClient
-from app.infrastructure.clients.rag_client import RagClient
-from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
-from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
-from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
-from app.application.use_cases.match_entries import MatchEntriesUseCase
+from app.infrastructure.persistence.repositories.accounting_entry_repository import (
+    AccountingEntryRepository,
+)
 
 load_dotenv()
 

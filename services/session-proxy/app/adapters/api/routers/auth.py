@@ -1,17 +1,19 @@
-from datetime import datetime
-from typing import Dict
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.application.dto.auth import LoginRequest, LoginResponse
 from app.application.dto.company_login import CompanyLoginResponse
-from app.application.use_cases.login import LoginUseCase
 from app.application.use_cases.company_login import CompanyLoginUseCase
+from app.application.use_cases.login import LoginUseCase
+from app.dependencies import (
+    get_company_login_use_case,
+    get_external_client,
+    get_login_use_case,
+    get_session_store,
+)
 from app.domain.exceptions.base import BrowserLoginException
-from app.infrastructure.session.in_memory_store import InMemorySessionStore
 from app.infrastructure.clients.external_client import HttpxExternalClient
-from app.dependencies import get_login_use_case, get_session_store, get_external_client, get_company_login_use_case
 from app.infrastructure.config.auth_dependency import get_token_data
+from app.infrastructure.session.in_memory_store import InMemorySessionStore
 
 router = APIRouter(dependencies=[Depends(get_token_data)])
 
@@ -78,10 +80,13 @@ async def logout(
 async def login_debug(
     request: LoginRequest,
     client: HttpxExternalClient = Depends(get_external_client),
-) -> Dict:
+) -> dict:
     """[DEBUG] Ejecuta el login y retorna cookies capturadas + URL y parámetros enviados."""
     import os
-    login_url = os.getenv("EXTERNAL_BASE_URL", "").rstrip("/") + os.getenv("EXTERNAL_LOGIN_PATH", "")
+
+    login_url = os.getenv("EXTERNAL_BASE_URL", "").rstrip("/") + os.getenv(
+        "EXTERNAL_LOGIN_PATH", ""
+    )
     return await client.login_debug(
         login_url=login_url,
         credentials={"token": request.token},
@@ -101,7 +106,9 @@ async def login_debug(
     ),
     response_description="Sesión creada desde el flujo de login de compañía.",
     responses={
-        502: {"description": "El navegador no pudo completar el login o el portal rechazó la autenticación."},
+        502: {
+            "description": "El navegador no pudo completar el login o el portal rechazó la autenticación."
+        },
     },
 )
 async def company_login(
@@ -132,7 +139,7 @@ async def company_login(
 async def debug_session(
     session_id: str,
     store: InMemorySessionStore = Depends(get_session_store),
-) -> Dict:
+) -> dict:
     """[DEBUG] Retorna las cookies e información de la sesión almacenada."""
     session = store.get(session_id)
     if session is None:

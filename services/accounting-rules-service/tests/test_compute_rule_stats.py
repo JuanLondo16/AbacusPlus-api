@@ -1,22 +1,24 @@
-import pytest
-
 from app.application.use_cases.compute_rule_stats import ComputeRuleStatsUseCase
 from app.domain.entities.accounting_rule import AccountingRule
 from app.domain.entities.rule_match_attempt import RuleMatchAttempt
 
 
 def _add_rule(rule_repo) -> AccountingRule:
-    return rule_repo.create(AccountingRule(
-        match_key_type="nit_only",
-        issuer_nit="900000001",
-        suggested_debit_account="513035",
-        suggested_credit_account="220501",
-        suggested_tax_accounts={},
-        confidence_score=0.80,
-    ))
+    return rule_repo.create(
+        AccountingRule(
+            match_key_type="nit_only",
+            issuer_nit="900000001",
+            suggested_debit_account="513035",
+            suggested_credit_account="220501",
+            suggested_tax_accounts={},
+            confidence_score=0.80,
+        )
+    )
 
 
-def _add_attempt(attempt_repo, doc_id: int, level: str, key_type: str, final_approved=None) -> RuleMatchAttempt:
+def _add_attempt(
+    attempt_repo, doc_id: int, level: str, key_type: str, final_approved=None
+) -> RuleMatchAttempt:
     a = RuleMatchAttempt(
         document_id=doc_id,
         match_level=level,
@@ -41,11 +43,11 @@ def test_hit_rate_and_precision_correct(rule_repo, attempt_repo):
     stats = use_case.execute()
 
     assert stats.total_attempts == 4
-    assert abs(stats.hit_rate - 0.50) < 0.001    # 2/4
+    assert abs(stats.hit_rate - 0.50) < 0.001  # 2/4
     assert abs(stats.partial_rate - 0.25) < 0.001  # 1/4
-    assert abs(stats.miss_rate - 0.25) < 0.001    # 1/4
+    assert abs(stats.miss_rate - 0.25) < 0.001  # 1/4
     # with_context = HIT+PARTIAL = 3; approved_no_edit = 1 (solo el HIT con final_approved=True)
-    assert abs(stats.precision - (1/3)) < 0.001
+    assert abs(stats.precision - (1 / 3)) < 0.001
     assert stats.total_rules == 1
 
 

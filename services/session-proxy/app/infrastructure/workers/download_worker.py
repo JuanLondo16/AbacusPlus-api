@@ -4,6 +4,7 @@ Worker ARQ para descarga de ZIPs del portal DIAN.
 Ejecutar con:
     python -m arq app.infrastructure.workers.download_worker.WorkerSettings
 """
+
 import logging
 import os
 from datetime import datetime, timezone
@@ -66,10 +67,13 @@ async def download_zip(ctx: dict, track_id: str, token: str) -> dict:
     # Marcar paso downloaded
     redis = await progress._get_client()
     key = f"job_progress:{job_id}"
-    await redis.hset(key, mapping={
-        "downloaded_done": "1",
-        "downloaded_at": datetime.now(timezone.utc).isoformat(),
-    })
+    await redis.hset(
+        key,
+        mapping={
+            "downloaded_done": "1",
+            "downloaded_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
     await _trigger_xml_processing(filename, job_id)
 

@@ -1,11 +1,10 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
-from app.domain.ports.services import ExternalClientPort
-from app.domain.ports.queue import JobQueuePort
 from app.application.dto.documents import DocumentsRangeRequest, EnqueueDownloadsResponse
+from app.domain.ports.queue import JobQueuePort
+from app.domain.ports.services import ExternalClientPort
 from app.infrastructure.queue.batch_store import RedisBatchStore
 from app.infrastructure.queue.job_progress_store import JobProgressStore
 
@@ -56,7 +55,9 @@ class FetchAndEnqueueDocumentsUseCase:
 
         logger.info(
             "Documentos encontrados en rango %s→%s: %d",
-            request.StartDate, request.EndDate, len(raw_docs),
+            request.StartDate,
+            request.EndDate,
+            len(raw_docs),
         )
 
         job_ids = []

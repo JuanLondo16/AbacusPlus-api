@@ -1,4 +1,5 @@
 import os
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -16,13 +17,14 @@ os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 @pytest.fixture
 def db_session():
     """Create an in-memory SQLite session for tests."""
-    from app.infrastructure.config.database import Base
+    import app.infrastructure.persistence.models.concept  # noqa: F401
+
     # Import all models to register tables in Base.metadata
     import app.infrastructure.persistence.models.document  # noqa: F401
     import app.infrastructure.persistence.models.issuer  # noqa: F401
     import app.infrastructure.persistence.models.receiver  # noqa: F401
     import app.infrastructure.persistence.models.tax  # noqa: F401
-    import app.infrastructure.persistence.models.concept  # noqa: F401
+    from app.infrastructure.config.database import Base
 
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)

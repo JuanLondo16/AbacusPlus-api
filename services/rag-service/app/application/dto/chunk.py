@@ -1,5 +1,6 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional, List
 
 
 class IndexChunkRequest(BaseModel):
@@ -30,4 +31,4 @@ class ChunkResult(BaseModel):
 
 class SearchResponse(BaseModel):
     query: str
-    results: List[ChunkResult]
+    results: list[ChunkResult]

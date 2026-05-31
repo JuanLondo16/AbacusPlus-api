@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -35,7 +35,9 @@ class CostCenterRepository:
         self.db.commit()
         return synced
 
-    def list(self, provider: str, account_key: str, active: Optional[bool] = None) -> List[CostCenter]:
+    def list(
+        self, provider: str, account_key: str, active: Optional[bool] = None
+    ) -> list[CostCenter]:
         query = self.db.query(CostCenter).filter(
             CostCenter.provider == provider,
             CostCenter.account_key == account_key,

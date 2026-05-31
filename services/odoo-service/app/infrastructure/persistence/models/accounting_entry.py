@@ -1,6 +1,8 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Date, DateTime, Numeric, Text, ForeignKey
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
+
 from app.infrastructure.config.database import Base
 
 
@@ -10,7 +12,9 @@ class AccountingEntry(Base):
     id = Column(Integer, primary_key=True, index=True)
     source_id = Column(Integer, unique=True, nullable=True, index=True)
     source = Column(String(10), nullable=True, default="odoo")
-    document_id = Column(Integer, nullable=True, index=True)  # ref a documents.id, sin FK cross-service
+    document_id = Column(
+        Integer, nullable=True, index=True
+    )  # ref a documents.id, sin FK cross-service
     name = Column(String(100), nullable=True)
     date = Column(Date, nullable=True, index=True)
     ref = Column(String(200), nullable=True)
@@ -42,7 +46,9 @@ class AccountingEntryLine(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     source_id = Column(Integer, unique=True, nullable=True, index=True)
-    entry_id = Column(Integer, ForeignKey("accounting_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    entry_id = Column(
+        Integer, ForeignKey("accounting_entries.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     source_move_id = Column(Integer, nullable=True)
     sequence = Column(Integer, nullable=False, default=0)
     account_code = Column(String(20), nullable=True)

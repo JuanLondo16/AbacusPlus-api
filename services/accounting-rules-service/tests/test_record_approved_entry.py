@@ -1,6 +1,6 @@
-import pytest
 from datetime import datetime, timezone
 
+import pytest
 from app.application.dto.rule import ApprovalItem, ApprovalLine, ApprovalNotification
 from app.application.use_cases.record_approved_entry import RecordApprovedEntryUseCase
 from app.domain.entities.accounting_rule import AccountingRule
@@ -25,7 +25,9 @@ def _make_rule(rule_repo, confidence: float = 0.75) -> AccountingRule:
     return rule_repo.create(rule)
 
 
-def _make_attempt(attempt_repo, rule_id: int, suggested_payload: dict, match_level: str = "HIT") -> RuleMatchAttempt:
+def _make_attempt(
+    attempt_repo, rule_id: int, suggested_payload: dict, match_level: str = "HIT"
+) -> RuleMatchAttempt:
     attempt = RuleMatchAttempt(
         document_id=10,
         rule_id=rule_id,
@@ -38,14 +40,20 @@ def _make_attempt(attempt_repo, rule_id: int, suggested_payload: dict, match_lev
     return attempt_repo.create(attempt)
 
 
-def _notification(approved_debit: str = "513035", approved_credit: str = "220501") -> ApprovalNotification:
+def _notification(
+    approved_debit: str = "513035", approved_credit: str = "220501"
+) -> ApprovalNotification:
     return ApprovalNotification(
         document_id=10,
         issuer_nit="900123456",
         items=[ApprovalItem(description="Arriendo oficina", subtotal=1000000.0)],
         approved_lines=[
-            ApprovalLine(cuenta=approved_debit, nombre="Gasto arriendo", debito=1000000.0, credito=0.0),
-            ApprovalLine(cuenta=approved_credit, nombre="Proveedores", debito=0.0, credito=1000000.0),
+            ApprovalLine(
+                cuenta=approved_debit, nombre="Gasto arriendo", debito=1000000.0, credito=0.0
+            ),
+            ApprovalLine(
+                cuenta=approved_credit, nombre="Proveedores", debito=0.0, credito=1000000.0
+            ),
         ],
     )
 
@@ -57,7 +65,12 @@ async def test_approval_no_edit_reinforces_rule(rule_repo, attempt_repo, embeddi
     _make_attempt(
         attempt_repo,
         rule_id=rule.id,
-        suggested_payload={"debit_account": "513035", "credit_account": "220501", "tax_accounts": {}, "cost_center": None},
+        suggested_payload={
+            "debit_account": "513035",
+            "credit_account": "220501",
+            "tax_accounts": {},
+            "cost_center": None,
+        },
     )
 
     use_case = _make_use_case(rule_repo, attempt_repo, embedding_service)
@@ -74,14 +87,21 @@ async def test_approval_no_edit_reinforces_rule(rule_repo, attempt_repo, embeddi
 
 
 @pytest.mark.asyncio
-async def test_approval_with_edit_penalizes_and_creates_rule(rule_repo, attempt_repo, embedding_service):
+async def test_approval_with_edit_penalizes_and_creates_rule(
+    rule_repo, attempt_repo, embedding_service
+):
     """Edición detectada: score baja -0.15 y se crea nueva regla con los valores correctos."""
     rule = _make_rule(rule_repo, confidence=0.75)
     _make_attempt(
         attempt_repo,
         rule_id=rule.id,
         # suggested debit era 519999 pero contador aprobó 513035
-        suggested_payload={"debit_account": "519999", "credit_account": "220501", "tax_accounts": {}, "cost_center": None},
+        suggested_payload={
+            "debit_account": "519999",
+            "credit_account": "220501",
+            "tax_accounts": {},
+            "cost_center": None,
+        },
     )
 
     use_case = _make_use_case(rule_repo, attempt_repo, embedding_service)
@@ -136,7 +156,12 @@ async def test_idempotency_skips_already_processed(rule_repo, attempt_repo, embe
     attempt = _make_attempt(
         attempt_repo,
         rule_id=rule.id,
-        suggested_payload={"debit_account": "513035", "credit_account": "220501", "tax_accounts": {}, "cost_center": None},
+        suggested_payload={
+            "debit_account": "513035",
+            "credit_account": "220501",
+            "tax_accounts": {},
+            "cost_center": None,
+        },
     )
     # Marcar como ya procesado
     attempt.final_approved = True

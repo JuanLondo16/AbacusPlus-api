@@ -1,14 +1,15 @@
 import io
 import zipfile
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 from app.utils.zip_handler import extract_zip_file
 
 
 def _create_mock_zip_upload(xml_content: str, filename: str = "invoice.xml") -> AsyncMock:
     """Create an UploadFile mock with a ZIP in memory."""
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(filename, xml_content)
     buffer.seek(0)
 
@@ -20,7 +21,7 @@ def _create_mock_zip_upload(xml_content: str, filename: str = "invoice.xml") -> 
 def _create_mock_empty_zip() -> AsyncMock:
     """Create an UploadFile mock with an empty ZIP (no XML)."""
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("readme.txt", "not an xml file")
     buffer.seek(0)
 
@@ -68,7 +69,7 @@ class TestExtractZipFile:
     @pytest.mark.asyncio
     async def test_ignores_macosx_files(self):
         buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("__MACOSX/._hidden.xml", "<fake/>")
             zf.writestr("real_invoice.xml", VALID_XML)
         buffer.seek(0)

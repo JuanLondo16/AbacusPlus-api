@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -13,11 +13,7 @@ class ProductRepository:
         synced = 0
         for product in products:
             code = str(product["code"])
-            model = (
-                self.db.query(Product)
-                .filter(Product.code == code)
-                .one_or_none()
-            )
+            model = self.db.query(Product).filter(Product.code == code).one_or_none()
             if model is None:
                 model = Product(code=code)
                 self.db.add(model)
@@ -31,7 +27,7 @@ class ProductRepository:
         self.db.commit()
         return synced
 
-    def list(self, active: Optional[bool] = None) -> List[Product]:
+    def list(self, active: Optional[bool] = None) -> list[Product]:
         query = self.db.query(Product)
         if active is not None:
             query = query.filter(Product.active.is_(active))

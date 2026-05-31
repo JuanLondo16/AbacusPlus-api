@@ -5,6 +5,7 @@ para que session-proxy pueda consultarlo.
 Comparte la misma estructura de hash que session-proxy/job_progress_store:
   job_progress:{job_id}
 """
+
 import logging
 from datetime import datetime, timezone
 from typing import Optional

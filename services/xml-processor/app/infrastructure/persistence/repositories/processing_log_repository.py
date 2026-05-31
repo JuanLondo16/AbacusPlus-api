@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,7 @@ class ProcessingLogRepository:
         self.db.refresh(log)
         return log
 
-    def get_all(self, status: Optional[str] = None) -> List[ProcessingLog]:
+    def get_all(self, status: Optional[str] = None) -> list[ProcessingLog]:
         query = self.db.query(ProcessingLog)
         if status:
             query = query.filter(ProcessingLog.status == status)

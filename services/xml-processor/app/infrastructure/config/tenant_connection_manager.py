@@ -1,12 +1,11 @@
 import os
 import threading
-from typing import Dict
 
-from sqlalchemy import create_engine, NullPool
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import NullPool, create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 _lock = threading.Lock()
-_session_factories: Dict[str, sessionmaker] = {}
+_session_factories: dict[str, sessionmaker] = {}
 
 
 def _build_url(tenant_slug: str) -> str:

@@ -1,14 +1,18 @@
 """Unit tests for QueryWithRAGUseCase."""
-import pytest
-from unittest.mock import AsyncMock
 
-from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.application.dto.query import QueryRequest
+from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
 from app.domain.ports.services import AIServicePort, RagClientPort
 
 _FAKE_USAGE = {"prompt_tokens": 50, "completion_tokens": 100, "total_tokens": 150}
 _FAKE_CHUNKS = [
-    {"id": 1, "source_type": "invoice", "source_id": 5, "content": "Factura A total 1000", "similarity": 0.9},
+    {
+        "id": 1,
+        "source_type": "invoice",
+        "source_id": 5,
+        "content": "Factura A total 1000",
+        "similarity": 0.9,
+    },
 ]
 
 

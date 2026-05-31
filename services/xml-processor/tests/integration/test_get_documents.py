@@ -4,10 +4,8 @@ Regression tests for GET /documents status field type bug.
 Root cause: documents.status was VARCHAR in tenant DBs; Pydantic status: int
 field raised ValidationError → 500. Migration converts column to INTEGER.
 """
-import pytest
-from datetime import date, datetime, timezone
 
-from pydantic import ValidationError
+from datetime import date, datetime, timezone
 
 # All models must be imported before instantiating any SQLAlchemy model so that
 # mapper relationships (e.g. DocumentDetail → ConceptDescription) can be resolved.
@@ -15,34 +13,35 @@ import app.infrastructure.persistence.models.concept  # noqa: F401
 import app.infrastructure.persistence.models.issuer  # noqa: F401
 import app.infrastructure.persistence.models.receiver  # noqa: F401
 import app.infrastructure.persistence.models.tax  # noqa: F401
-
+import pytest
 from app.application.dto.document import DocumentSummaryResponse
 from app.application.use_cases.query_documents import GetDocumentsByDateRangeUseCase
 from app.infrastructure.persistence.models.document import Document
 from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
+from pydantic import ValidationError
 
 
 def _make_doc(**kwargs) -> Document:
-    defaults = dict(
-        document_name="test.xml",
-        document_number="FE001",
-        date=date(2026, 5, 15),
-        hour="10:00",
-        currency="COP",
-        document_type="Factura Electrónica",
-        uuid="abc-123",
-        issuer_name="PROVEEDOR S.A.S",
-        issuer_nit="900123456",
-        receiver_name="MI EMPRESA",
-        receiver_nit="800987654",
-        subtotal=100000.0,
-        total_taxes=19000.0,
-        retefuente=0.0,
-        reteica=0.0,
-        total=119000.0,
-        register_at=datetime.now(timezone.utc),
-        status=100,
-    )
+    defaults = {
+        "document_name": "test.xml",
+        "document_number": "FE001",
+        "date": date(2026, 5, 15),
+        "hour": "10:00",
+        "currency": "COP",
+        "document_type": "Factura Electrónica",
+        "uuid": "abc-123",
+        "issuer_name": "PROVEEDOR S.A.S",
+        "issuer_nit": "900123456",
+        "receiver_name": "MI EMPRESA",
+        "receiver_nit": "800987654",
+        "subtotal": 100000.0,
+        "total_taxes": 19000.0,
+        "retefuente": 0.0,
+        "reteica": 0.0,
+        "total": 119000.0,
+        "register_at": datetime.now(timezone.utc),
+        "status": 100,
+    }
     defaults.update(kwargs)
     return Document(**defaults)
 

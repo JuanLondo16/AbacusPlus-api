@@ -22,6 +22,4 @@ class RuleMatchAttemptModel(Base):
     suggested_payload = Column(JSONB, nullable=False, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_rule_match_attempts_document_id", "document_id"),
-    )
+    __table_args__ = (Index("ix_rule_match_attempts_document_id", "document_id"),)

@@ -1,35 +1,41 @@
 import os
 from typing import Annotated
+
+from dotenv import load_dotenv
 from fastapi import Depends
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
 
-from app.infrastructure.config.auth_dependency import get_tenant_db, get_token_data, TokenData
-from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
-from app.infrastructure.persistence.repositories.receiver_repository import ReceiverRepository
-from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
-from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
-from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
-from app.infrastructure.persistence.repositories.processing_log_repository import ProcessingLogRepository
-from app.infrastructure.clients.rag_client import RagClient
-from app.infrastructure.clients.llm_client import LlmClient
-from app.infrastructure.clients.odoo_client import OdooClient
-from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
-from app.infrastructure.queue.download_queue import get_queue
-from app.application.use_cases.process_xml import ProcessXmlUseCase
+from app.application.use_cases.approve_document import (
+    ApproveDocumentUseCase,
+    UnapproveDocumentUseCase,
+)
+from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
 from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
+from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.application.use_cases.query_documents import (
-    GetDocumentsByDateRangeUseCase,
     GetDocumentByIdUseCase,
+    GetDocumentsByDateRangeUseCase,
 )
-from app.application.use_cases.query_receivers import GetAllReceiversUseCase
 from app.application.use_cases.query_issuers import GetIssuerByNitUseCase
-from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
-from app.application.use_cases.approve_document import ApproveDocumentUseCase, UnapproveDocumentUseCase
+from app.application.use_cases.query_receivers import GetAllReceiversUseCase
+from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
+from app.infrastructure.clients.llm_client import LlmClient
+from app.infrastructure.clients.odoo_client import OdooClient
+from app.infrastructure.clients.rag_client import RagClient
+from app.infrastructure.config.auth_dependency import TokenData, get_tenant_db, get_token_data
+from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
+from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
+from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
+from app.infrastructure.persistence.repositories.processing_log_repository import (
+    ProcessingLogRepository,
+)
 from app.infrastructure.persistence.repositories.puc_repository import PucRepository
+from app.infrastructure.persistence.repositories.receiver_repository import ReceiverRepository
 from app.infrastructure.persistence.repositories.retention_repository import RetentionRepository
+from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
+from app.infrastructure.queue.download_queue import get_queue
 
 load_dotenv()
 
@@ -63,7 +69,9 @@ def get_process_xml_use_case(
     )
 
 
-def get_documents_by_date_range_use_case(db: Session = Depends(get_tenant_db)) -> GetDocumentsByDateRangeUseCase:
+def get_documents_by_date_range_use_case(
+    db: Session = Depends(get_tenant_db),
+) -> GetDocumentsByDateRangeUseCase:
     return GetDocumentsByDateRangeUseCase(document_repo=DocumentRepository(db))
 
 
@@ -113,7 +121,9 @@ def get_processing_log_repo(db: Session = Depends(get_tenant_db)) -> ProcessingL
     return ProcessingLogRepository(db)
 
 
-def get_accounting_rules_client(token: Annotated[TokenData, Depends(get_token_data)]) -> AccountingRulesClient:
+def get_accounting_rules_client(
+    token: Annotated[TokenData, Depends(get_token_data)],
+) -> AccountingRulesClient:
     url = os.getenv("ACCOUNTING_RULES_SERVICE_URL", "http://accounting-rules-service:8009")
     return AccountingRulesClient(base_url=url, bearer_token=token.raw_token)
 
@@ -127,11 +137,15 @@ def get_approve_document_use_case(
     return ApproveDocumentUseCase(
         document_repo=DocumentRepository(db),
         llm_client=LlmClient(base_url=llm_url, bearer_token=token.raw_token),
-        accounting_rules_client=AccountingRulesClient(base_url=rules_url, bearer_token=token.raw_token),
+        accounting_rules_client=AccountingRulesClient(
+            base_url=rules_url, bearer_token=token.raw_token
+        ),
     )
 
 
-def get_unapprove_document_use_case(db: Session = Depends(get_tenant_db)) -> UnapproveDocumentUseCase:
+def get_unapprove_document_use_case(
+    db: Session = Depends(get_tenant_db),
+) -> UnapproveDocumentUseCase:
     return UnapproveDocumentUseCase(document_repo=DocumentRepository(db))
 
 

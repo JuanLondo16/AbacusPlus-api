@@ -2,7 +2,9 @@ from typing import Optional
 
 from app.application.dto.integration import CredentialUpsertRequest
 from app.domain.exceptions.base import ValidationException
-from app.infrastructure.persistence.repositories.integration_repository import IntegrationCredentialRepository
+from app.infrastructure.persistence.repositories.integration_repository import (
+    IntegrationCredentialRepository,
+)
 
 
 class ManageCredentialsUseCase:

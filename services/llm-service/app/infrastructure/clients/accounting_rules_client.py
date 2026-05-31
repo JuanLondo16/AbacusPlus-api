@@ -1,11 +1,17 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_MISS_RESPONSE = {"match_level": "MISS", "confidence": 0.0, "suggested_entry": None, "known_fields": [], "explanation": "MISS: rules service unavailable."}
+_MISS_RESPONSE = {
+    "match_level": "MISS",
+    "confidence": 0.0,
+    "suggested_entry": None,
+    "known_fields": [],
+    "explanation": "MISS: rules service unavailable.",
+}
 
 
 class AccountingRulesClient:
@@ -18,7 +24,7 @@ class AccountingRulesClient:
     async def lookup_rules(
         self,
         issuer_nit: str,
-        items: List[dict],
+        items: list[dict],
         document_id: Optional[int] = None,
     ) -> dict:
         """POST /api/v1/rules/lookups — best-effort, retorna MISS si falla."""

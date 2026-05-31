@@ -1,13 +1,15 @@
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from app.infrastructure.config.logging import setup_logging
-from app.infrastructure.config.database import Base, engine
-from app.infrastructure.persistence.models import accounting_entry as _ae_model  # noqa: F401
-from app.adapters.api.routers.journal_entries import router as journal_entries_router
-from app.adapters.api.routers.internal import router as internal_router
-from app.domain.exceptions.base import DomainException
+
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
+from app.adapters.api.routers.internal import router as internal_router
+from app.adapters.api.routers.journal_entries import router as journal_entries_router
+from app.domain.exceptions.base import DomainException
+from app.infrastructure.config.database import Base, engine
+from app.infrastructure.config.logging import setup_logging
+from app.infrastructure.persistence.models import accounting_entry as _ae_model  # noqa: F401
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -16,11 +18,18 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from sqlalchemy import text
+
     Base.metadata.create_all(bind=engine, checkfirst=True)
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE accounting_entries ALTER COLUMN source_id DROP NOT NULL"))
-        conn.execute(text("ALTER TABLE accounting_entries ADD COLUMN IF NOT EXISTS source VARCHAR(10) DEFAULT 'odoo'"))
-        conn.execute(text("ALTER TABLE accounting_entry_lines ALTER COLUMN source_id DROP NOT NULL"))
+        conn.execute(
+            text(
+                "ALTER TABLE accounting_entries ADD COLUMN IF NOT EXISTS source VARCHAR(10) DEFAULT 'odoo'"
+            )
+        )
+        conn.execute(
+            text("ALTER TABLE accounting_entry_lines ALTER COLUMN source_id DROP NOT NULL")
+        )
         conn.commit()
     logger.info("Tablas de odoo-service verificadas/creadas")
     yield

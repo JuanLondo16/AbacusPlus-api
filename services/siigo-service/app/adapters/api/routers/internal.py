@@ -1,7 +1,7 @@
 import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from sqlalchemy import create_engine, NullPool
+from sqlalchemy import NullPool, create_engine
 
 router = APIRouter()
 
@@ -19,7 +19,6 @@ def _verify_internal_secret(x_internal_secret: str = Header(...)):
 )
 def provision_tenant(tenant_slug: str):
     """Create all tables for this service in the tenant DB. Called by auth-service during tenant registration."""
-    import app.infrastructure.persistence.models  # noqa: ensure all models are registered with Base
     from app.infrastructure.config.database import Base
 
     user = os.environ["DATABASE_USER"]
@@ -30,4 +29,8 @@ def provision_tenant(tenant_slug: str):
     engine = create_engine(url, poolclass=NullPool)
     Base.metadata.create_all(bind=engine, checkfirst=True)
     engine.dispose()
-    return {"status": "provisioned", "tenant_slug": tenant_slug, "service": __import__("os").environ.get("SERVICE_NAME", "unknown")}
+    return {
+        "status": "provisioned",
+        "tenant_slug": tenant_slug,
+        "service": __import__("os").environ.get("SERVICE_NAME", "unknown"),
+    }

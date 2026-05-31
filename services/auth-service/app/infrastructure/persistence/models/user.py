@@ -2,6 +2,7 @@
 User and UserRole models — created in EACH tenant DB during provisioning,
 not in abacus_meta. They share the same SQLAlchemy Base as the tenant-side models.
 """
+
 import uuid
 from datetime import datetime
 

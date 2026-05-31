@@ -1,13 +1,15 @@
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from app.infrastructure.config.logging import setup_logging
-from app.infrastructure.config.database import Base, engine
-from app.infrastructure.persistence.models import chunk as _chunk_model  # noqa: F401
+
+from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 from app.adapters.api.routers.chunks import router as chunks_router
 from app.adapters.api.routers.internal import router as internal_router
 from app.domain.exceptions.base import DomainException
-from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
+from app.infrastructure.config.database import Base, engine
+from app.infrastructure.config.logging import setup_logging
+from app.infrastructure.persistence.models import chunk as _chunk_model  # noqa: F401
 
 setup_logging()
 logger = logging.getLogger(__name__)

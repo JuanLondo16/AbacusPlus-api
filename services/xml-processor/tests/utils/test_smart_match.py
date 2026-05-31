@@ -1,7 +1,6 @@
-import pytest
 from app.utils.smart_match import (
-    similarity_levenshtein,
     similarity_cosine,
+    similarity_levenshtein,
     smart_match,
 )
 

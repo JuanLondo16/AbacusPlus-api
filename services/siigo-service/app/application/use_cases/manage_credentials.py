@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 
 from app.application.dto.integration import AuthResponse, CredentialUpsertRequest
 from app.domain.exceptions.base import EntityNotFoundException, ValidationException
-from app.infrastructure.persistence.repositories.integration_repository import IntegrationCredentialRepository
+from app.infrastructure.persistence.repositories.integration_repository import (
+    IntegrationCredentialRepository,
+)
 from app.infrastructure.siigo.siigo_client import SiigoApiClient, token_expiration_from_response
 
 
@@ -41,14 +43,22 @@ class ManageCredentialsUseCase:
             token_type=data.get("token_type") or "Bearer",
             expires_at=expires_at,
         )
-        return AuthResponse(access_token_saved=True, token_type=data.get("token_type") or "Bearer", expires_at=expires_at)
+        return AuthResponse(
+            access_token_saved=True,
+            token_type=data.get("token_type") or "Bearer",
+            expires_at=expires_at,
+        )
 
     def ensure_token(self, account_key: str = "default"):
         credential = self.repository.get("siigo", account_key)
         if credential is None:
             raise EntityNotFoundException("SIIGO credential", account_key)
 
-        if credential.access_token and credential.expires_at and credential.expires_at > datetime.now(timezone.utc):
+        if (
+            credential.access_token
+            and credential.expires_at
+            and credential.expires_at > datetime.now(timezone.utc)
+        ):
             return credential
 
         self.authenticate(account_key=account_key)

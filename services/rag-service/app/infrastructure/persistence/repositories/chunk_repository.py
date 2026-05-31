@@ -1,7 +1,7 @@
 import logging
-from typing import List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.domain.entities.chunk import ChunkEntity
 from app.domain.ports.repositories import ChunkRepositoryPort
@@ -15,9 +15,7 @@ class ChunkRepository(ChunkRepositoryPort):
         self.db = db
 
     def create(self, chunk: ChunkEntity) -> ChunkEntity:
-        embedding_str = (
-            f"[{','.join(map(str, chunk.embedding))}]" if chunk.embedding else None
-        )
+        embedding_str = f"[{','.join(map(str, chunk.embedding))}]" if chunk.embedding else None
         db_chunk = DocumentChunk(
             source_type=chunk.source_type,
             source_id=chunk.source_id,
@@ -39,7 +37,7 @@ class ChunkRepository(ChunkRepositoryPort):
         chunk.created_at = db_chunk.created_at
         return chunk
 
-    def search_similar(self, query_embedding: List[float], top_k: int = 5) -> List[dict]:
+    def search_similar(self, query_embedding: list[float], top_k: int = 5) -> list[dict]:
         """Búsqueda por similitud coseno usando el operador <=> de pgvector."""
         embedding_str = f"[{','.join(map(str, query_embedding))}]"
         rows = self.db.execute(

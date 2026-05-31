@@ -1,16 +1,17 @@
 import os
-from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.infrastructure.config.auth_dependency import get_tenant_db
-from app.infrastructure.ai.ollama_service import OllamaEmbeddingService
-from app.infrastructure.persistence.repositories.rule_repository import RuleRepository
-from app.infrastructure.persistence.repositories.match_attempt_repository import MatchAttemptRepository
+from app.application.use_cases.compute_rule_stats import ComputeRuleStatsUseCase
 from app.application.use_cases.lookup_rules import LookupRulesUseCase
 from app.application.use_cases.record_approved_entry import RecordApprovedEntryUseCase
-from app.application.use_cases.compute_rule_stats import ComputeRuleStatsUseCase
+from app.infrastructure.ai.ollama_service import OllamaEmbeddingService
+from app.infrastructure.config.auth_dependency import get_tenant_db
+from app.infrastructure.persistence.repositories.match_attempt_repository import (
+    MatchAttemptRepository,
+)
+from app.infrastructure.persistence.repositories.rule_repository import RuleRepository
 
 
 def get_embedding_service() -> OllamaEmbeddingService:

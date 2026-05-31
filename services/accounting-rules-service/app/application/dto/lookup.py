@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +25,7 @@ class LookupRequest(BaseModel):
         description="NIT del emisor de la factura.",
         examples=["900123456"],
     )
-    items: List[LookupItem] = Field(
+    items: list[LookupItem] = Field(
         ...,
         description="Ítems del documento para los cuales se busca causación histórica.",
     )
@@ -48,13 +48,17 @@ class LookupRequest(BaseModel):
 
 class SuggestedEntry(BaseModel):
     debit_account: str = Field(..., description="Cuenta PUC débito sugerida.", examples=["513035"])
-    credit_account: str = Field(..., description="Cuenta PUC crédito sugerida.", examples=["220501"])
-    tax_accounts: Dict = Field(
+    credit_account: str = Field(
+        ..., description="Cuenta PUC crédito sugerida.", examples=["220501"]
+    )
+    tax_accounts: dict = Field(
         default_factory=dict,
         description="Cuentas de impuestos (IVA, retenciones).",
         examples=[{"iva_descontable": "240810", "retefuente": "236540"}],
     )
-    cost_center: Optional[str] = Field(None, description="Centro de costo sugerido.", examples=["CC001"])
+    cost_center: Optional[str] = Field(
+        None, description="Centro de costo sugerido.", examples=["CC001"]
+    )
 
 
 class LookupResponse(BaseModel):
@@ -72,7 +76,7 @@ class LookupResponse(BaseModel):
         None,
         description="Causación sugerida. Presente en HIT y PARTIAL; null en MISS.",
     )
-    known_fields: List[str] = Field(
+    known_fields: list[str] = Field(
         default_factory=list,
         description="Campos resueltos con confianza (útil en PARTIAL). Ej: ['debit_account', 'cost_center'].",
         examples=[["debit_account"]],
@@ -82,5 +86,7 @@ class LookupResponse(BaseModel):
         description="Descripción del nivel de coincidencia y la regla aplicada.",
         examples=["HIT por NIT+semántica (similitud=0.92). Regla id=7, 5 aprobaciones previas."],
     )
-    rule_id: Optional[int] = Field(None, description="ID de la regla que generó la respuesta (si aplica).")
+    rule_id: Optional[int] = Field(
+        None, description="ID de la regla que generó la respuesta (si aplica)."
+    )
     match_key_type: Optional[str] = Field(None, description="Tipo de clave de matching usado.")

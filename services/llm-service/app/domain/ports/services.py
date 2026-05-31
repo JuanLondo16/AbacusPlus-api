@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 
 class AIServicePort(ABC):
@@ -9,15 +9,12 @@ class AIServicePort(ABC):
         prompt: str,
         model: str = "gpt-4o-mini",
         system_prompt: Optional[str] = None,
-    ) -> dict:
-        ...
+    ) -> dict: ...
 
 
 class RagClientPort(ABC):
     @abstractmethod
-    async def search(self, query: str, top_k: int = 5) -> List[dict]:
-        ...
+    async def search(self, query: str, top_k: int = 5) -> list[dict]: ...
 
     @abstractmethod
-    async def index_chunk(self, source_type: str, source_id: int, content: str) -> None:
-        ...
+    async def index_chunk(self, source_type: str, source_id: int, content: str) -> None: ...

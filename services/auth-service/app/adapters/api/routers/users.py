@@ -14,7 +14,9 @@ router = APIRouter()
 
 def _require_tenant_slug(x_tenant_slug: Optional[str] = Header(None, alias="X-Tenant-Slug")) -> str:
     if not x_tenant_slug:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Tenant-Slug header required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="X-Tenant-Slug header required"
+        )
     return x_tenant_slug
 
 
@@ -60,7 +62,13 @@ def list_users(tenant_slug: str = Depends(_require_tenant_slug)):
         for u in users:
             roles = repo.get_roles(u.id)
             result.append(
-                UserResponse(id=str(u.id), email=u.email, full_name=u.full_name, is_active=u.is_active, roles=roles)
+                UserResponse(
+                    id=str(u.id),
+                    email=u.email,
+                    full_name=u.full_name,
+                    is_active=u.is_active,
+                    roles=roles,
+                )
             )
         return result
     finally:

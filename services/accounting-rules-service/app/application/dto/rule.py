@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -15,7 +15,7 @@ class CreateRuleRequest(BaseModel):
         description="NIT del emisor. Requerido para `nit_semantic` y `nit_only`.",
         examples=["900123456"],
     )
-    item_keywords: Optional[List[str]] = Field(
+    item_keywords: Optional[list[str]] = Field(
         None,
         description="Palabras clave de descripción del ítem. Requerido para `keyword_only`.",
         examples=[["arriendo", "arrendamiento"]],
@@ -30,7 +30,7 @@ class CreateRuleRequest(BaseModel):
         description="Código de cuenta PUC para el crédito.",
         examples=["220501"],
     )
-    suggested_tax_accounts: Dict = Field(
+    suggested_tax_accounts: dict = Field(
         default_factory=dict,
         description="Cuentas de impuestos sugeridas (IVA, retenciones) como dict.",
         examples=[{"iva_descontable": "240810", "retefuente": "236540"}],
@@ -67,15 +67,21 @@ class RuleResponse(BaseModel):
     match_key_type: str = Field(..., description="Tipo de clave de matching.")
     issuer_nit: Optional[str] = Field(None, description="NIT del emisor.")
     ciiu_code: Optional[str] = Field(None, description="Código CIIU (reservado).")
-    item_keywords: Optional[List[str]] = Field(None, description="Palabras clave del ítem.")
+    item_keywords: Optional[list[str]] = Field(None, description="Palabras clave del ítem.")
     suggested_debit_account: str = Field(..., description="Cuenta PUC débito sugerida.")
     suggested_credit_account: str = Field(..., description="Cuenta PUC crédito sugerida.")
-    suggested_tax_accounts: Dict = Field(..., description="Cuentas de impuestos sugeridas.")
+    suggested_tax_accounts: dict = Field(..., description="Cuentas de impuestos sugeridas.")
     suggested_cost_center: Optional[str] = Field(None, description="Centro de costo sugerido.")
     confidence_score: float = Field(..., description="Puntuación de confianza actual.")
-    approval_count: int = Field(..., description="Número de aprobaciones que reforzaron esta regla.")
-    edit_count: int = Field(..., description="Número de veces que se corrigió el asiento antes de aprobar.")
-    last_approved_at: Optional[datetime] = Field(None, description="Última vez que se aprobó con esta regla.")
+    approval_count: int = Field(
+        ..., description="Número de aprobaciones que reforzaron esta regla."
+    )
+    edit_count: int = Field(
+        ..., description="Número de veces que se corrigió el asiento antes de aprobar."
+    )
+    last_approved_at: Optional[datetime] = Field(
+        None, description="Última vez que se aprobó con esta regla."
+    )
     is_active: bool = Field(..., description="Si la regla está activa.")
     created_at: Optional[datetime] = Field(None, description="Fecha de creación.")
     updated_at: Optional[datetime] = Field(None, description="Última actualización.")
@@ -95,9 +101,7 @@ class UpdateRuleRequest(BaseModel):
         examples=[0.75],
     )
 
-    model_config = {
-        "json_schema_extra": {"example": {"is_active": False}}
-    }
+    model_config = {"json_schema_extra": {"example": {"is_active": False}}}
 
 
 class RuleStatsResponse(BaseModel):
@@ -109,7 +113,7 @@ class RuleStatsResponse(BaseModel):
         ...,
         description="Proporción de lookups con contexto (HIT/PARTIAL) que fueron aprobados sin corrección.",
     )
-    precision_by_key_type: Dict = Field(
+    precision_by_key_type: dict = Field(
         ...,
         description="Conteo de lookups por tipo de clave de matching.",
     )
@@ -127,7 +131,9 @@ class ApprovalLine(BaseModel):
 
 
 class ApprovalItem(BaseModel):
-    description: str = Field(..., description="Descripción del ítem de la factura.", examples=["Servicio de consultoría"])
+    description: str = Field(
+        ..., description="Descripción del ítem de la factura.", examples=["Servicio de consultoría"]
+    )
     subtotal: float = Field(..., description="Subtotal del ítem.", examples=[100000.0])
     account: Optional[str] = Field(None, description="Cuenta PUC asignada al concepto.")
 
@@ -135,8 +141,10 @@ class ApprovalItem(BaseModel):
 class ApprovalNotification(BaseModel):
     document_id: int = Field(..., description="ID del documento aprobado.", examples=[42])
     issuer_nit: str = Field(..., description="NIT del emisor.", examples=["900123456"])
-    items: List[ApprovalItem] = Field(..., description="Ítems del documento.")
-    approved_lines: List[ApprovalLine] = Field(..., description="Líneas del asiento contable aprobado.")
+    items: list[ApprovalItem] = Field(..., description="Ítems del documento.")
+    approved_lines: list[ApprovalLine] = Field(
+        ..., description="Líneas del asiento contable aprobado."
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -145,8 +153,18 @@ class ApprovalNotification(BaseModel):
                 "issuer_nit": "900123456",
                 "items": [{"description": "Arriendo oficina", "subtotal": 100000.0}],
                 "approved_lines": [
-                    {"cuenta": "513035", "nombre": "Arrendamientos", "debito": 100000.0, "credito": 0.0},
-                    {"cuenta": "220501", "nombre": "Proveedores nacionales", "debito": 0.0, "credito": 100000.0},
+                    {
+                        "cuenta": "513035",
+                        "nombre": "Arrendamientos",
+                        "debito": 100000.0,
+                        "credito": 0.0,
+                    },
+                    {
+                        "cuenta": "220501",
+                        "nombre": "Proveedores nacionales",
+                        "debito": 0.0,
+                        "credito": 100000.0,
+                    },
                 ],
             }
         }

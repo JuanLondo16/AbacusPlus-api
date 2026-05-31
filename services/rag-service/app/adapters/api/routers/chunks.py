@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends, status
 
-from app.application.dto.chunk import IndexChunkRequest, IndexChunkResponse, SearchRequest, SearchResponse
+from app.application.dto.chunk import (
+    IndexChunkRequest,
+    IndexChunkResponse,
+    SearchRequest,
+    SearchResponse,
+)
 from app.application.use_cases.index_chunk import IndexChunkUseCase
 from app.application.use_cases.search_chunks import SearchChunksUseCase
 from app.dependencies import get_index_chunk_use_case, get_search_chunks_use_case
@@ -45,7 +50,9 @@ async def index_chunk(
     ),
     response_description="Lista de chunks ordenados por similitud descendente.",
     responses={
-        502: {"description": "Error de comunicación con Ollama al generar el embedding de la consulta."},
+        502: {
+            "description": "Error de comunicación con Ollama al generar el embedding de la consulta."
+        },
     },
 )
 async def search_chunks(

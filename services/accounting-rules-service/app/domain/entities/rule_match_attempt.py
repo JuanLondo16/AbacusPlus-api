@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Optional
 
 
 @dataclass
@@ -12,6 +12,6 @@ class RuleMatchAttempt:
     rule_id: Optional[int] = None
     match_key_type: Optional[str] = None
     final_approved: Optional[bool] = None
-    suggested_payload: Dict = field(default_factory=dict)
+    suggested_payload: dict = field(default_factory=dict)
     id: Optional[int] = None
     created_at: Optional[datetime] = None

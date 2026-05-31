@@ -1,12 +1,12 @@
 import logging
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import httpx
 
-from app.domain.ports.services import ExternalClientPort
 from app.domain.exceptions.base import ExternalAuthException, ExternalRequestException
+from app.domain.ports.services import ExternalClientPort
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +22,14 @@ class HttpxExternalClient(ExternalClientPort):
         self._fixed_pk = os.getenv("EXTERNAL_FIXED_PK", "")
         self._fixed_rk = os.getenv("EXTERNAL_FIXED_RK", "")
 
-    def _build_login_params(self, token: str) -> Dict[str, str]:
+    def _build_login_params(self, token: str) -> dict[str, str]:
         return {
             "pk": self._fixed_pk,
             "rk": self._fixed_rk,
             "token": token,
         }
 
-    async def login(
-        self, login_url: str, credentials: Dict[str, Any]
-    ) -> Dict[str, str]:
+    async def login(self, login_url: str, credentials: dict[str, Any]) -> dict[str, str]:
         """
         Autentica contra el portal externo vía GET con query params pk, rk y token.
         Captura y retorna las cookies del response como dict {nombre: valor}.
@@ -43,9 +41,7 @@ class HttpxExternalClient(ExternalClientPort):
                 # Paso 1: visitar el portal para obtener cookies de infraestructura
                 # (ARRAffinity, ASP.NET_SessionId, __RequestVerificationToken)
                 await client.get(base_url)
-                logger.info(
-                    "Cookies de infraestructura capturadas: %d", len(client.cookies)
-                )
+                logger.info("Cookies de infraestructura capturadas: %d", len(client.cookies))
 
                 # Paso 2: autenticar sin seguir redirects — el segundo redirect borra
                 # .AspNet.ApplicationCookie, por lo que hay que capturarla aquí antes.
@@ -56,7 +52,7 @@ class HttpxExternalClient(ExternalClientPort):
                         "Token inválido o expirado: el portal no emitió .AspNet.ApplicationCookie"
                     )
                 client.cookies.set(".AspNet.ApplicationCookie", app_cookie)
-                cookies: Dict[str, str] = dict(client.cookies)
+                cookies: dict[str, str] = dict(client.cookies)
                 logger.info(
                     "Login externo exitoso: %s — %d cookie(s) capturadas",
                     login_url,
@@ -70,19 +66,17 @@ class HttpxExternalClient(ExternalClientPort):
                 f"El portal externo retornó {exc.response.status_code}"
             ) from exc
         except httpx.RequestError as exc:
-            raise ExternalAuthException(
-                f"No se pudo conectar al portal externo: {exc}"
-            ) from exc
+            raise ExternalAuthException(f"No se pudo conectar al portal externo: {exc}") from exc
 
     async def login_and_request(
         self,
         login_url: str,
-        credentials: Dict[str, Any],
+        credentials: dict[str, Any],
         method: str,
         url: str,
-        body: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        body: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Autentica y hace la petición en un único AsyncClient para que las cookies
         conserven sus atributos originales (dominio, path, flags Secure/HttpOnly).
@@ -97,7 +91,9 @@ class HttpxExternalClient(ExternalClientPort):
 
                 # Paso 2: autenticar sin seguir redirects — el segundo redirect borra
                 # .AspNet.ApplicationCookie, por lo que hay que capturarla aquí antes.
-                auth_response = await client.get(login_url, params=login_params, follow_redirects=False)
+                auth_response = await client.get(
+                    login_url, params=login_params, follow_redirects=False
+                )
                 app_cookie = auth_response.cookies.get(".AspNet.ApplicationCookie")
                 if not app_cookie:
                     raise ExternalAuthException(
@@ -119,7 +115,8 @@ class HttpxExternalClient(ExternalClientPort):
                 csrf_token = csrf_match.group(1)
                 logger.info(
                     "Login exitoso: ApplicationCookie + CSRF token obtenidos — realizando %s %s",
-                    method, url,
+                    method,
+                    url,
                 )
 
                 # Paso 4: petición como form-encoded (el portal rechaza JSON en estos endpoints).
@@ -164,14 +161,12 @@ class HttpxExternalClient(ExternalClientPort):
                 f"El portal retornó {exc.response.status_code} para {method} {url}"
             ) from exc
         except httpx.RequestError as exc:
-            raise ExternalRequestException(
-                f"Fallo la petición al portal externo: {exc}"
-            ) from exc
+            raise ExternalRequestException(f"Fallo la petición al portal externo: {exc}") from exc
 
     async def login_and_download(
         self,
         login_url: str,
-        credentials: Dict[str, Any],
+        credentials: dict[str, Any],
         download_url: str,
     ) -> bytes:
         """
@@ -185,7 +180,9 @@ class HttpxExternalClient(ExternalClientPort):
             async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
                 await client.get(base_url)
                 # Sin seguir redirects — el segundo redirect borra ApplicationCookie
-                auth_response = await client.get(login_url, params=login_params, follow_redirects=False)
+                auth_response = await client.get(
+                    login_url, params=login_params, follow_redirects=False
+                )
                 app_cookie = auth_response.cookies.get(".AspNet.ApplicationCookie")
                 if not app_cookie:
                     raise ExternalAuthException(
@@ -198,13 +195,9 @@ class HttpxExternalClient(ExternalClientPort):
                 response.raise_for_status()
 
                 if len(response.content) == 0:
-                    raise ExternalRequestException(
-                        f"Respuesta vacía al descargar {download_url}"
-                    )
+                    raise ExternalRequestException(f"Respuesta vacía al descargar {download_url}")
 
-                logger.info(
-                    "ZIP descargado: %s (%d bytes)", download_url, len(response.content)
-                )
+                logger.info("ZIP descargado: %s (%d bytes)", download_url, len(response.content))
                 return response.content
         except (ExternalAuthException, ExternalRequestException):
             raise
@@ -213,13 +206,9 @@ class HttpxExternalClient(ExternalClientPort):
                 f"El portal retornó {exc.response.status_code} para GET {download_url}"
             ) from exc
         except httpx.RequestError as exc:
-            raise ExternalRequestException(
-                f"Falló la descarga del portal externo: {exc}"
-            ) from exc
+            raise ExternalRequestException(f"Falló la descarga del portal externo: {exc}") from exc
 
-    async def login_debug(
-        self, login_url: str, credentials: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def login_debug(self, login_url: str, credentials: dict[str, Any]) -> dict[str, Any]:
         """[DEBUG] Ejecuta todos los pasos del login mostrando cookies por etapa."""
         params = self._build_login_params(credentials["token"])
         base_url = login_url.split("/User/")[0]
@@ -259,10 +248,10 @@ class HttpxExternalClient(ExternalClientPort):
         self,
         method: str,
         url: str,
-        cookies: Dict[str, str],
-        body: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        cookies: dict[str, str],
+        body: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Reenvía una petición al portal externo inyectando las cookies de sesión.
         """
@@ -273,7 +262,9 @@ class HttpxExternalClient(ExternalClientPort):
                 "X-Requested-With": "XMLHttpRequest",
             }
             async with httpx.AsyncClient(
-                timeout=self._timeout, cookies=cookies, follow_redirects=True,
+                timeout=self._timeout,
+                cookies=cookies,
+                follow_redirects=True,
                 headers=_no_cache_headers,
             ) as client:
                 response = await client.request(
@@ -299,6 +290,4 @@ class HttpxExternalClient(ExternalClientPort):
                 f"El portal retornó {exc.response.status_code} para {method} {url}"
             ) from exc
         except httpx.RequestError as exc:
-            raise ExternalRequestException(
-                f"Fallo la petición al portal externo: {exc}"
-            ) from exc
+            raise ExternalRequestException(f"Fallo la petición al portal externo: {exc}") from exc

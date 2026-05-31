@@ -35,6 +35,7 @@ class RagClient:
         except Exception as exc:
             logger.warning(
                 "No se pudo indexar chunk en rag-service (source_id=%s): %s",
-                source_id, exc,
+                source_id,
+                exc,
             )
             return {}

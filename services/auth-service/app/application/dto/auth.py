@@ -1,4 +1,5 @@
 from typing import Optional
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -11,7 +12,11 @@ class LoginRequest(BaseModel):
         examples=["ikbo"],
     )
 
-    model_config = {"json_schema_extra": {"example": {"email": "ana@ikbo.co", "password": "secret123", "tenant_slug": "ikbo"}}}
+    model_config = {
+        "json_schema_extra": {
+            "example": {"email": "ana@ikbo.co", "password": "secret123", "tenant_slug": "ikbo"}
+        }
+    }
 
 
 class LoginResponse(BaseModel):

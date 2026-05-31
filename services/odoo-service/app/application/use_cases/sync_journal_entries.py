@@ -2,12 +2,14 @@ import logging
 import uuid
 from collections import defaultdict
 from datetime import date, timedelta
-from typing import Iterator, Tuple
+from typing import Iterator
 
+from app.application.dto.journal_entry import SyncRequest, SyncResponse
 from app.domain.exceptions.base import ValidationException
 from app.domain.ports.services import OdooClientPort
-from app.application.dto.journal_entry import SyncRequest, SyncResponse
-from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
+from app.infrastructure.persistence.repositories.accounting_entry_repository import (
+    AccountingEntryRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ MAX_DATE_RANGE_DAYS = 366
 BATCH_SIZE_DAYS = 10
 
 
-def _date_batches(date_from: date, date_to: date) -> Iterator[Tuple[date, date]]:
+def _date_batches(date_from: date, date_to: date) -> Iterator[tuple[date, date]]:
     """Divide el rango en ventanas de BATCH_SIZE_DAYS días."""
     current = date_from
     while current <= date_to:
@@ -25,7 +27,6 @@ def _date_batches(date_from: date, date_to: date) -> Iterator[Tuple[date, date]]
 
 
 class SyncJournalEntriesUseCase:
-
     def __init__(
         self,
         odoo_client: OdooClientPort,
@@ -46,16 +47,17 @@ class SyncJournalEntriesUseCase:
         batches = list(_date_batches(request.date_from, request.date_to))
         logger.info(
             "Iniciando sync Odoo: %s → %s | lotes=%d (batch=%s)",
-            date_from_str, date_to_str, len(batches), batch_id,
+            date_from_str,
+            date_to_str,
+            len(batches),
+            batch_id,
         )
 
         total_synced = created = updated = matched = 0
         errors = []
 
         for batch_from, batch_to in batches:
-            s, c, u, m, e = self._process_batch(
-                str(batch_from), str(batch_to), batch_id
-            )
+            s, c, u, m, e = self._process_batch(str(batch_from), str(batch_to), batch_id)
             total_synced += s
             created += c
             updated += u
@@ -64,7 +66,11 @@ class SyncJournalEntriesUseCase:
 
         logger.info(
             "Sync completado: synced=%d created=%d updated=%d matched=%d errors=%d",
-            total_synced, created, updated, matched, len(errors),
+            total_synced,
+            created,
+            updated,
+            matched,
+            len(errors),
         )
 
         return SyncResponse(
@@ -83,7 +89,7 @@ class SyncJournalEntriesUseCase:
         date_from: str,
         date_to: str,
         batch_id: str,
-    ) -> Tuple[int, int, int, int, list]:
+    ) -> tuple[int, int, int, int, list]:
         """
         Procesa un lote de 10 días. Retorna (synced, created, updated, matched, errors).
         """
@@ -103,14 +109,16 @@ class SyncJournalEntriesUseCase:
         account_ids = list({ln["account_id"][0] for ln in lines if ln.get("account_id")})
         account_map = self._odoo.get_account_details(account_ids) if account_ids else {}
 
-        analytic_ids = list({
-            int(part)
-            for ln in lines
-            if ln.get("analytic_distribution")
-            for key in ln["analytic_distribution"].keys()
-            for part in key.split(",")
-            if part.strip().isdigit()
-        })
+        analytic_ids = list(
+            {
+                int(part)
+                for ln in lines
+                if ln.get("analytic_distribution")
+                for key in ln["analytic_distribution"]
+                for part in key.split(",")
+                if part.strip().isdigit()
+            }
+        )
         analytic_map = self._odoo.get_analytic_account_details(analytic_ids) if analytic_ids else {}
 
         lines_by_move: dict = defaultdict(list)
@@ -144,7 +152,9 @@ class SyncJournalEntriesUseCase:
                     )
 
             except Exception as exc:
-                logger.error("Error procesando move source_id=%s: %s", move.get("id"), exc, exc_info=True)
+                logger.error(
+                    "Error procesando move source_id=%s: %s", move.get("id"), exc, exc_info=True
+                )
                 errors.append({"source_id": move.get("id"), "error": str(exc)})
 
         return len(moves), created, updated, matched, errors

@@ -33,16 +33,16 @@ SERVICES = [
     "siigo-service",
 ]
 
-GREEN  = "\033[92m"
+GREEN = "\033[92m"
 YELLOW = "\033[93m"
-RED    = "\033[91m"
-CYAN   = "\033[96m"
-GRAY   = "\033[90m"
-RESET  = "\033[0m"
+RED = "\033[91m"
+CYAN = "\033[96m"
+GRAY = "\033[90m"
+RESET = "\033[0m"
 
 # Windows cmd/PowerShell no soportan ANSI por defecto en Python < 3.12
 if sys.platform == "win32":
-    os.system("")  # habilita ANSI en Windows Terminal / PowerShell
+    os.system("")  # noqa: S605,S607 — habilita ANSI en Windows Terminal / PowerShell
 
 
 def header(text: str) -> None:
@@ -52,7 +52,7 @@ def header(text: str) -> None:
 
 
 def run(cmd: list[str], cwd: Path | None = None, env: dict | None = None) -> int:
-    result = subprocess.run(cmd, cwd=cwd, env=env)
+    result = subprocess.run(cmd, cwd=cwd, env=env)  # noqa: S603
     return result.returncode
 
 
@@ -65,10 +65,10 @@ def venv_bin(venv: Path, binary: str) -> Path:
 
 def run_local(svc: str, fail_fast: bool, python_exe: str = sys.executable) -> str:
     """Retorna 'pass', 'skip' o 'fail'."""
-    svc_path   = ROOT / "services" / svc
+    svc_path = ROOT / "services" / svc
     tests_path = svc_path / "tests"
-    req_path   = svc_path / "requirements.txt"
-    venv_path  = svc_path / ".venv"
+    req_path = svc_path / "requirements.txt"
+    venv_path = svc_path / ".venv"
 
     if not tests_path.exists():
         print(f"  {YELLOW}[SKIP]{RESET} Sin directorio tests/")
@@ -84,16 +84,21 @@ def run_local(svc: str, fail_fast: bool, python_exe: str = sys.executable) -> st
             print(f"  {RED}[FAIL]{RESET} No se pudo crear el venv (¿Python instalado?)")
             return "fail"
 
-    pip    = str(venv_bin(venv_path, "pip"))
+    pip = str(venv_bin(venv_path, "pip"))
     pytest = str(venv_bin(venv_path, "pytest"))
 
     print(f"  {GRAY}Instalando dependencias...{RESET}")
-    pip_code = run([
-        pip, "install", "-r", str(req_path),
-        "-q",
-        "--prefer-binary",           # evita compilar desde fuente (sin MSVC/gcc)
-        "--disable-pip-version-check",
-    ])
+    pip_code = run(
+        [
+            pip,
+            "install",
+            "-r",
+            str(req_path),
+            "-q",
+            "--prefer-binary",  # evita compilar desde fuente (sin MSVC/gcc)
+            "--disable-pip-version-check",
+        ]
+    )
     if pip_code != 0:
         print(f"  {RED}[FAIL]{RESET} pip install falló (ver salida arriba)")
         return "fail"
@@ -118,9 +123,9 @@ def run_local(svc: str, fail_fast: bool, python_exe: str = sys.executable) -> st
 
 def run_docker(svc: str, fail_fast: bool) -> str:
     """Retorna 'pass', 'skip' o 'fail'."""
-    svc_path   = ROOT / "services" / svc
+    svc_path = ROOT / "services" / svc
     tests_path = svc_path / "tests"
-    req_path   = svc_path / "requirements.txt"
+    req_path = svc_path / "requirements.txt"
 
     if not tests_path.exists():
         print(f"  {YELLOW}[SKIP]{RESET} Sin directorio tests/")
@@ -131,14 +136,19 @@ def run_docker(svc: str, fail_fast: bool) -> str:
 
     # Docker en Windows requiere forward slashes
     docker_path = str(svc_path).replace("\\", "/")
-    pytest_cmd  = "python -m pytest tests/ -v" + (" -x" if fail_fast else "")
+    pytest_cmd = "python -m pytest tests/ -v" + (" -x" if fail_fast else "")
 
     cmd = [
-        "docker", "run", "--rm",
-        "-v", f"{docker_path}:/app",
-        "--workdir", "/app",
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{docker_path}:/app",
+        "--workdir",
+        "/app",
         "python:3.9-slim",
-        "bash", "-c",
+        "bash",
+        "-c",
         f"pip install -r requirements.txt -q && {pytest_cmd}",
     ]
     code = run(cmd)
@@ -150,7 +160,7 @@ def run_docker(svc: str, fail_fast: bool) -> str:
 
 def summarize(passed: list, skipped: list, failed: list) -> None:
     print(f"\n{GRAY}{'━' * 44}{RESET}")
-    print(f"  RESUMEN")
+    print("  RESUMEN")
     print(f"{GRAY}{'━' * 44}{RESET}")
     if passed:
         print(f"  {GREEN}PASS ({len(passed)}): {', '.join(passed)}{RESET}")
@@ -165,19 +175,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Corre tests de todos los servicios.")
     parser.add_argument("mode", choices=["local", "docker"], help="Modo de ejecución.")
     parser.add_argument(
-        "--services", nargs="+", metavar="SVC",
+        "--services",
+        nargs="+",
+        metavar="SVC",
         help="Servicios a correr (default: todos).",
     )
     parser.add_argument("--fail-fast", action="store_true", help="Detener en el primer fallo.")
     parser.add_argument(
-        "--python", default=sys.executable, metavar="PATH",
+        "--python",
+        default=sys.executable,
+        metavar="PATH",
         help="Intérprete Python a usar para los venvs (default: el que corre este script). "
-             "Ej: --python python3.11",
+        "Ej: --python python3.11",
     )
     args = parser.parse_args()
 
     services = args.services or SERVICES
-    runner   = (lambda svc, ff: run_local(svc, ff, args.python)) if args.mode == "local" else run_docker
+    runner = (
+        (lambda svc, ff: run_local(svc, ff, args.python)) if args.mode == "local" else run_docker
+    )
 
     passed, failed, skipped = [], [], []
 

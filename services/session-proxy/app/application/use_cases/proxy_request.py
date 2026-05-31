@@ -1,7 +1,7 @@
 import logging
 
-from app.domain.ports.services import ExternalClientPort
 from app.application.dto.proxy import ProxyRequest, ProxyResponse
+from app.domain.ports.services import ExternalClientPort
 
 logger = logging.getLogger(__name__)
 

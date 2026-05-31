@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 
@@ -32,7 +32,7 @@ def upsert_credentials(
 
 @router.get(
     "/integrations/credentials",
-    response_model=List[CredentialResponse],
+    response_model=list[CredentialResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar credenciales de integraciones",
     description=(
@@ -44,5 +44,5 @@ def upsert_credentials(
 def list_credentials(
     provider: Optional[str] = None,
     use_case: ManageCredentialsUseCase = Depends(get_credentials_use_case),
-) -> List[CredentialResponse]:
+) -> list[CredentialResponse]:
     return use_case.list(provider=provider)

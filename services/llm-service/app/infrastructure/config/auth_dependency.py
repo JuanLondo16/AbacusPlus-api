@@ -3,7 +3,6 @@ from typing import Annotated
 import jwt as pyjwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
 
 from app.infrastructure.config.jwt_validator import decode_token
 from app.infrastructure.config.tenant_connection_manager import get_session_for_tenant

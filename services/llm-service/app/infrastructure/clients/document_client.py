@@ -1,6 +1,7 @@
 import logging
 from datetime import date
-from typing import List, Optional
+from typing import Optional
+
 import httpx
 from fastapi import HTTPException, status
 
@@ -53,7 +54,7 @@ class DocumentClient:
         dateini: date,
         datefin: date,
         status_filter: Optional[str] = None,
-    ) -> List[dict]:
+    ) -> list[dict]:
         params = {"from_date": dateini.isoformat(), "to_date": datefin.isoformat()}
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

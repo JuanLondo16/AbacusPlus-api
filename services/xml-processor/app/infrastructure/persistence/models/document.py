@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, Float
-from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
+
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
 from app.infrastructure.config.database import Base
 
 
@@ -63,4 +65,3 @@ class DocumentDetail(Base):
     document = relationship("Document", back_populates="details")
     # Relación con ConceptDescription
     concept_description = relationship("ConceptDescription", back_populates="details")
-    

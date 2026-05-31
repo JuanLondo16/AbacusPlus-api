@@ -1,7 +1,7 @@
+from app.application.dto.chunk import IndexChunkRequest, IndexChunkResponse
 from app.domain.entities.chunk import ChunkEntity
 from app.domain.ports.repositories import ChunkRepositoryPort
 from app.domain.ports.services import EmbeddingServicePort
-from app.application.dto.chunk import IndexChunkRequest, IndexChunkResponse
 
 
 class IndexChunkUseCase:

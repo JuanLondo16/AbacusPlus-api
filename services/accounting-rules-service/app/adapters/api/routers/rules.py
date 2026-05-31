@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -19,7 +19,6 @@ from app.dependencies import (
     get_rule_repository,
 )
 from app.domain.entities.accounting_rule import AccountingRule
-from app.domain.exceptions.base import EntityNotFoundException
 from app.infrastructure.config.auth_dependency import get_tenant_db
 
 router = APIRouter()
@@ -93,7 +92,7 @@ def create_rule(
 
 @router.get(
     "/rules",
-    response_model=List[RuleResponse],
+    response_model=list[RuleResponse],
     summary="Listar reglas de causación",
     description=(
         "Lista todas las reglas de causación del sistema con filtros opcionales.\n\n"
@@ -103,11 +102,13 @@ def create_rule(
 )
 def list_rules(
     nit: Optional[str] = Query(None, description="Filtrar por NIT del emisor."),
-    match_key_type: Optional[str] = Query(None, description="Filtrar por tipo: `nit_semantic` | `nit_only` | `keyword_only`."),
+    match_key_type: Optional[str] = Query(
+        None, description="Filtrar por tipo: `nit_semantic` | `nit_only` | `keyword_only`."
+    ),
     min_confidence: Optional[float] = Query(None, ge=0.0, le=1.0, description="Confianza mínima."),
     is_active: Optional[bool] = Query(None, description="Filtrar por estado activo/inactivo."),
     rule_repo=Depends(get_rule_repository),
-) -> List[RuleResponse]:
+) -> list[RuleResponse]:
     rules = rule_repo.list(
         nit=nit,
         match_key_type=match_key_type,
@@ -138,7 +139,9 @@ def update_rule(
 ) -> RuleResponse:
     rule = rule_repo.get_by_id(rule_id)
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Rule {rule_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Rule {rule_id} not found"
+        )
     if request.is_active is not None:
         rule.is_active = request.is_active
     if request.confidence_score is not None:

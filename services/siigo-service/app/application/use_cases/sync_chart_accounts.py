@@ -1,10 +1,12 @@
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 from app.application.dto.chart_account import SyncChartAccountsRequest, SyncChartAccountsResponse
 from app.application.use_cases.manage_credentials import ManageCredentialsUseCase
 from app.domain.exceptions.base import ValidationException
-from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import (
+    ChartAccountRepository,
+)
 from app.infrastructure.siigo.siigo_client import SiigoApiClient
 
 
@@ -36,17 +38,21 @@ class SyncChartAccountsUseCase:
         )
 
     @staticmethod
-    def _normalize_account(item: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_account(item: dict[str, Any]) -> dict[str, Any]:
         code = item.get("code") or item.get("account") or item.get("number") or item.get("id")
         name = item.get("name") or item.get("description")
         if not code or not name:
-            raise ValidationException("SIIGO account payload must include a code/id and name/description")
+            raise ValidationException(
+                "SIIGO account payload must include a code/id and name/description"
+            )
 
         return {
             "external_id": str(item.get("id")) if item.get("id") is not None else None,
             "code": str(code),
             "name": str(name),
-            "account_type": item.get("type") or item.get("account_type") or item.get("classification"),
+            "account_type": item.get("type")
+            or item.get("account_type")
+            or item.get("classification"),
             "level": item.get("level"),
             "parent_code": item.get("parent_code") or item.get("parent"),
             "accepts_movements": item.get("accepts_movements") or item.get("accept_entries"),

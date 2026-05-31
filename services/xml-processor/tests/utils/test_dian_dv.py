@@ -1,4 +1,3 @@
-import pytest
 from app.utils.dian_dv import dv_calculate
 
 

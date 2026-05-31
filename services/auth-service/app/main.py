@@ -7,7 +7,6 @@ from fastapi import FastAPI
 
 from app.adapters.api.routers import auth, tenants, users
 from app.infrastructure.config.database import Base, get_engine
-from app.infrastructure.persistence.models import tenant  # noqa: register with Base
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

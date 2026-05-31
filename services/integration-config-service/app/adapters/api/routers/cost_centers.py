@@ -1,9 +1,13 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.application.dto.cost_center import CostCenterResponse, ImportCostCentersResponse
-from app.application.use_cases.import_cost_centers import ImportCostCentersUseCase, _DEFAULT_ACCOUNT_KEY, _DEFAULT_PROVIDER
+from app.application.use_cases.import_cost_centers import (
+    _DEFAULT_ACCOUNT_KEY,
+    _DEFAULT_PROVIDER,
+    ImportCostCentersUseCase,
+)
 from app.dependencies import get_cost_center_repository, get_import_cost_centers_use_case
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
@@ -25,7 +29,7 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
 
 @router.get(
     "/integrations/cost-centers",
-    response_model=List[CostCenterResponse],
+    response_model=list[CostCenterResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar centros de costo",
     description=(
@@ -36,10 +40,14 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
     responses={},
 )
 def list_cost_centers(
-    active: Optional[bool] = Query(None, description="Filtrar por estado activo. Si se omite, retorna todos."),
+    active: Optional[bool] = Query(
+        None, description="Filtrar por estado activo. Si se omite, retorna todos."
+    ),
     repository: CostCenterRepository = Depends(get_cost_center_repository),
-) -> List[CostCenterResponse]:
-    return repository.list(provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY, active=active)
+) -> list[CostCenterResponse]:
+    return repository.list(
+        provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY, active=active
+    )
 
 
 @router.post(
@@ -60,7 +68,9 @@ def list_cost_centers(
     },
 )
 async def import_cost_centers_from_excel(
-    sheet_name: Optional[str] = Form(None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."),
+    sheet_name: Optional[str] = Form(
+        None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."
+    ),
     file: UploadFile = File(..., description="Archivo Excel .xlsx con los centros de costo."),
     use_case: ImportCostCentersUseCase = Depends(get_import_cost_centers_use_case),
 ) -> ImportCostCentersResponse:

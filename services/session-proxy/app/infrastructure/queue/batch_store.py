@@ -2,6 +2,7 @@
 Almacena y recupera metadatos de batches de descarga en Redis.
 Cada batch guarda: started_at, total de jobs y lista de job_ids.
 """
+
 import json
 import logging
 from datetime import datetime
@@ -27,7 +28,9 @@ class RedisBatchStore:
     def _key(self, batch_id: str) -> str:
         return f"batch:{batch_id}"
 
-    async def save(self, batch_id: str, job_ids: list, started_at: datetime, job_track_map: dict) -> None:
+    async def save(
+        self, batch_id: str, job_ids: list, started_at: datetime, job_track_map: dict
+    ) -> None:
         """
         job_track_map: { job_id: track_id } — permite asociar cada job con su documento DIAN.
         """

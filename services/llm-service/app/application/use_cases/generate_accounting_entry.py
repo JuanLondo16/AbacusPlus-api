@@ -3,18 +3,22 @@ import json
 import logging
 import math
 import os
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import HTTPException, status
 
-from app.application.dto.accounting import GenerateAccountingRequest, AccountingEntryResponse
+from app.application.dto.accounting import AccountingEntryResponse, GenerateAccountingRequest
 from app.domain.ports.services import AIServicePort
 from app.infrastructure.clients.catalog_client import CatalogClient
 from app.infrastructure.clients.document_client import DocumentClient
 from app.infrastructure.persistence.models.accounting_entry import AccountingEntry
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
-from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
-from app.infrastructure.persistence.repositories.system_prompt_repository import SystemPromptRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import (
+    ChartAccountRepository,
+)
+from app.infrastructure.persistence.repositories.system_prompt_repository import (
+    SystemPromptRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -166,10 +170,10 @@ class GenerateAccountingEntryUseCase:
         self._fallback_accounts = [
             ("2365", os.getenv("FALLBACK_RETEFUENTE_ACCOUNT", "23659501")),
             ("2368", os.getenv("FALLBACK_RETEICA_ACCOUNT", "23689501")),
-            ("236",  os.getenv("FALLBACK_RETENCION_ACCOUNT", "23659501")),
-            ("22",   os.getenv("FALLBACK_CXP_ACCOUNT", "22050501")),
-            ("5",    os.getenv("FALLBACK_GASTO_ACCOUNT", "51999999")),
-            ("6",    os.getenv("FALLBACK_COSTO_ACCOUNT", "61999999")),
+            ("236", os.getenv("FALLBACK_RETENCION_ACCOUNT", "23659501")),
+            ("22", os.getenv("FALLBACK_CXP_ACCOUNT", "22050501")),
+            ("5", os.getenv("FALLBACK_GASTO_ACCOUNT", "51999999")),
+            ("6", os.getenv("FALLBACK_COSTO_ACCOUNT", "61999999")),
         ]
 
     async def execute(self, request: GenerateAccountingRequest) -> AccountingEntryResponse:
@@ -189,7 +193,9 @@ class GenerateAccountingEntryUseCase:
                 if issuer_data:
                     document = dict(document)
                     document["issuer_account_number"] = issuer_data.get("account_number") or None
-                    document["issuer_tipo_contribuyente"] = issuer_data.get("tipo_contribuyente") or None
+                    document["issuer_tipo_contribuyente"] = (
+                        issuer_data.get("tipo_contribuyente") or None
+                    )
                     document["issuer_notes"] = issuer_data.get("notes") or None
                     logger.info(
                         "Emisor enriquecido: NIT=%s cuenta=%s tipo=%s notes=%s",
@@ -202,9 +208,9 @@ class GenerateAccountingEntryUseCase:
                 logger.warning("No se pudo enriquecer emisor NIT=%s: %s", issuer_nit, e)
 
         # 3. P3: Obtener catálogo contable (centros de costo, PUC, retenciones) — best-effort
-        cost_centers: List[dict] = []
-        puc_accounts: List[dict] = []
-        retefuente_rates: List[dict] = []
+        cost_centers: list[dict] = []
+        puc_accounts: list[dict] = []
+        retefuente_rates: list[dict] = []
         if self._catalog_client:
             cost_centers, puc_accounts, retefuente_rates = await asyncio.gather(
                 _safe_fetch(self._catalog_client.get_cost_centers(), []),
@@ -213,7 +219,9 @@ class GenerateAccountingEntryUseCase:
             )
             logger.info(
                 "Catálogo: %d CC | %d PUC | %d reteFuente",
-                len(cost_centers), len(puc_accounts), len(retefuente_rates),
+                len(cost_centers),
+                len(puc_accounts),
+                len(retefuente_rates),
             )
 
         chart_accounts = self._get_registered_chart_accounts()
@@ -238,7 +246,9 @@ class GenerateAccountingEntryUseCase:
         )
         logger.info(
             "Histórico DB: %d candidatos para NIT=%s doc_id=%d",
-            len(historical_candidates), issuer_nit, request.document_id,
+            len(historical_candidates),
+            issuer_nit,
+            request.document_id,
         )
 
         current_descriptions = " ".join(
@@ -254,7 +264,7 @@ class GenerateAccountingEntryUseCase:
                 reverse=True,
             )
 
-        historical_entries = historical_candidates[:request.top_k]
+        historical_entries = historical_candidates[: request.top_k]
 
         if not historical_entries:
             logger.info(
@@ -314,11 +324,15 @@ class GenerateAccountingEntryUseCase:
 
         issuer_notes = document.get("issuer_notes")
         issuer_notes_block = (
-            f"== REGLA ESPECIFICA PARA ESTE PROVEEDOR — PRIORIDAD MAXIMA ==\n"
-            f"{issuer_notes}\n"
-            f"Esta instruccion tiene PRIORIDAD sobre el catalogo de cuentas y sobre el historico. "
-            f"Aplica LITERALMENTE al determinar la cuenta de gasto/costo.\n\n"
-        ) if issuer_notes else ""
+            (
+                f"== REGLA ESPECIFICA PARA ESTE PROVEEDOR — PRIORIDAD MAXIMA ==\n"
+                f"{issuer_notes}\n"
+                f"Esta instruccion tiene PRIORIDAD sobre el catalogo de cuentas y sobre el historico. "
+                f"Aplica LITERALMENTE al determinar la cuenta de gasto/costo.\n\n"
+            )
+            if issuer_notes
+            else ""
+        )
 
         user_prompt = (
             f"{rules_prompt}"
@@ -425,9 +439,9 @@ class GenerateAccountingEntryUseCase:
 
     def _build_catalog_prompt(
         self,
-        cost_centers: List[dict],
-        puc_accounts: List[dict],
-        retefuente_rates: List[dict],
+        cost_centers: list[dict],
+        puc_accounts: list[dict],
+        retefuente_rates: list[dict],
     ) -> str:
         parts = []
 
@@ -479,8 +493,16 @@ class GenerateAccountingEntryUseCase:
         if retefuente_rates:
             rate_lines = "\n".join(
                 f"  Concepto: {r.get('retention_concept', '')} | Contribuyente: {r.get('taxpayer_type', '')} | Tarifa: {r.get('rate_percentage', '')}%"
-                + (f" | Base UVT: {r['minimum_base_uvt']}" if r.get("minimum_base_uvt") is not None else "")
-                + (f" | Base Pesos: {r['minimum_base_pesos']}" if r.get("minimum_base_pesos") is not None else "")
+                + (
+                    f" | Base UVT: {r['minimum_base_uvt']}"
+                    if r.get("minimum_base_uvt") is not None
+                    else ""
+                )
+                + (
+                    f" | Base Pesos: {r['minimum_base_pesos']}"
+                    if r.get("minimum_base_pesos") is not None
+                    else ""
+                )
                 for r in retefuente_rates
             )
             parts.append(
@@ -535,9 +557,15 @@ class GenerateAccountingEntryUseCase:
                     "nombre": nombre,
                     "debito": debito,
                     "credito": credito,
-                    "tercero": str(tercero).strip() if isinstance(tercero, str) and tercero.strip() else None,
-                    "centro_costo": str(centro_costo).strip() if isinstance(centro_costo, str) and centro_costo.strip() else None,
-                    "descripcion": str(descripcion).strip() if isinstance(descripcion, str) and descripcion.strip() else None,
+                    "tercero": str(tercero).strip()
+                    if isinstance(tercero, str) and tercero.strip()
+                    else None,
+                    "centro_costo": str(centro_costo).strip()
+                    if isinstance(centro_costo, str) and centro_costo.strip()
+                    else None,
+                    "descripcion": str(descripcion).strip()
+                    if isinstance(descripcion, str) and descripcion.strip()
+                    else None,
                 }
             )
         return normalized
@@ -551,7 +579,8 @@ class GenerateAccountingEntryUseCase:
         expected_cxp = self._to_money(total - retefuente - reteica)
 
         cxp_lines = [
-            e for e in entries
+            e
+            for e in entries
             if str(e.get("cuenta", "")).startswith("22") and float(e.get("credito") or 0) > 0
         ]
         if not cxp_lines:
@@ -563,7 +592,8 @@ class GenerateAccountingEntryUseCase:
 
         logger.warning(
             "CxP incorrecto: LLM generó credito=%.2f pero expected=%.2f (retenciones no restadas). Corrigiendo.",
-            actual_cxp, expected_cxp,
+            actual_cxp,
+            expected_cxp,
         )
 
         factor = expected_cxp / actual_cxp
@@ -591,7 +621,8 @@ class GenerateAccountingEntryUseCase:
                 and float(e.get("credito") or 0) == 0
             ):
                 logger.warning(
-                    "CxP cuenta %s generada en débito — corrigiendo a crédito automáticamente.", cuenta
+                    "CxP cuenta %s generada en débito — corrigiendo a crédito automáticamente.",
+                    cuenta,
                 )
                 e["credito"] = e["debito"]
                 e["debito"] = 0.0
@@ -645,7 +676,8 @@ class GenerateAccountingEntryUseCase:
         if total_taxes > 0:
             return entries
         cleaned = [
-            e for e in entries
+            e
+            for e in entries
             if not (str(e.get("cuenta", "")).startswith("2408") and float(e.get("debito") or 0) > 0)
         ]
         if len(cleaned) < len(entries):
@@ -684,7 +716,11 @@ class GenerateAccountingEntryUseCase:
         def is_gasto(e: dict) -> bool:
             cuenta = str(e.get("cuenta", ""))
             debito = float(e.get("debito") or 0)
-            return debito > 0 and not cuenta.startswith(_IVA_PREFIX) and not cuenta.startswith(_PASIVO_PREFIXES)
+            return (
+                debito > 0
+                and not cuenta.startswith(_IVA_PREFIX)
+                and not cuenta.startswith(_PASIVO_PREFIXES)
+            )
 
         gasto_entries = [e for e in entries if is_gasto(e)]
         if not gasto_entries:
@@ -697,7 +733,9 @@ class GenerateAccountingEntryUseCase:
         logger.warning(
             "Gasto incorrecto: LLM generó sum_gasto=%.2f pero target=%.2f (has_iva=%s). "
             "Redistribuyendo proporcionalmente.",
-            sum_gasto, target, has_iva_debit,
+            sum_gasto,
+            target,
+            has_iva_debit,
         )
 
         # Redistribuir proporcionalmente al target
@@ -789,7 +827,9 @@ class GenerateAccountingEntryUseCase:
                 "No fue posible consultar integration_chart_accounts para validar el plan de cuentas."
             ) from e
 
-    def _validate_registered_accounts(self, entries: list[dict], chart_accounts: list[dict]) -> list[dict]:
+    def _validate_registered_accounts(
+        self, entries: list[dict], chart_accounts: list[dict]
+    ) -> list[dict]:
         if not chart_accounts:
             return entries
 
@@ -797,7 +837,9 @@ class GenerateAccountingEntryUseCase:
 
         # Las líneas de ajuste por redondeo las genera el sistema, no el LLM;
         # no deben fallar validación aunque la cuenta no esté en el plan configurado.
-        llm_entries = [e for e in entries if e.get("descripcion") != "Ajuste por redondeo (autogenerado)"]
+        llm_entries = [
+            e for e in entries if e.get("descripcion") != "Ajuste por redondeo (autogenerado)"
+        ]
 
         missing_uncorrected: list[str] = []
         for entry in llm_entries:
@@ -816,7 +858,9 @@ class GenerateAccountingEntryUseCase:
             if fallback_code:
                 logger.warning(
                     "Cuenta %s no registrada → sustituyendo por fallback %s (%s).",
-                    code, fallback_code, account_map[fallback_code].get("name"),
+                    code,
+                    fallback_code,
+                    account_map[fallback_code].get("name"),
                 )
                 entry["cuenta"] = fallback_code
                 entry["nombre"] = account_map[fallback_code].get("name") or entry["nombre"]
@@ -826,8 +870,7 @@ class GenerateAccountingEntryUseCase:
         if missing_uncorrected:
             raise ValueError(
                 "La causación contiene cuentas no registradas o inactivas en "
-                "integration_chart_accounts: "
-                + ", ".join(sorted(set(missing_uncorrected)))
+                "integration_chart_accounts: " + ", ".join(sorted(set(missing_uncorrected)))
             )
 
         return entries

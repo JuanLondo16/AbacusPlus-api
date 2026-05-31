@@ -1,9 +1,8 @@
 import pytest
-
-from app.application.use_cases.login import LoginUseCase
 from app.application.dto.auth import LoginRequest
-from app.domain.ports.services import ExternalClientPort
+from app.application.use_cases.login import LoginUseCase
 from app.domain.exceptions.base import ExternalAuthException
+from app.domain.ports.services import ExternalClientPort
 from app.infrastructure.session.in_memory_store import InMemorySessionStore
 
 
@@ -26,7 +25,9 @@ class FakeExternalClient(ExternalClientPort):
         cookies = await self.login(login_url=login_url, credentials=credentials)
         return await self.request(method=method, url=url, cookies=cookies, body=body, params=params)
 
-    async def login_and_download(self, login_url: str, credentials: dict, download_url: str) -> bytes:
+    async def login_and_download(
+        self, login_url: str, credentials: dict, download_url: str
+    ) -> bytes:
         return b""
 
 
@@ -49,7 +50,9 @@ class EmptyCookieClient(ExternalClientPort):
         cookies = await self.login(login_url=login_url, credentials=credentials)
         return await self.request(method=method, url=url, cookies=cookies, body=body, params=params)
 
-    async def login_and_download(self, login_url: str, credentials: dict, download_url: str) -> bytes:
+    async def login_and_download(
+        self, login_url: str, credentials: dict, download_url: str
+    ) -> bytes:
         return b""
 
 

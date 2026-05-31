@@ -1,14 +1,14 @@
-from typing import List, Optional
-from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.infrastructure.persistence.models.system_prompt import SystemPrompt
+from sqlalchemy.orm import Session
 
 
 class SystemPromptRepository:
     def __init__(self, db: Session):
         self._db = db
 
-    def get_all(self) -> List[SystemPrompt]:
+    def get_all(self) -> list[SystemPrompt]:
         return self._db.query(SystemPrompt).order_by(SystemPrompt.id).all()
 
     def get_active(self) -> Optional[SystemPrompt]:
@@ -37,6 +37,7 @@ class SystemPromptRepository:
     def create_default_if_none(self) -> None:
         if self._db.query(SystemPrompt).count() == 0:
             from app.application.use_cases.generate_accounting_entry import _DEFAULT_SYSTEM_PROMPT
+
             default = SystemPrompt(
                 name="PUC Colombia — Causación v2",
                 content=_DEFAULT_SYSTEM_PROMPT,

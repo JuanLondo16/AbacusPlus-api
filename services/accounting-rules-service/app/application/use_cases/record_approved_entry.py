@@ -1,7 +1,6 @@
 import logging
 import os
 from datetime import datetime, timezone
-from typing import List
 
 from app.application.dto.rule import ApprovalLine, ApprovalNotification
 from app.domain.entities.accounting_rule import AccountingRule
@@ -15,31 +14,24 @@ _INITIAL_CONFIDENCE = 0.60
 _DECAY_FACTOR = float(os.getenv("RULES_DECAY_MONTHLY_FACTOR", "0.995"))
 
 
-def _lines_to_payload(lines: List[ApprovalLine]) -> dict:
+def _lines_to_payload(lines: list[ApprovalLine]) -> dict:
     """Normalize approved lines to a comparable dict."""
     return {
-        "debit_account": next(
-            (l.cuenta for l in lines if l.debito > 0), ""
-        ),
-        "credit_account": next(
-            (l.cuenta for l in lines if l.credito > 0), ""
-        ),
+        "debit_account": next((l.cuenta for l in lines if l.debito > 0), ""),
+        "credit_account": next((l.cuenta for l in lines if l.credito > 0), ""),
         "tax_accounts": {
             l.descripcion: l.cuenta
             for l in lines
             if l.descripcion and l.debito == 0 and l.credito == 0
         },
-        "cost_center": next(
-            (l.centro_costo for l in lines if l.centro_costo), None
-        ),
+        "cost_center": next((l.centro_costo for l in lines if l.centro_costo), None),
     }
 
 
 def _payloads_match(suggested: dict, approved: dict) -> bool:
-    return (
-        suggested.get("debit_account") == approved.get("debit_account")
-        and suggested.get("credit_account") == approved.get("credit_account")
-    )
+    return suggested.get("debit_account") == approved.get("debit_account") and suggested.get(
+        "credit_account"
+    ) == approved.get("credit_account")
 
 
 class RecordApprovedEntryUseCase:
@@ -76,7 +68,11 @@ class RecordApprovedEntryUseCase:
                     attempt.final_approved = True
                     self._attempt_repo.update(attempt)
                     logger.info("Rule %s reinforced → %.3f", rule.id, rule.confidence_score)
-                    return {"action": "reinforced", "rule_id": rule.id, "confidence": rule.confidence_score}
+                    return {
+                        "action": "reinforced",
+                        "rule_id": rule.id,
+                        "confidence": rule.confidence_score,
+                    }
                 else:
                     # Edición detectada: penalizar regla anterior
                     penalized = ConfidenceScore(rule.confidence_score).penalize()
@@ -85,7 +81,11 @@ class RecordApprovedEntryUseCase:
                     self._rule_repo.update(rule)
                     attempt.final_approved = False
                     self._attempt_repo.update(attempt)
-                    logger.info("Rule %s penalized → %.3f, creating corrected rule", rule.id, rule.confidence_score)
+                    logger.info(
+                        "Rule %s penalized → %.3f, creating corrected rule",
+                        rule.id,
+                        rule.confidence_score,
+                    )
 
         # Crear o reforzar regla con los valores aprobados (MISS o edición)
         primary_description = notification.items[0].description if notification.items else ""
@@ -117,5 +117,10 @@ class RecordApprovedEntryUseCase:
             last_approved_at=now,
         )
         created = self._rule_repo.create(new_rule)
-        logger.info("New rule %s created for NIT=%s, confidence=%.2f", created.id, notification.issuer_nit, created.confidence_score)
+        logger.info(
+            "New rule %s created for NIT=%s, confidence=%.2f",
+            created.id,
+            notification.issuer_nit,
+            created.confidence_score,
+        )
         return {"action": "created", "rule_id": created.id, "confidence": created.confidence_score}

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -20,11 +20,13 @@ class IntegrationCredentialRepository:
             .one_or_none()
         )
 
-    def list(self, provider: Optional[str] = None) -> List[IntegrationCredential]:
+    def list(self, provider: Optional[str] = None) -> list[IntegrationCredential]:
         query = self.db.query(IntegrationCredential)
         if provider:
             query = query.filter(IntegrationCredential.provider == provider)
-        return query.order_by(IntegrationCredential.provider.asc(), IntegrationCredential.account_key.asc()).all()
+        return query.order_by(
+            IntegrationCredential.provider.asc(), IntegrationCredential.account_key.asc()
+        ).all()
 
     def upsert(
         self,

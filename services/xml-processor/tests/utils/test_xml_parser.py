@@ -2,9 +2,9 @@
 
 Each fixture XML mirrors a real scenario documented in samples/xml/README.md.
 """
+
 import pytest
 from app.utils.xml_parser import parse_xml
-
 
 # ---------------------------------------------------------------------------
 # Fixture XMLs
@@ -467,162 +467,163 @@ _ATTACHED_DOC_XML = """<?xml version="1.0" encoding="UTF-8"?>
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestHeaderFields:
     def test_numero_documento(self):
         result = parse_xml(_BASE_XML)
-        assert result['numero_documento'] == 'FE-001'
+        assert result["numero_documento"] == "FE-001"
 
     def test_fechas(self):
         result = parse_xml(_BASE_XML)
-        assert result['fecha_emision'] == '2024-01-15'
-        assert result['hora_emision'] == '10:30:00'
-        assert result['fecha_vencimiento'] == '2024-02-15'
+        assert result["fecha_emision"] == "2024-01-15"
+        assert result["hora_emision"] == "10:30:00"
+        assert result["fecha_vencimiento"] == "2024-02-15"
 
     def test_moneda(self):
         result = parse_xml(_BASE_XML)
-        assert result['moneda'] == 'COP'
+        assert result["moneda"] == "COP"
 
     def test_cufe(self):
         result = parse_xml(_BASE_XML)
-        assert result['cufe'] == 'cufe-abc-123'
+        assert result["cufe"] == "cufe-abc-123"
 
     def test_tipo_documento_es_dict(self):
         result = parse_xml(_BASE_XML)
-        assert result['tipo_documento']['codigo'] == '01'
-        assert result['tipo_documento']['nombre'] == 'Factura de venta'
+        assert result["tipo_documento"]["codigo"] == "01"
+        assert result["tipo_documento"]["nombre"] == "Factura de venta"
 
     def test_notas(self):
         result = parse_xml(_BASE_XML)
-        assert isinstance(result['notas'], list)
-        assert 'Nota de prueba' in result['notas']
+        assert isinstance(result["notas"], list)
+        assert "Nota de prueba" in result["notas"]
 
 
 class TestParties:
     def test_emisor_nombre_y_nit(self):
         result = parse_xml(_BASE_XML)
-        emisor = result['emisor']
-        assert emisor['nombre'] == 'Empresa Emisora SAS'
-        assert emisor['nit'] == '900123456'
+        emisor = result["emisor"]
+        assert emisor["nombre"] == "Empresa Emisora SAS"
+        assert emisor["nit"] == "900123456"
 
     def test_emisor_tipo_identificacion(self):
         result = parse_xml(_BASE_XML)
-        assert result['emisor']['tipo_identificacion'] == 'NIT'
+        assert result["emisor"]["tipo_identificacion"] == "NIT"
 
     def test_emisor_tipo_persona_juridica(self):
         result = parse_xml(_BASE_XML)
-        assert result['emisor']['tipo_persona'] == 'Persona jurídica'
+        assert result["emisor"]["tipo_persona"] == "Persona jurídica"
 
     def test_emisor_tipo_persona_natural(self):
         result = parse_xml(_NO_IVA_XML)
-        assert result['emisor']['tipo_persona'] == 'Persona natural'
+        assert result["emisor"]["tipo_persona"] == "Persona natural"
 
     def test_emisor_cedula(self):
         result = parse_xml(_NO_IVA_XML)
-        assert result['emisor']['tipo_identificacion'] == 'Cédula de ciudadanía'
+        assert result["emisor"]["tipo_identificacion"] == "Cédula de ciudadanía"
 
     def test_emisor_regimen(self):
         result = parse_xml(_BASE_XML)
-        assert result['emisor']['regimen'] == 'R-99-PN'
+        assert result["emisor"]["regimen"] == "R-99-PN"
 
     def test_emisor_direccion(self):
         result = parse_xml(_BASE_XML)
-        direccion = result['emisor']['direccion']
-        assert direccion['ciudad'] == 'Bogota'
-        assert direccion['departamento'] == 'Cundinamarca'
+        direccion = result["emisor"]["direccion"]
+        assert direccion["ciudad"] == "Bogota"
+        assert direccion["departamento"] == "Cundinamarca"
 
     def test_emisor_contacto(self):
         result = parse_xml(_BASE_XML)
-        assert result['emisor']['contacto']['email'] == 'emisor@test.com'
+        assert result["emisor"]["contacto"]["email"] == "emisor@test.com"
 
     def test_receptor_nombre_y_nit(self):
         result = parse_xml(_BASE_XML)
-        receptor = result['receptor']
-        assert receptor['nombre'] == 'Empresa Receptora LTDA'
-        assert receptor['nit'] == '800987654'
+        receptor = result["receptor"]
+        assert receptor["nombre"] == "Empresa Receptora LTDA"
+        assert receptor["nit"] == "800987654"
 
 
 class TestPayment:
     def test_pago_presente(self):
         result = parse_xml(_BASE_XML)
-        assert result['pago'] is not None
+        assert result["pago"] is not None
 
     def test_pago_codigo_y_nombre(self):
         result = parse_xml(_BASE_XML)
-        assert result['pago']['codigo'] == '49'
-        assert result['pago']['medio_pago'] == 'Tarjeta débito'
+        assert result["pago"]["codigo"] == "49"
+        assert result["pago"]["medio_pago"] == "Tarjeta débito"
 
     def test_pago_fecha_vencimiento(self):
         result = parse_xml(_BASE_XML)
-        assert result['pago']['fecha_vencimiento'] == '2024-02-15'
+        assert result["pago"]["fecha_vencimiento"] == "2024-02-15"
 
     def test_pago_none_si_ausente(self):
         result = parse_xml(_NO_IVA_XML)
-        assert result['pago'] is None
+        assert result["pago"] is None
 
 
 class TestItems:
     def test_cantidad_items(self):
         result = parse_xml(_BASE_XML)
-        assert len(result['items']) == 1
+        assert len(result["items"]) == 1
 
     def test_item_campos_base(self):
-        item = parse_xml(_BASE_XML)['items'][0]
-        assert item['id'] == '1'
-        assert item['descripcion'] == 'Servicio de consultoria'
-        assert item['cantidad'] == '10'
-        assert item['unidad_medida'] == '94'
-        assert item['precio_unitario'] == '100000'
-        assert item['valor_total'] == '1000000'
+        item = parse_xml(_BASE_XML)["items"][0]
+        assert item["id"] == "1"
+        assert item["descripcion"] == "Servicio de consultoria"
+        assert item["cantidad"] == "10"
+        assert item["unidad_medida"] == "94"
+        assert item["precio_unitario"] == "100000"
+        assert item["valor_total"] == "1000000"
 
     def test_item_gratis_false_por_defecto(self):
-        item = parse_xml(_BASE_XML)['items'][0]
-        assert item['gratis'] is False
+        item = parse_xml(_BASE_XML)["items"][0]
+        assert item["gratis"] is False
 
     def test_item_sin_descuentos_es_none(self):
-        item = parse_xml(_BASE_XML)['items'][0]
-        assert item['descuentos_cargos'] is None
+        item = parse_xml(_BASE_XML)["items"][0]
+        assert item["descuentos_cargos"] is None
 
     def test_item_impuesto_iva(self):
-        impuesto = parse_xml(_BASE_XML)['items'][0]['impuestos'][0]
-        assert impuesto['codigo'] == '01'
-        assert impuesto['nombre'] == 'IVA'
-        assert impuesto['porcentaje'] == '19'
-        assert impuesto['valor'] == '190000'
-        assert impuesto['base_imponible'] == '1000000'
+        impuesto = parse_xml(_BASE_XML)["items"][0]["impuestos"][0]
+        assert impuesto["codigo"] == "01"
+        assert impuesto["nombre"] == "IVA"
+        assert impuesto["porcentaje"] == "19"
+        assert impuesto["valor"] == "190000"
+        assert impuesto["base_imponible"] == "1000000"
 
 
 class TestTotals:
     def test_totales_presentes(self):
-        totales = parse_xml(_BASE_XML)['totales']
-        assert totales['valor_lineas'] == '1000000'
-        assert totales['subtotal'] == '1000000'
-        assert totales['total_impuestos'] == '190000'
-        assert totales['total_con_impuestos'] == '1190000'
-        assert totales['total'] == '1190000'
-        assert totales['redondeo'] is None
+        totales = parse_xml(_BASE_XML)["totales"]
+        assert totales["valor_lineas"] == "1000000"
+        assert totales["subtotal"] == "1000000"
+        assert totales["total_impuestos"] == "190000"
+        assert totales["total_con_impuestos"] == "1190000"
+        assert totales["total"] == "1190000"
+        assert totales["redondeo"] is None
 
     def test_total_impuestos_cero_cuando_sin_iva(self):
-        totales = parse_xml(_NO_IVA_XML)['totales']
-        assert totales['total_impuestos'] == '0'
+        totales = parse_xml(_NO_IVA_XML)["totales"]
+        assert totales["total_impuestos"] == "0"
 
     def test_retenciones_vacias_en_factura_normal(self):
-        assert parse_xml(_BASE_XML)['retenciones'] == []
+        assert parse_xml(_BASE_XML)["retenciones"] == []
 
     def test_impuestos_vacios_cuando_sin_iva(self):
-        assert parse_xml(_NO_IVA_XML)['impuestos'] == []
+        assert parse_xml(_NO_IVA_XML)["impuestos"] == []
 
 
 class TestDocumentTaxes:
     def test_impuestos_documento(self):
-        impuestos = parse_xml(_BASE_XML)['impuestos']
+        impuestos = parse_xml(_BASE_XML)["impuestos"]
         assert len(impuestos) == 1
-        assert impuestos[0]['codigo'] == '01'
-        assert impuestos[0]['nombre'] == 'IVA'
-        assert impuestos[0]['porcentaje'] == '19'
+        assert impuestos[0]["codigo"] == "01"
+        assert impuestos[0]["nombre"] == "IVA"
+        assert impuestos[0]["porcentaje"] == "19"
 
     def test_impuestos_no_duplica_lineas(self):
         # Document-level TaxTotal only — must not include per-line TaxTotals
-        impuestos = parse_xml(_BASE_XML)['impuestos']
+        impuestos = parse_xml(_BASE_XML)["impuestos"]
         assert len(impuestos) == 1
 
 
@@ -631,17 +632,17 @@ class TestNoIvaInvoice:
 
     def test_parse_sin_error(self):
         result = parse_xml(_NO_IVA_XML)
-        assert result['numero_documento'] == 'FE-002'
+        assert result["numero_documento"] == "FE-002"
 
     def test_impuestos_lista_vacia(self):
-        assert parse_xml(_NO_IVA_XML)['impuestos'] == []
+        assert parse_xml(_NO_IVA_XML)["impuestos"] == []
 
     def test_retenciones_lista_vacia(self):
-        assert parse_xml(_NO_IVA_XML)['retenciones'] == []
+        assert parse_xml(_NO_IVA_XML)["retenciones"] == []
 
     def test_total_igual_a_subtotal(self):
-        totales = parse_xml(_NO_IVA_XML)['totales']
-        assert totales['total'] == totales['total_con_impuestos']
+        totales = parse_xml(_NO_IVA_XML)["totales"]
+        assert totales["total"] == totales["total_con_impuestos"]
 
 
 class TestWithholdingTaxes:
@@ -649,78 +650,78 @@ class TestWithholdingTaxes:
 
     def test_retenciones_parse_sin_error(self):
         result = parse_xml(_WITHHOLDING_XML)
-        assert result['numero_documento'] == 'PLCO-001'
+        assert result["numero_documento"] == "PLCO-001"
 
     def test_retenciones_count(self):
-        retenciones = parse_xml(_WITHHOLDING_XML)['retenciones']
+        retenciones = parse_xml(_WITHHOLDING_XML)["retenciones"]
         assert len(retenciones) == 2
 
     def test_rete_renta(self):
-        ret = parse_xml(_WITHHOLDING_XML)['retenciones']
-        renta = next(r for r in ret if r['codigo'] == '06')
-        assert renta['nombre'] == 'ReteRenta'
-        assert renta['porcentaje'] == '3.5'
-        assert renta['valor'] == '87113.95'
+        ret = parse_xml(_WITHHOLDING_XML)["retenciones"]
+        renta = next(r for r in ret if r["codigo"] == "06")
+        assert renta["nombre"] == "ReteRenta"
+        assert renta["porcentaje"] == "3.5"
+        assert renta["valor"] == "87113.95"
 
     def test_rete_ica(self):
-        ret = parse_xml(_WITHHOLDING_XML)['retenciones']
-        ica = next(r for r in ret if r['codigo'] == '07')
-        assert ica['nombre'] == 'ReteICA'
-        assert ica['porcentaje'] == '0.966'
+        ret = parse_xml(_WITHHOLDING_XML)["retenciones"]
+        ica = next(r for r in ret if r["codigo"] == "07")
+        assert ica["nombre"] == "ReteICA"
+        assert ica["porcentaje"] == "0.966"
 
     def test_no_hay_impuestos_iva(self):
-        assert parse_xml(_WITHHOLDING_XML)['impuestos'] == []
+        assert parse_xml(_WITHHOLDING_XML)["impuestos"] == []
 
 
 class TestDiscounts:
     """factura con descuento scenario."""
 
     def test_descuento_presente_en_item(self):
-        item = parse_xml(_DISCOUNT_XML)['items'][0]
-        assert item['descuentos_cargos'] is not None
-        assert len(item['descuentos_cargos']) == 1
+        item = parse_xml(_DISCOUNT_XML)["items"][0]
+        assert item["descuentos_cargos"] is not None
+        assert len(item["descuentos_cargos"]) == 1
 
     def test_descuento_tipo_y_valores(self):
-        dc = parse_xml(_DISCOUNT_XML)['items'][0]['descuentos_cargos'][0]
-        assert dc['tipo'] == 'descuento'
-        assert dc['porcentaje'] == '0.10'
-        assert dc['valor'] == '22000'
-        assert dc['base'] == '220000'
+        dc = parse_xml(_DISCOUNT_XML)["items"][0]["descuentos_cargos"][0]
+        assert dc["tipo"] == "descuento"
+        assert dc["porcentaje"] == "0.10"
+        assert dc["valor"] == "22000"
+        assert dc["base"] == "220000"
 
     def test_valor_total_linea_es_neto(self):
         # LineExtensionAmount must already reflect post-discount amount
-        item = parse_xml(_DISCOUNT_XML)['items'][0]
-        assert item['valor_total'] == '198000'
+        item = parse_xml(_DISCOUNT_XML)["items"][0]
+        assert item["valor_total"] == "198000"
 
 
 class TestIncBolsas:
     """factura con impuesto de bolsa scenario."""
 
     def test_item_gratis_true(self):
-        items = parse_xml(_INC_BOLSAS_XML)['items']
-        bolsa = next(i for i in items if i['descripcion'] == 'Bolsa plastica BMTB')
-        assert bolsa['gratis'] is True
-        assert bolsa['valor_total'] == '0'
+        items = parse_xml(_INC_BOLSAS_XML)["items"]
+        bolsa = next(i for i in items if i["descripcion"] == "Bolsa plastica BMTB")
+        assert bolsa["gratis"] is True
+        assert bolsa["valor_total"] == "0"
 
     def test_bolsa_tax_per_unit_sin_percent(self):
-        items = parse_xml(_INC_BOLSAS_XML)['items']
-        bolsa = next(i for i in items if i['descripcion'] == 'Bolsa plastica BMTB')
-        tax = bolsa['impuestos'][0]
-        assert tax['codigo'] == '22'
-        assert tax['nombre'] == 'INC Bolsas'
-        assert tax['porcentaje'] is None
-        assert tax['valor_por_unidad'] == '73.00'
+        items = parse_xml(_INC_BOLSAS_XML)["items"]
+        bolsa = next(i for i in items if i["descripcion"] == "Bolsa plastica BMTB")
+        tax = bolsa["impuestos"][0]
+        assert tax["codigo"] == "22"
+        assert tax["nombre"] == "INC Bolsas"
+        assert tax["porcentaje"] is None
+        assert tax["valor_por_unidad"] == "73.00"
 
     def test_dos_bloques_taxTotal_documento(self):
-        impuestos = parse_xml(_INC_BOLSAS_XML)['impuestos']
-        codigos = {t['codigo'] for t in impuestos}
-        assert '01' in codigos
-        assert '22' in codigos
+        impuestos = parse_xml(_INC_BOLSAS_XML)["impuestos"]
+        codigos = {t["codigo"] for t in impuestos}
+        assert "01" in codigos
+        assert "22" in codigos
 
     def test_item_normal_no_es_gratis(self):
-        items = parse_xml(_INC_BOLSAS_XML)['items']
-        normal = next(i for i in items if i['descripcion'] == 'Producto normal')
-        assert normal['gratis'] is False
+        items = parse_xml(_INC_BOLSAS_XML)["items"]
+        normal = next(i for i in items if i["descripcion"] == "Producto normal")
+        assert normal["gratis"] is False
 
 
 class TestAttachedDocument:
@@ -728,20 +729,20 @@ class TestAttachedDocument:
 
     def test_unwrap_attached_document(self):
         result = parse_xml(_ATTACHED_DOC_XML)
-        assert result['numero_documento'] == 'FE-INNER'
+        assert result["numero_documento"] == "FE-INNER"
 
     def test_cufe_del_invoice_interno(self):
         result = parse_xml(_ATTACHED_DOC_XML)
-        assert result['cufe'] == 'cufe-inner-001'
+        assert result["cufe"] == "cufe-inner-001"
 
     def test_emisor_del_invoice_interno(self):
         result = parse_xml(_ATTACHED_DOC_XML)
-        assert result['emisor']['nit'] == '999000001'
+        assert result["emisor"]["nit"] == "999000001"
 
     def test_items_del_invoice_interno(self):
-        items = parse_xml(_ATTACHED_DOC_XML)['items']
+        items = parse_xml(_ATTACHED_DOC_XML)["items"]
         assert len(items) == 1
-        assert items[0]['descripcion'] == 'Producto adjunto'
+        assert items[0]["descripcion"] == "Producto adjunto"
 
 
 class TestErrors:

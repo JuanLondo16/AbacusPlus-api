@@ -1,4 +1,16 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, JSON, Numeric, String, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
+
 from app.infrastructure.config.database import Base
 
 
@@ -31,4 +43,6 @@ class PurchaseInvoiceParameter(Base):
     extra_payload = Column(JSON, nullable=False, default=dict)
     active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

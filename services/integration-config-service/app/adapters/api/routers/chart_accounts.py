@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
@@ -6,7 +6,9 @@ from app.application.dto.chart_account import ChartAccountResponse, ImportChartA
 from app.application.use_cases.import_chart_accounts import ImportChartAccountsUseCase
 from app.dependencies import get_import_chart_accounts_use_case
 from app.infrastructure.config.auth_dependency import get_tenant_db
-from app.infrastructure.persistence.repositories.chart_account_repository import ChartAccountRepository
+from app.infrastructure.persistence.repositories.chart_account_repository import (
+    ChartAccountRepository,
+)
 
 router = APIRouter()
 
@@ -30,7 +32,7 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
 
 @router.get(
     "/integrations/chart-accounts",
-    response_model=List[ChartAccountResponse],
+    response_model=list[ChartAccountResponse],
     status_code=200,
     summary="Listar plan de cuentas",
     description=(
@@ -44,7 +46,7 @@ Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`
 def list_chart_accounts(
     active: Optional[bool] = None,
     db=Depends(get_tenant_db),
-) -> List[ChartAccountResponse]:
+) -> list[ChartAccountResponse]:
     return ChartAccountRepository(db).list(active=active)
 
 
@@ -75,7 +77,9 @@ async def import_chart_accounts_from_excel(
         ),
         examples=["upsert"],
     ),
-    sheet_name: Optional[str] = Form(None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."),
+    sheet_name: Optional[str] = Form(
+        None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."
+    ),
     use_case: ImportChartAccountsUseCase = Depends(get_import_chart_accounts_use_case),
 ) -> ImportChartAccountsResponse:
     content = await file.read()

@@ -1,5 +1,6 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -16,9 +17,7 @@ class SyncRequest(BaseModel):
     )
 
     model_config = {
-        "json_schema_extra": {
-            "example": {"date_from": "2024-01-01", "date_to": "2024-12-31"}
-        }
+        "json_schema_extra": {"example": {"date_from": "2024-01-01", "date_to": "2024-12-31"}}
     }
 
 
@@ -30,7 +29,7 @@ class SyncResponse(BaseModel):
     batch_id: str = Field(..., description="UUID del lote de sincronización.")
     date_from: str = Field(..., description="Fecha inicial consultada.")
     date_to: str = Field(..., description="Fecha final consultada.")
-    errors: List[dict] = Field(default_factory=list, description="Errores por asiento, si los hay.")
+    errors: list[dict] = Field(default_factory=list, description="Errores por asiento, si los hay.")
 
 
 class JournalEntryLineResponse(BaseModel):
@@ -54,7 +53,10 @@ class JournalEntryLineResponse(BaseModel):
 class JournalEntryResponse(BaseModel):
     id: int
     source_id: int
-    document_id: Optional[int] = Field(None, description="ID del documento XML de la DIAN asociado. Null si no se encontró coincidencia.")
+    document_id: Optional[int] = Field(
+        None,
+        description="ID del documento XML de la DIAN asociado. Null si no se encontró coincidencia.",
+    )
     name: Optional[str]
     date: Optional[date]
     ref: Optional[str]
@@ -77,7 +79,7 @@ class JournalEntryResponse(BaseModel):
 
 
 class JournalEntryDetailResponse(JournalEntryResponse):
-    lines: List[JournalEntryLineResponse] = Field(default_factory=list)
+    lines: list[JournalEntryLineResponse] = Field(default_factory=list)
 
 
 class MatchEntryError(BaseModel):
@@ -102,7 +104,7 @@ class MatchEntriesResponse(BaseModel):
         description="Asientos para los que no se encontró documento coincidente.",
         examples=[7],
     )
-    errors: List[MatchEntryError] = Field(
+    errors: list[MatchEntryError] = Field(
         default_factory=list,
         description="Asientos que generaron error durante el proceso de vinculación.",
     )

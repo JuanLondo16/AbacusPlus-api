@@ -2,12 +2,12 @@ import logging
 
 from fastapi import FastAPI
 
-from app.infrastructure.config.logging import setup_logging
-from app.adapters.api.routers.auth import router as auth_router
-from app.adapters.api.routers.proxy import router as proxy_router
-from app.adapters.api.routers.documents import router as documents_router
-from app.domain.exceptions.base import DomainException
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
+from app.adapters.api.routers.auth import router as auth_router
+from app.adapters.api.routers.documents import router as documents_router
+from app.adapters.api.routers.proxy import router as proxy_router
+from app.domain.exceptions.base import DomainException
+from app.infrastructure.config.logging import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)

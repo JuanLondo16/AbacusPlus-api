@@ -1,16 +1,17 @@
 import logging
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
+from app.application.dto.journal_entry import JournalEntryDetailResponse, JournalEntryResponse
 from app.domain.exceptions.base import EntityNotFoundException
-from app.application.dto.journal_entry import JournalEntryResponse, JournalEntryDetailResponse
-from app.infrastructure.persistence.repositories.accounting_entry_repository import AccountingEntryRepository
+from app.infrastructure.persistence.repositories.accounting_entry_repository import (
+    AccountingEntryRepository,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class QueryJournalEntriesUseCase:
-
     def __init__(self, repository: AccountingEntryRepository):
         self._repo = repository
 
@@ -20,7 +21,7 @@ class QueryJournalEntriesUseCase:
         date_to: Optional[date],
         move_type: Optional[str],
         state: Optional[str],
-    ) -> List[JournalEntryResponse]:
+    ) -> list[JournalEntryResponse]:
         entries = self._repo.get_all(
             date_from=date_from,
             date_to=date_to,

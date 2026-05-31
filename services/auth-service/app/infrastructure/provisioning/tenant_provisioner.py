@@ -1,25 +1,25 @@
+import logging
 import os
 import re
-import logging
 
 import httpx
 import psycopg2
+from sqlalchemy import NullPool, create_engine
 
 from app.infrastructure.config.tenant_connection import get_session_for_tenant
-from app.infrastructure.persistence.models.user import TenantBase, User, UserRole
+from app.infrastructure.persistence.models.user import TenantBase
 from app.infrastructure.persistence.repositories.user_repository import UserRepository
-from sqlalchemy import create_engine, NullPool
 
 logger = logging.getLogger(__name__)
 
-_VALID_SLUG = re.compile(r'^[a-z][a-z0-9_]{1,30}$')
+_VALID_SLUG = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
 
 SERVICE_URLS = [
-    os.getenv("XML_PROCESSOR_URL",     "http://xml-processor:8001"),
-    os.getenv("RAG_SERVICE_URL",        "http://rag-service:8002"),
-    os.getenv("LLM_SERVICE_URL",        "http://llm-service:8003"),
-    os.getenv("ODOO_SERVICE_URL",       "http://odoo-service:8005"),
-    os.getenv("SIIGO_SERVICE_URL",      "http://siigo-service:8006"),
+    os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001"),
+    os.getenv("RAG_SERVICE_URL", "http://rag-service:8002"),
+    os.getenv("LLM_SERVICE_URL", "http://llm-service:8003"),
+    os.getenv("ODOO_SERVICE_URL", "http://odoo-service:8005"),
+    os.getenv("SIIGO_SERVICE_URL", "http://siigo-service:8006"),
     os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007"),
 ]
 

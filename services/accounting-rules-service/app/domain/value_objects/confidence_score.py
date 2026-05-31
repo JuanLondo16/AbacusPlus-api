@@ -19,8 +19,10 @@ class ConfidenceScore:
     def penalize(self) -> "ConfidenceScore":
         return ConfidenceScore(max(0.0, self._value - _PENALIZE_DELTA))
 
-    def with_decay(self, months_idle: float, factor: float = _DEFAULT_DECAY_FACTOR) -> "ConfidenceScore":
-        return ConfidenceScore(self._value * (factor ** months_idle))
+    def with_decay(
+        self, months_idle: float, factor: float = _DEFAULT_DECAY_FACTOR
+    ) -> "ConfidenceScore":
+        return ConfidenceScore(self._value * (factor**months_idle))
 
     def classify(self, hit_threshold: float = 0.85, partial_threshold: float = 0.50) -> MatchLevel:
         if self._value >= hit_threshold:

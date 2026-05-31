@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends, status
 
 from app.application.dto.purchase_invoice_parameter import (
@@ -32,14 +30,16 @@ router = APIRouter()
 )
 def create_purchase_invoice_parameters(
     request: PurchaseInvoiceParameterCreate,
-    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(get_purchase_invoice_parameters_use_case),
+    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(
+        get_purchase_invoice_parameters_use_case
+    ),
 ) -> PurchaseInvoiceParameterResponse:
     return use_case.create(request)
 
 
 @router.get(
     "/siigo/purchase-invoice-parameters",
-    response_model=List[PurchaseInvoiceParameterResponse],
+    response_model=list[PurchaseInvoiceParameterResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar parametros de facturas de compra SIIGO",
     description=(
@@ -50,6 +50,8 @@ def create_purchase_invoice_parameters(
 )
 def list_purchase_invoice_parameters(
     account_key: str = "default",
-    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(get_purchase_invoice_parameters_use_case),
-) -> List[PurchaseInvoiceParameterResponse]:
+    use_case: ManagePurchaseInvoiceParametersUseCase = Depends(
+        get_purchase_invoice_parameters_use_case
+    ),
+) -> list[PurchaseInvoiceParameterResponse]:
     return use_case.list(account_key=account_key)

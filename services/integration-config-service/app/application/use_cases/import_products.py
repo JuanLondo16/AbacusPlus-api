@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from openpyxl import load_workbook
 
@@ -29,7 +29,7 @@ class ImportProductsUseCase:
             products=self.repository.list(),
         )
 
-    def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> List[Dict[str, Any]]:
+    def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> list[dict[str, Any]]:
         try:
             workbook = load_workbook(filename=BytesIO(file_content), read_only=True, data_only=True)
         except Exception as exc:
@@ -54,7 +54,7 @@ class ImportProductsUseCase:
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
 
-        products: List[Dict[str, Any]] = []
+        products: list[dict[str, Any]] = []
         seen_codes = set()
         for row_number, row in enumerate(rows, start=2):
             if self._is_empty_row(row):
@@ -92,7 +92,9 @@ class ImportProductsUseCase:
                     "code": normalized_code,
                     "type": normalized_type,
                     "description": str(description).strip(),
-                    "active": self._as_bool(self._optional_cell(row, header_map, "active"), default=True),
+                    "active": self._as_bool(
+                        self._optional_cell(row, header_map, "active"), default=True
+                    ),
                     "raw_payload": raw_payload,
                 }
             )
@@ -113,7 +115,7 @@ class ImportProductsUseCase:
     def _cell(row: tuple, index: int) -> Any:
         return row[index] if index < len(row) else None
 
-    def _optional_cell(self, row: tuple, header_map: Dict[str, int], column: str) -> Any:
+    def _optional_cell(self, row: tuple, header_map: dict[str, int], column: str) -> Any:
         index = header_map.get(column)
         return self._cell(row, index) if index is not None else None
 

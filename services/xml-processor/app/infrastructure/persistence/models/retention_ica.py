@@ -17,4 +17,3 @@ class RetentionIcaRate(Base):
     # Porcentaje en términos de % (ej 0.966 => 0.966%)
     percentage = Column(Numeric(10, 6), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-

@@ -1,5 +1,5 @@
-from app.domain.ports.queue import JobQueuePort
 from app.application.dto.documents import DownloadJobStatus
+from app.domain.ports.queue import JobQueuePort
 
 
 class GetJobStatusUseCase:

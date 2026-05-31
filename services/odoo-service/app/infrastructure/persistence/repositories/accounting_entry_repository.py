@@ -1,11 +1,14 @@
 import logging
 from datetime import date, datetime
-from typing import List, Optional, Tuple, Dict
+from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.infrastructure.persistence.models.accounting_entry import AccountingEntry, AccountingEntryLine
+from app.infrastructure.persistence.models.accounting_entry import (
+    AccountingEntry,
+    AccountingEntryLine,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,19 +25,18 @@ def _clean_nit(nit: str) -> Optional[str]:
 
 
 class AccountingEntryRepository:
-
     def __init__(self, db: Session):
         self._db = db
 
     def upsert_entry(
         self,
         move_data: dict,
-        lines_data: List[dict],
-        partner_map: Dict[int, dict],
-        account_map: Dict[int, dict],
-        analytic_map: Dict[int, dict],
+        lines_data: list[dict],
+        partner_map: dict[int, dict],
+        account_map: dict[int, dict],
+        analytic_map: dict[int, dict],
         batch_id: str,
-    ) -> Tuple[AccountingEntry, bool]:
+    ) -> tuple[AccountingEntry, bool]:
         """
         Inserta o actualiza un asiento contable y sus líneas.
         En actualizaciones preserva el document_id ya asociado.
@@ -90,7 +92,7 @@ class AccountingEntryRepository:
             cost_center = None
             if ln.get("analytic_distribution"):
                 names = []
-                for key in ln["analytic_distribution"].keys():
+                for key in ln["analytic_distribution"]:
                     for part in key.split(","):
                         part = part.strip()
                         if part.isdigit():
@@ -141,13 +143,16 @@ class AccountingEntryRepository:
         if not nit:
             logger.warning(
                 "Match omitido — entry id=%s source_id=%s: partner_vat vacío o nulo (valor original: %r).",
-                entry.id, entry.source_id, entry.partner_vat,
+                entry.id,
+                entry.source_id,
+                entry.partner_vat,
             )
             return None
         if not entry.date:
             logger.warning(
                 "Match omitido — entry id=%s source_id=%s: fecha nula.",
-                entry.id, entry.source_id,
+                entry.id,
+                entry.source_id,
             )
             return None
 
@@ -180,14 +185,18 @@ class AccountingEntryRepository:
         )
         self._db.commit()
         self._db.refresh(entry)
-        logger.info("Asiento source_id=%s asociado con document_id=%s", entry.source_id, document_id)
+        logger.info(
+            "Asiento source_id=%s asociado con document_id=%s", entry.source_id, document_id
+        )
         return document_id
 
     def get_by_id(self, entry_id: int) -> Optional[AccountingEntry]:
         return self._db.query(AccountingEntry).filter(AccountingEntry.id == entry_id).first()
 
     def get_by_source_id(self, source_id: int) -> Optional[AccountingEntry]:
-        return self._db.query(AccountingEntry).filter(AccountingEntry.source_id == source_id).first()
+        return (
+            self._db.query(AccountingEntry).filter(AccountingEntry.source_id == source_id).first()
+        )
 
     def get_latest_by_document_id(self, document_id: int) -> Optional[AccountingEntry]:
         return (
@@ -203,7 +212,7 @@ class AccountingEntryRepository:
         date_to: Optional[date] = None,
         move_type: Optional[str] = None,
         state: Optional[str] = None,
-    ) -> List[AccountingEntry]:
+    ) -> list[AccountingEntry]:
         query = self._db.query(AccountingEntry)
         if date_from:
             query = query.filter(AccountingEntry.date >= date_from)
@@ -238,13 +247,20 @@ class AccountingEntryRepository:
                 logger.warning(
                     "Sin match — %s | NIT=%s fecha=%s total=%.2f: "
                     "hay %d documento(s) con ese NIT pero ninguno en esa fecha.",
-                    ref, nit, entry.date, float(entry.amount_total), by_nit_only,
+                    ref,
+                    nit,
+                    entry.date,
+                    float(entry.amount_total),
+                    by_nit_only,
                 )
             else:
                 logger.warning(
                     "Sin match — %s | NIT=%s fecha=%s total=%.2f: "
                     "no existe ningún documento con ese NIT en la base de datos.",
-                    ref, nit, entry.date, float(entry.amount_total),
+                    ref,
+                    nit,
+                    entry.date,
+                    float(entry.amount_total),
                 )
             return
 
@@ -256,8 +272,12 @@ class AccountingEntryRepository:
                 "Sin match — %s | NIT=%s fecha=%s total=%.2f: "
                 "se encontraron %d documento(s) con ese NIT y fecha pero todos ya tienen asiento vinculado "
                 "(ids: %s).",
-                ref, nit, entry.date, float(entry.amount_total),
-                len(already_linked), [r[0] for r in already_linked],
+                ref,
+                nit,
+                entry.date,
+                float(entry.amount_total),
+                len(already_linked),
+                [r[0] for r in already_linked],
             )
             return
 
@@ -266,11 +286,16 @@ class AccountingEntryRepository:
             "Sin match — %s | NIT=%s fecha=%s total=%.2f: "
             "hay %d documento(s) disponible(s) con ese NIT y fecha pero con total(es) diferente(s): %s "
             "(tolerancia ±%.2f COP).",
-            ref, nit, entry.date, float(entry.amount_total),
-            len(available), totals_disponibles, _AMOUNT_TOLERANCE,
+            ref,
+            nit,
+            entry.date,
+            float(entry.amount_total),
+            len(available),
+            totals_disponibles,
+            _AMOUNT_TOLERANCE,
         )
 
-    def get_unmatched_in_invoices(self) -> List[AccountingEntry]:
+    def get_unmatched_in_invoices(self) -> list[AccountingEntry]:
         """Retorna todos los asientos in_invoice sin document_id asociado."""
         return (
             self._db.query(AccountingEntry)

@@ -24,7 +24,9 @@ class RecalculateAccountingDocumentUseCase:
         self._doc_client = document_client
         self._generate = generate_use_case
 
-    async def execute(self, request: RecalculateAccountingDocumentRequest) -> RecalculateAccountingItemResult:
+    async def execute(
+        self, request: RecalculateAccountingDocumentRequest
+    ) -> RecalculateAccountingItemResult:
         document = await self._doc_client.get_document(request.document_id)
         if document is None:
             raise HTTPException(

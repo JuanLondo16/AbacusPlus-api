@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -71,7 +71,7 @@ class MatchAttemptRepository(MatchAttemptRepositoryPort):
         self.db.refresh(m)
         return attempt
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         total = self.db.query(func.count(RuleMatchAttemptModel.id)).scalar() or 0
 
         level_counts = (

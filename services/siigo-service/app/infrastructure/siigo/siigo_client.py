@@ -1,5 +1,6 @@
+import contextlib
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -13,7 +14,7 @@ class SiigoApiClient:
         self.base_url = credential.base_url.rstrip("/")
         self.timeout = timeout
 
-    def authenticate(self) -> Dict[str, Any]:
+    def authenticate(self) -> dict[str, Any]:
         try:
             response = httpx.post(
                 f"{self.base_url}/auth/access-token",
@@ -37,25 +38,29 @@ class SiigoApiClient:
             raise SiigoAuthenticationException("SIIGO auth response did not include access_token")
         return data
 
-    def get_paginated(self, path: str, page_size: int = 100) -> List[Dict[str, Any]]:
-        results: List[Dict[str, Any]] = []
+    def get_paginated(self, path: str, page_size: int = 100) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
         page = 1
         while True:
             payload = self.get(path, params={"page": page, "page_size": page_size})
             page_results = self._extract_results(payload)
             results.extend(page_results)
 
-            pagination = payload.get("pagination") or payload.get("value", {}).get("pagination") or {}
+            pagination = (
+                payload.get("pagination") or payload.get("value", {}).get("pagination") or {}
+            )
             total = int(pagination.get("total_results") or len(results))
             if not page_results or len(results) >= total:
                 break
             page += 1
         return results
 
-    def get(self, path: str, params: Optional[dict] = None) -> Dict[str, Any]:
+    def get(self, path: str, params: Optional[dict] = None) -> dict[str, Any]:
         url = f"{self.base_url}/{path.lstrip('/')}"
         try:
-            response = httpx.get(url, params=params, headers=self._base_headers(), timeout=self.timeout)
+            response = httpx.get(
+                url, params=params, headers=self._base_headers(), timeout=self.timeout
+            )
             response.raise_for_status()
             data = response.json()
         except httpx.HTTPStatusError as exc:
@@ -69,25 +74,27 @@ class SiigoApiClient:
             return {"results": data}
         return data
 
-    def post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}/{path.lstrip('/')}"
         try:
-            response = httpx.post(url, json=payload, headers=self._base_headers(), timeout=self.timeout)
+            response = httpx.post(
+                url, json=payload, headers=self._base_headers(), timeout=self.timeout
+            )
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as exc:
             body = ""
-            try:
+            with contextlib.suppress(Exception):
                 body = exc.response.text
-            except Exception:
-                pass
             raise SiigoConnectionException(
                 f"SIIGO returned status {exc.response.status_code} for POST {path}: {body}"
             ) from exc
         except httpx.HTTPError as exc:
-            raise SiigoConnectionException(f"Could not POST to SIIGO endpoint {path}: {exc}") from exc
+            raise SiigoConnectionException(
+                f"Could not POST to SIIGO endpoint {path}: {exc}"
+            ) from exc
 
-    def _base_headers(self, include_auth: bool = True) -> Dict[str, str]:
+    def _base_headers(self, include_auth: bool = True) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.credential.partner_id:
             headers["Partner-Id"] = self.credential.partner_id
@@ -97,7 +104,7 @@ class SiigoApiClient:
         return headers
 
     @staticmethod
-    def _extract_results(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
         value = payload.get("value")
         if isinstance(value, dict) and isinstance(value.get("results"), list):
             return value["results"]
@@ -106,6 +113,6 @@ class SiigoApiClient:
         return []
 
 
-def token_expiration_from_response(response: Dict[str, Any]) -> datetime:
+def token_expiration_from_response(response: dict[str, Any]) -> datetime:
     expires_in = int(response.get("expires_in") or 86400)
     return datetime.now(timezone.utc) + timedelta(seconds=expires_in)

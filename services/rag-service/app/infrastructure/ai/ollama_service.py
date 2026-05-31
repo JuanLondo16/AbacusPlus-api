@@ -1,4 +1,5 @@
 from ollama import AsyncClient
+
 from app.domain.ports.services import EmbeddingServicePort
 
 _NOMIC_DIMENSIONS = 768

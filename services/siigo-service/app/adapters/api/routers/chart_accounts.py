@@ -36,4 +36,3 @@ def sync_chart_accounts(
     use_case: SyncChartAccountsUseCase = Depends(get_sync_chart_accounts_use_case),
 ) -> SyncChartAccountsResponse:
     return use_case.execute(request)
-

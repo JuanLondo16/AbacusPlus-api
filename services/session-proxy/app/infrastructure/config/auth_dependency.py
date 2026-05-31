@@ -1,5 +1,3 @@
-from typing import Annotated
-
 import jwt as pyjwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

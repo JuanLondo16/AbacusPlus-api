@@ -1,7 +1,9 @@
 from typing import Optional
+
 from sqlalchemy.orm import Session
-from app.infrastructure.persistence.models.issuer import Issuer
+
 from app.domain.ports.repositories import IssuerRepositoryPort
+from app.infrastructure.persistence.models.issuer import Issuer
 
 
 class IssuerRepository(IssuerRepositoryPort):
