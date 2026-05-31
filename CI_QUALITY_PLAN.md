@@ -11,7 +11,7 @@ Marca cada casilla al completar la fase. Sirve como punto de retoma entre sesion
 - [x] **Fase 1** — Lint y formato (`ruff`) → `.github/workflows/01-lint.yml`
 - [x] **Fase 2** — Seguridad (`bandit` + `pip-audit` + `semgrep`) → `02-security.yml`
 - [ ] **Fase 3** — PR checks + branch protection + coverage gate → `03-pr-checks.yml`
-- [ ] **Fase 4** — Unit tests en pipeline → `04-tests.yml`
+- [x] **Fase 4** — Unit tests en pipeline → `04-tests.yml`
 - [ ] **Fase 5** — Contract tests (Schemathesis) → `05-contract-tests.yml`
 - [ ] **Fase 6** — Component tests (respx + Postgres real) → `06-component-tests.yml`
 - [ ] **Fase 7** — E2E mínimos (docker compose en runner) → `07-e2e.yml`
@@ -26,7 +26,7 @@ Anotar fecha, commit/PR y observaciones cuando se complete cada fase.
 | 1 | 2026-05-30 | feature/implement_ci | 01-lint.yml creado; ruff clean (158 archivos formateados, 9 errores suprimidos con noqa/contextlib.suppress) |
 | 2 | 2026-05-30 | feature/implement_ci | 02-security.yml creado; python-dotenv→1.2.2 y cryptography→>=46.0.5 en 9 servicios; pytest CVE ignorado (pytest 9.x pendiente validación) |
 | 3 |  |  |  |
-| 4 |  |  |  |
+| 4 | 2026-05-30 | feature/implement_ci | 04-tests.yml creado; 5 servicios en matriz (auth excluido sin tests); pytest.ini añadido a accounting-rules-service |
 | 5 |  |  |  |
 | 6 |  |  |  |
 | 7 |  |  |  |
