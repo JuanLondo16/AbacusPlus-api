@@ -1,0 +1,80 @@
+name: 05 - Contract Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  contract:
+    name: contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: master
+          POSTGRES_PASSWORD: master
+          POSTGRES_DB: xml2data
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U master"
+          --health-interval 10s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instalar dependencias de los servicios productores
+        run: |
+          pip install -r services/rag-service/requirements.txt -q
+          pip install -r services/accounting-rules-service/requirements.txt -q
+          pip install schemathesis==3.36.0 httpx pytest
+
+      - name: Levantar rag-service en background (puerto 18002)
+        run: |
+          cd services/rag-service
+          python -m uvicorn app.main:app --port 18002 --host 0.0.0.0 &
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: "5432"
+          DATABASE_USER: master
+          DATABASE_PASSWORD: master
+          DATABASE_NAME: xml2data
+          OLLAMA_HOST: http://localhost:11434
+          OLLAMA_EMBED_MODEL: nomic-embed-text
+          SECRET_KEY: test-secret-key-for-ci
+
+      - name: Levantar accounting-rules-service en background (puerto 18009)
+        run: |
+          cd services/accounting-rules-service
+          python -m uvicorn app.main:app --port 18009 --host 0.0.0.0 &
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: "5432"
+          DATABASE_USER: master
+          DATABASE_PASSWORD: master
+          DATABASE_NAME: xml2data
+          OLLAMA_HOST: http://localhost:11434
+          OLLAMA_EMBED_MODEL: nomic-embed-text
+          SECRET_KEY: test-secret-key-for-ci
+          RULES_HIT_THRESHOLD: "0.85"
+          RULES_PARTIAL_THRESHOLD: "0.50"
+
+      - name: Esperar a que los servicios estén listos
+        run: |
+          for port in 18002 18009; do
+            for i in {1..30}; do
+              curl -fsS http://localhost:$port/health && break
+              sleep 2
+            done
+          done
+
+      - name: Correr contract tests
+        run: python -m pytest tests/contract/ -v
