@@ -1,0 +1,61 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+
+  - package-ecosystem: pip
+    directory: /services/xml-processor
+    schedule:
+      interval: monthly
+    labels: [dependencies, xml-processor]
+
+  - package-ecosystem: pip
+    directory: /services/rag-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, rag-service]
+
+  - package-ecosystem: pip
+    directory: /services/llm-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, llm-service]
+
+  - package-ecosystem: pip
+    directory: /services/session-proxy
+    schedule:
+      interval: monthly
+    labels: [dependencies, session-proxy]
+
+  - package-ecosystem: pip
+    directory: /services/odoo-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, odoo-service]
+
+  - package-ecosystem: pip
+    directory: /services/siigo-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, siigo-service]
+
+  - package-ecosystem: pip
+    directory: /services/integration-config-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, integration-config-service]
+
+  - package-ecosystem: pip
+    directory: /services/auth-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, auth-service]
+
+  - package-ecosystem: pip
+    directory: /services/accounting-rules-service
+    schedule:
+      interval: monthly
+    labels: [dependencies, accounting-rules-service]

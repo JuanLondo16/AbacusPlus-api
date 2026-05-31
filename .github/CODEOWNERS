@@ -1,0 +1,4 @@
+# Revisores automáticos por área
+* @ikbo-co/backend
+services/gateway/          @ikbo-co/devops
+.github/workflows/         @ikbo-co/devops
