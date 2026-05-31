@@ -1,0 +1,65 @@
+name: 02 - Security
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bandit:
+    name: bandit (SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install bandit==1.7.10
+      - name: bandit scan (HIGH severity, HIGH confidence)
+        run: bandit -r services/ -c pyproject.toml -ll -ii
+
+  pip-audit:
+    name: pip-audit (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - xml-processor
+          - rag-service
+          - llm-service
+          - session-proxy
+          - odoo-service
+          - siigo-service
+          - integration-config-service
+          - auth-service
+          - accounting-rules-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit==2.7.3
+      - name: audit ${{ matrix.service }}
+        run: |
+          # GHSA-6w46-j5rx-g56g: pytest 8→9 major bump; compatibility with pytest-asyncio 0.24.x
+          # requires dedicated validation before bumping. Tracked as tech debt.
+          pip-audit -r services/${{ matrix.service }}/requirements.txt --strict \
+            --ignore-vuln GHSA-6w46-j5rx-g56g
+
+  semgrep:
+    name: semgrep (OWASP API rules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    container:
+      image: returntocorp/semgrep:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep ci --config p/owasp-top-ten --config p/python --severity ERROR

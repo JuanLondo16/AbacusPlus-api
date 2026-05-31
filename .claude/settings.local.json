@@ -43,7 +43,8 @@
       "Bash(grep -E \"\\\\.\\(yml|yaml|toml|cfg|ini\\)$\")",
       "PowerShell(Get-ChildItem *)",
       "Bash([ -f \"C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api/services/$svc/pytest.ini\" ])",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(pip install *)"
     ]
   }
 }
