@@ -97,11 +97,12 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] Agregar 6 sentencias ALTER TABLE al bloque `with engine.connect() as conn`
 - [ ] Reconstruir imagen y provisionar tenants (ver sección "Cómo aplicar cambios de BD")
 
-### Fase 4 — HTTP Client: IntegrationConfigClient (xml-processor)
+### Fase 4 — HTTP Client: IntegrationConfigClient (xml-processor) ✅
 **Nuevo archivo:** `services/xml-processor/app/infrastructure/clients/integration_config_client.py`
-- [ ] Método `async get_taxes() -> list[dict]` → `GET /api/v1/integrations/taxes?active=true`
-- [ ] Timeout 5s, best-effort (retorna `[]` en fallo)
-- [ ] Registrar en `dependencies.py`
+- [x] Método `async get_taxes() -> list[dict]` → `GET /api/v1/integrations/taxes?active=true`
+- [x] Timeout 5s, best-effort (retorna `[]` en fallo)
+- [x] Registrar en `dependencies.py` — factory `get_integration_config_client`
+- [x] Inyectar en `get_process_xml_use_case`
 
 ### Fase 5 — Lógica de Enriquecimiento en process_xml.py
 **Archivo:** `services/xml-processor/app/application/use_cases/process_xml.py`

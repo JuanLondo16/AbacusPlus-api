@@ -20,6 +20,7 @@ from app.application.use_cases.query_documents import (
 from app.application.use_cases.query_issuers import GetIssuerByNitUseCase
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
 from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
+from app.infrastructure.clients.integration_config_client import IntegrationConfigClient
 from app.infrastructure.clients.llm_client import LlmClient
 from app.infrastructure.clients.odoo_client import OdooClient
 from app.infrastructure.clients.rag_client import RagClient
@@ -45,6 +46,13 @@ def get_rag_client(token: Annotated[TokenData, Depends(get_token_data)]) -> RagC
     return RagClient(base_url=url, bearer_token=token.raw_token)
 
 
+def get_integration_config_client(
+    token: Annotated[TokenData, Depends(get_token_data)],
+) -> IntegrationConfigClient:
+    url = os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007")
+    return IntegrationConfigClient(base_url=url, bearer_token=token.raw_token)
+
+
 def get_llm_client(token: Annotated[TokenData, Depends(get_token_data)]) -> LlmClient:
     url = os.getenv("LLM_SERVICE_URL", "http://llm-service:8003")
     return LlmClient(base_url=url, bearer_token=token.raw_token)
@@ -58,6 +66,7 @@ def get_odoo_client(token: Annotated[TokenData, Depends(get_token_data)]) -> Odo
 def get_process_xml_use_case(
     db: Session = Depends(get_tenant_db),
     rag_client: RagClient = Depends(get_rag_client),
+    integration_config_client: IntegrationConfigClient = Depends(get_integration_config_client),
 ) -> ProcessXmlUseCase:
     return ProcessXmlUseCase(
         document_repo=DocumentRepository(db),
@@ -66,6 +75,7 @@ def get_process_xml_use_case(
         tax_repo=TaxRepository(db),
         concept_repo=ConceptRepository(db),
         rag_client=rag_client,
+        integration_config_client=integration_config_client,
     )
 
 
