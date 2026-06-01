@@ -7,18 +7,34 @@ from pydantic import BaseModel, ConfigDict, Field
 class DocumentDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    document_id: int
-    description: str
-    concept_description_id: int
-    quantity: float
-    unit: str
-    price: float
-    subtotal: float
-    tax_type: str
-    tax_value: float
-    total: float
-    concept_account_number: Optional[str] = None
+    id: int = Field(..., description="Identificador único de la línea.")
+    document_id: int = Field(..., description="ID del documento al que pertenece.")
+    description: str = Field(..., description="Descripción del concepto facturado.")
+    concept_description_id: int = Field(..., description="ID del concepto en el catálogo local.")
+    quantity: float = Field(..., description="Cantidad.")
+    unit: str = Field(..., description="Unidad de medida.")
+    price: float = Field(..., description="Precio unitario.")
+    subtotal: float = Field(..., description="Subtotal sin impuesto.")
+    tax_type: str = Field(..., description="Porcentaje de impuesto como texto (ej. '19.0').")
+    tax_value: float = Field(..., description="Valor del impuesto.")
+    total: float = Field(..., description="Total de la línea (subtotal + impuesto).")
+    concept_account_number: Optional[str] = Field(
+        None, description="Cuenta PUC del catálogo de conceptos. Null si no tiene concepto asignado."
+    )
+    code: Optional[str] = Field(
+        None, description="Código PUC asignado por el LLM. Null si aún no se ha procesado.", examples=["511500"]
+    )
+    type: str = Field(
+        "Account",
+        description="Tipo de ítem contable: Account, Product o FixedAsset.",
+        examples=["Account"],
+    )
+    tax_id: Optional[int] = Field(
+        None, description="ID del impuesto en integration_taxes. Null si no hubo coincidencia."
+    )
+    cost_center_id: Optional[int] = Field(
+        None, description="ID del centro de costo asignado por historial. Null si no hay historial."
+    )
 
 
 class DocumentResponse(BaseModel):
@@ -47,7 +63,9 @@ class DocumentResponse(BaseModel):
     total: float
     register_at: datetime
     status: int
-    accounting_entry_id: Optional[int] = None
+    payment_type_id: Optional[int] = Field(
+        None, description="ID del medio de pago en integration_payment_types. Null si el emisor no tiene uno configurado."
+    )
     details: list[DocumentDetailResponse] = []
 
 
@@ -102,9 +120,9 @@ class DocumentSummaryResponse(BaseModel):
         examples=[100],
     )
     register_at: datetime = Field(..., description="Fecha y hora de registro en el sistema.")
-    accounting_entry_id: Optional[int] = Field(
+    payment_type_id: Optional[int] = Field(
         None,
-        description="ID del asiento contable de Odoo asociado. Null si no se encontró coincidencia.",
+        description="ID del medio de pago configurado para el emisor. Null si no tiene uno asignado.",
     )
 
 

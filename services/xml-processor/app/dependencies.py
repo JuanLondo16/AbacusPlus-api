@@ -165,11 +165,5 @@ def get_unapprove_document_use_case(
 
 def get_document_detail_use_case(
     db: Session = Depends(get_tenant_db),
-    odoo_client: OdooClient = Depends(get_odoo_client),
-    llm_client: LlmClient = Depends(get_llm_client),
 ) -> GetDocumentDetailWithAccountingUseCase:
-    return GetDocumentDetailWithAccountingUseCase(
-        document_repo=DocumentRepository(db),
-        odoo_client=odoo_client,
-        llm_client=llm_client,
-    )
+    return GetDocumentDetailWithAccountingUseCase(document_repo=DocumentRepository(db))

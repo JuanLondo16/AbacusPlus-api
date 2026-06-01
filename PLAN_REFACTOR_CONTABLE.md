@@ -127,12 +127,13 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] `get_document_repo` factory en `dependencies.py`
 - [x] `PATCH /api/v1/documents/{document_id}/details` en router — valida documento existe, ignora IDs inexistentes, Swagger completo
 
-### Fase 7 — Actualizar GET /documents/{id}/full (xml-processor)
-**Archivo:** `services/xml-processor/app/application/use_cases/get_document_detail.py`
-- [ ] Eliminar fetch de accounting entry (OdooClient, LlmClient)
-- [ ] Retornar `document + details` completos (con `code`, `type`, `tax_id`, `cost_center_id`)
-- [ ] Actualizar DTO `DocumentFullResponse` (antes `DocumentDetailWithAccountingResponse`)
-- [ ] Eliminar dependencias de `OdooClient` y `LlmClient` del use case
+### Fase 7 — Actualizar GET /documents/{id}/full (xml-processor) ✅
+- [x] `get_document_detail.py`: eliminados OdooClient y LlmClient, retorna documento directamente
+- [x] `DocumentDetailResponse`: agregados `code`, `type`, `tax_id`, `cost_center_id` con Field docs
+- [x] `DocumentResponse`: reemplazado `accounting_entry_id` por `payment_type_id`
+- [x] `DocumentSummaryResponse`: reemplazado `accounting_entry_id` por `payment_type_id`
+- [x] Router `/full`: simplificado, retorna `DocumentResponse` con details enriquecidos
+- [x] `get_document_detail_use_case` en `dependencies.py`: eliminados odoo_client y llm_client
 
 ### Fase 8 — Limpieza approve_document.py (xml-processor)
 **Archivo:** `services/xml-processor/app/application/use_cases/approve_document.py`

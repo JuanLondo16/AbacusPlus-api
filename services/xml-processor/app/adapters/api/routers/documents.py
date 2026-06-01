@@ -107,53 +107,35 @@ async def get_document(
 
 @router.get(
     "/documents/{document_id}/full",
-    response_model=DocumentDetailWithAccountingResponse,
-    summary="Detalle completo: lectura XML + asiento contable",
+    response_model=DocumentResponse,
+    summary="Detalle completo del documento con cuentas PUC asignadas",
     description=(
-        "Retorna dos objetos combinados para un documento:\n\n"
-        "- **xml_reading**: cabecera del documento y todas las líneas de detalle procesadas desde "
-        "el XML DIAN (tabla `document_details`). Incluye descripción, cantidad, unidad, precio, "
-        "tipo de impuesto y totales de cada concepto facturado.\n\n"
-        "- **accounting**: último asiento contable de causación generado por el LLM para este "
-        "documento (tablas `accounting_entries` y `accounting_entry_lines`). Incluye las cuentas "
-        "PUC, valores de débito y crédito, tercero y centro de costo. Será `null` si aún no se "
-        "ha generado el asiento — en ese caso usar `POST /api/v1/accounting/entries`.\n\n"
-        "La obtención del asiento contable es **best-effort**: si el llm-service no está "
-        "disponible, se retorna el documento con `accounting: null`."
+        "Retorna el documento con todas sus líneas de detalle enriquecidas:\n\n"
+        "- `code`: cuenta PUC asignada por el LLM (null si aún no se procesó).\n"
+        "- `type`: tipo de ítem contable (Account, Product, FixedAsset).\n"
+        "- `tax_id`: referencia al impuesto en el catálogo local.\n"
+        "- `cost_center_id`: centro de costo asignado por historial.\n\n"
+        "Para disparar la asignación de cuentas usar `POST /api/v1/accounting/code-assignments/{id}`."
     ),
-    response_description="Objeto con xml_reading (lectura del XML) y accounting (causación contable).",
+    response_description="Documento completo con líneas de detalle y cuentas PUC asignadas.",
     responses={
         404: {"description": "Documento no encontrado."},
     },
 )
-async def get_document_detail(
+def get_document_detail(
     document_id: int,
     use_case: GetDocumentDetailWithAccountingUseCase = Depends(get_document_detail_use_case),
     concept_repo: ConceptRepository = Depends(get_concept_repo),
 ):
     try:
-        result = await use_case.execute(document_id)
+        doc = use_case.execute(document_id)
     except EntityNotFoundException:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
         )
-
-    xml_reading = DocumentResponse.model_validate(result["document"], from_attributes=True)
-    _enrich_details(xml_reading, concept_repo)
-
-    accounting_data = result.get("accounting")
-    accounting = None
-    if accounting_data:
-        lines = [AccountingLineResponse(**line) for line in accounting_data.get("lines", [])]
-        accounting = AccountingEntryData(
-            id=accounting_data["id"],
-            model_used=accounting_data.get("model_used"),
-            status=accounting_data["status"],
-            lines=lines,
-            created_at=accounting_data["created_at"],
-        )
-
-    return DocumentDetailWithAccountingResponse(xml_reading=xml_reading, accounting=accounting)
+    response = DocumentResponse.model_validate(doc, from_attributes=True)
+    _enrich_details(response, concept_repo)
+    return response
 
 
 @router.patch(
