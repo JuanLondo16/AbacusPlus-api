@@ -16,6 +16,10 @@ class DocumentDetailEntity:
     total: float
     id: Optional[int] = None
     document_id: Optional[int] = None
+    code: Optional[str] = None
+    type: str = "Account"
+    tax_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
 
 
 @dataclass
@@ -44,5 +48,5 @@ class DocumentEntity:
     receiver_email: Optional[str] = None
     id: Optional[int] = None
     register_at: Optional[datetime] = None
-    accounting_entry_id: Optional[int] = None
+    payment_type_id: Optional[int] = None
     details: list[DocumentDetailEntity] = field(default_factory=list)

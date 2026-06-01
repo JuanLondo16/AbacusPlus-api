@@ -82,15 +82,15 @@ El sistema no usa Alembic. El esquema se gestiona así:
   - [x] `tax_id = Column(Integer, ForeignKey("integration_taxes.id"), nullable=True)`
   - [x] `cost_center_id = Column(Integer, ForeignKey("integration_cost_centers.id"), nullable=True)`
 
-### Fase 2 — Entidades de Dominio (xml-processor)
+### Fase 2 — Entidades de Dominio (xml-processor) ✅
 **Archivo:** `services/xml-processor/app/domain/entities/document.py`
-- [ ] Eliminar `accounting_entry_id` de entidad `Document`
-- [ ] Agregar `payment_type_id: Optional[int] = None` a entidad `Document`
-- [ ] Agregar a entidad `DocumentDetail`:
-  - [ ] `code: Optional[str] = None`
-  - [ ] `type: str = "Account"`
-  - [ ] `tax_id: Optional[int] = None`
-  - [ ] `cost_center_id: Optional[int] = None`
+- [x] Eliminar `accounting_entry_id` de entidad `Document`
+- [x] Agregar `payment_type_id: Optional[int] = None` a entidad `Document`
+- [x] Agregar a entidad `DocumentDetail`:
+  - [x] `code: Optional[str] = None`
+  - [x] `type: str = "Account"`
+  - [x] `tax_id: Optional[int] = None`
+  - [x] `cost_center_id: Optional[int] = None`
 
 ### Fase 3 — Migración SQL (xml-processor)
 **Archivo:** `services/xml-processor/app/adapters/api/routers/internal.py` — función `_migrate_tenant_db()`
