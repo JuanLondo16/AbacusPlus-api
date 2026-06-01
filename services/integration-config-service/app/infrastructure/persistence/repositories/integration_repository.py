@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -54,3 +55,19 @@ class IntegrationCredentialRepository:
         self.db.commit()
         self.db.refresh(credential)
         return credential
+
+    def save_token(
+        self,
+        provider: str,
+        account_key: str,
+        access_token: str,
+        token_type: str,
+        expires_at: datetime,
+    ) -> None:
+        credential = self.get(provider, account_key)
+        if credential is None:
+            return
+        credential.access_token = access_token
+        credential.token_type = token_type
+        credential.expires_at = expires_at
+        self.db.commit()

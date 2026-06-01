@@ -25,6 +25,7 @@ class AccountingEntry(Base):
     partner_id = Column(Integer, nullable=True, index=True)
     partner_name = Column(String(200), nullable=True)
     partner_vat = Column(String(50), nullable=True)
+    payment_id = Column(Integer, nullable=True)
     currency_name = Column(String(10), nullable=True)
     amount_untaxed = Column(Numeric(18, 2), nullable=False, default=0)
     amount_tax = Column(Numeric(18, 2), nullable=False, default=0)

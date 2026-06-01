@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 
 from app.infrastructure.config.database import Base
 
@@ -17,6 +17,7 @@ class Issuer(Base):
     account_number = Column(String(50), nullable=True, default="")
     # Tipo de contribuyente / régimen (p.ej. "Responsable de IVA", "No responsable", etc.)
     tipo_contribuyente = Column(String(50), nullable=True)
+    payment_id = Column(Integer, ForeignKey("integration_payment_types.id"), nullable=True, default=None)
     # Reglas contables específicas de este proveedor para el LLM (texto libre).
     # Ejemplo: "Este proveedor alquila equipos. Usar cuenta 513535 para todas sus facturas."
     notes = Column(String(500), nullable=True)

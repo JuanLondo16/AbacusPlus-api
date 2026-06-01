@@ -16,3 +16,13 @@ class EntityNotFoundException(DomainException):
             message=f"{entity} not found: {identifier}",
             code="NOT_FOUND",
         )
+
+
+class ExternalServiceException(DomainException):
+    def __init__(self, message: str):
+        super().__init__(message=message, code="EXTERNAL_SERVICE_ERROR")
+
+
+class ExternalAuthException(DomainException):
+    def __init__(self, message: str):
+        super().__init__(message=message, code="EXTERNAL_AUTH_ERROR")
