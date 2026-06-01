@@ -4,7 +4,7 @@ run_tests.py — ejecuta tests de todos los servicios.
 
 Modos:
   local   Crea un venv por servicio, instala deps y corre pytest.
-  docker  Corre cada servicio en un contenedor python:3.9-slim aislado.
+  docker  Corre cada servicio en un contenedor python:3.12-slim aislado.
 
 Uso:
   python scripts/run_tests.py local
@@ -146,7 +146,7 @@ def run_docker(svc: str, fail_fast: bool) -> str:
         f"{docker_path}:/app",
         "--workdir",
         "/app",
-        "python:3.9-slim",
+        "python:3.12-slim",
         "bash",
         "-c",
         f"pip install -r requirements.txt -q && {pytest_cmd}",
