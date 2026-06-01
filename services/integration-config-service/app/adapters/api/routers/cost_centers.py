@@ -3,11 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.application.dto.cost_center import CostCenterResponse, ImportCostCentersResponse
-from app.application.use_cases.import_cost_centers import (
-    _DEFAULT_ACCOUNT_KEY,
-    _DEFAULT_PROVIDER,
-    ImportCostCentersUseCase,
-)
+from app.application.use_cases.import_cost_centers import ImportCostCentersUseCase
 from app.dependencies import get_cost_center_repository, get_import_cost_centers_use_case
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
@@ -45,9 +41,7 @@ def list_cost_centers(
     ),
     repository: CostCenterRepository = Depends(get_cost_center_repository),
 ) -> list[CostCenterResponse]:
-    return repository.list(
-        provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY, active=active
-    )
+    return repository.list(active=active)
 
 
 @router.post(

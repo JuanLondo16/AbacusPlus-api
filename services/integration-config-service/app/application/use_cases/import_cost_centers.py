@@ -7,9 +7,6 @@ from app.application.dto.cost_center import ImportCostCentersResponse
 from app.domain.exceptions.base import ValidationException
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
-_DEFAULT_PROVIDER = "default"
-_DEFAULT_ACCOUNT_KEY = "default"
-
 
 class ImportCostCentersUseCase:
     REQUIRED_COLUMNS = {"code", "name"}
@@ -24,16 +21,10 @@ class ImportCostCentersUseCase:
         sheet_name: Optional[str] = None,
     ) -> ImportCostCentersResponse:
         cost_centers = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(
-            provider=_DEFAULT_PROVIDER,
-            account_key=_DEFAULT_ACCOUNT_KEY,
-            cost_centers=cost_centers,
-        )
+        imported = self.repository.upsert_many(cost_centers)
         return ImportCostCentersResponse(
             imported=imported,
-            cost_centers=self.repository.list(
-                provider=_DEFAULT_PROVIDER, account_key=_DEFAULT_ACCOUNT_KEY
-            ),
+            cost_centers=self.repository.list(),
         )
 
     def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> list[dict[str, Any]]:

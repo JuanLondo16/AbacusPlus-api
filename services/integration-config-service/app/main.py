@@ -7,7 +7,7 @@ from app.adapters.api.error_handlers import domain_exception_handler, unhandled_
 from app.adapters.api.routers.chart_accounts import router as chart_accounts_router
 from app.adapters.api.routers.cost_centers import router as cost_centers_router
 from app.adapters.api.routers.credentials import router as credentials_router
-from app.adapters.api.routers.internal import router as internal_router
+from app.adapters.api.routers.internal import _migrate_tenant_db, router as internal_router
 from app.adapters.api.routers.payment_types import router as payment_types_router
 from app.adapters.api.routers.taxes import router as taxes_router
 from app.adapters.api.routers.products import router as products_router
@@ -15,7 +15,7 @@ from app.adapters.api.routers.purchase_invoice_parameters import (
     router as purchase_invoice_parameters_router,
 )
 from app.domain.exceptions.base import DomainException
-from app.infrastructure.config.database import Base, engine
+from app.infrastructure.config.database import engine
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.persistence.models import (
     chart_account as _chart_account_model,  # noqa: F401
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine, checkfirst=True)
+    _migrate_tenant_db(engine)
     logger.info("Tablas de integration-config-service verificadas/creadas")
     yield
 

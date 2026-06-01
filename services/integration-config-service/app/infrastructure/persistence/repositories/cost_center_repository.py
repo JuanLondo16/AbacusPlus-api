@@ -9,21 +9,17 @@ class CostCenterRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def upsert_many(self, provider: str, account_key: str, cost_centers: Iterable[dict]) -> int:
+    def upsert_many(self, cost_centers: Iterable[dict]) -> int:
         synced = 0
         for cost_center in cost_centers:
             code = str(cost_center["code"])
             model = (
                 self.db.query(CostCenter)
-                .filter(
-                    CostCenter.provider == provider,
-                    CostCenter.account_key == account_key,
-                    CostCenter.code == code,
-                )
+                .filter(CostCenter.code == code)
                 .one_or_none()
             )
             if model is None:
-                model = CostCenter(provider=provider, account_key=account_key, code=code)
+                model = CostCenter(code=code)
                 self.db.add(model)
 
             model.external_id = cost_center.get("external_id")
@@ -35,13 +31,8 @@ class CostCenterRepository:
         self.db.commit()
         return synced
 
-    def list(
-        self, provider: str, account_key: str, active: Optional[bool] = None
-    ) -> list[CostCenter]:
-        query = self.db.query(CostCenter).filter(
-            CostCenter.provider == provider,
-            CostCenter.account_key == account_key,
-        )
+    def list(self, active: Optional[bool] = None) -> list[CostCenter]:
+        query = self.db.query(CostCenter)
         if active is not None:
             query = query.filter(CostCenter.active.is_(active))
         return query.order_by(CostCenter.code.asc()).all()

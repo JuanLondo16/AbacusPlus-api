@@ -44,40 +44,30 @@ El sistema no usa Alembic. El esquema se gestiona así:
 
 ## Checklist de Ejecución
 
-### Fase 0 — Simplificar integration_cost_centers (integration-config-service)
+### Fase 0 — Simplificar integration_cost_centers (integration-config-service) ✅
 
 > Eliminar `provider` y `account_key` del modelo. El concepto de multi-proveedor de centros de costo no se usa; hardcodeaba `"default"/"default"` en todo el código.
 
 **Modelo:** `services/integration-config-service/app/infrastructure/persistence/models/cost_center.py`
-- [ ] Eliminar columna `provider`
-- [ ] Eliminar columna `account_key`
-- [ ] Reemplazar `UniqueConstraint("provider", "account_key", "code", name="uq_cost_center_provider_key_code")` → `UniqueConstraint("code", name="uq_cost_center_code")`
+- [x] Eliminar columna `provider`
+- [x] Eliminar columna `account_key`
+- [x] Reemplazar `UniqueConstraint("provider", "account_key", "code", name="uq_cost_center_provider_key_code")` → `UniqueConstraint("code", name="uq_cost_center_code")`
 
 **Repositorio:** `services/integration-config-service/app/infrastructure/persistence/repositories/cost_center_repository.py`
-- [ ] `upsert_many(provider, account_key, cost_centers)` → `upsert_many(cost_centers)`
-  - Eliminar filtro por `provider`/`account_key` en query; buscar solo por `code`
-  - Eliminar asignación `model.provider`, `model.account_key` al crear
-- [ ] `list(provider, account_key, active)` → `list(active=None)`
-  - Eliminar filtros por `provider`/`account_key`
+- [x] `upsert_many(provider, account_key, cost_centers)` → `upsert_many(cost_centers)`
+- [x] `list(provider, account_key, active)` → `list(active=None)`
 
 **Use case:** `services/integration-config-service/app/application/use_cases/import_cost_centers.py`
-- [ ] Eliminar constantes `_DEFAULT_PROVIDER = "default"` y `_DEFAULT_ACCOUNT_KEY = "default"`
-- [ ] Simplificar llamadas a `repository.upsert_many(cost_centers)` y `repository.list()`
+- [x] Eliminar constantes `_DEFAULT_PROVIDER = "default"` y `_DEFAULT_ACCOUNT_KEY = "default"`
+- [x] Simplificar llamadas a `repository.upsert_many(cost_centers)` y `repository.list()`
 
 **Router:** `services/integration-config-service/app/adapters/api/routers/cost_centers.py`
-- [ ] Eliminar imports de `_DEFAULT_ACCOUNT_KEY`, `_DEFAULT_PROVIDER`
-- [ ] Simplificar llamadas a `repository.list(active=active)`
+- [x] Eliminar imports de `_DEFAULT_ACCOUNT_KEY`, `_DEFAULT_PROVIDER`
+- [x] Simplificar llamadas a `repository.list(active=active)`
 
-**Migración SQL** — agregar a `_migrate_tenant_db()` en `services/integration-config-service/app/adapters/api/routers/internal.py`:
-```sql
-ALTER TABLE integration_cost_centers DROP COLUMN IF EXISTS provider;
-ALTER TABLE integration_cost_centers DROP COLUMN IF EXISTS account_key;
-ALTER TABLE integration_cost_centers
-  DROP CONSTRAINT IF EXISTS uq_cost_center_provider_key_code;
-ALTER TABLE integration_cost_centers
-  ADD CONSTRAINT IF NOT EXISTS uq_cost_center_code UNIQUE (code);
-```
-- [ ] Agregar las 4 sentencias SQL arriba a `_migrate_tenant_db()`
+**Migración SQL** — `services/integration-config-service/app/adapters/api/routers/internal.py`
+- [x] Función `_migrate_tenant_db()` creada con las 4 sentencias ALTER TABLE
+- [x] `main.py` actualizado para llamar `_migrate_tenant_db(engine)` en el lifespan
 - [ ] Reconstruir imagen y provisionar tenants (ver sección "Cómo aplicar cambios de BD")
 
 ---
