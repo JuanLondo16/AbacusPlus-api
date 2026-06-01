@@ -40,7 +40,7 @@ class Document(Base):
     total = Column(Float, nullable=False)
     register_at = Column(DateTime, default=datetime.now(timezone.utc))
     status = Column(Integer, ForeignKey("document_statuses.id"), nullable=False, default=100)
-    accounting_entry_id = Column(Integer, nullable=True, index=True)  # ref a accounting_entries.id
+    payment_type_id = Column(Integer, ForeignKey("integration_payment_types.id"), nullable=True)
 
     # Relación con DocumentDetail
     details = relationship("DocumentDetail", back_populates="document")
@@ -60,6 +60,10 @@ class DocumentDetail(Base):
     tax_type = Column(String(50), nullable=False)
     tax_value = Column(Float, nullable=False)
     total = Column(Float, nullable=False)
+    code = Column(String(50), nullable=True)
+    type = Column(String(20), nullable=False, default="Account")
+    tax_id = Column(Integer, ForeignKey("integration_taxes.id"), nullable=True)
+    cost_center_id = Column(Integer, ForeignKey("integration_cost_centers.id"), nullable=True)
 
     # Relación con Document
     document = relationship("Document", back_populates="details")
