@@ -74,6 +74,40 @@ def _migrate_tenant_db(engine) -> None:
         conn.execute(
             text("ALTER TABLE issuers " "ADD COLUMN IF NOT EXISTS tipo_contribuyente VARCHAR(50)")
         )
+        # Refactor contable: reemplazar asiento por asignación de cuentas por ítem
+        conn.execute(
+            text("ALTER TABLE documents DROP COLUMN IF EXISTS accounting_entry_id")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE documents "
+                "ADD COLUMN IF NOT EXISTS payment_type_id INTEGER "
+                "REFERENCES integration_payment_types(id)"
+            )
+        )
+        conn.execute(
+            text("ALTER TABLE document_details ADD COLUMN IF NOT EXISTS code VARCHAR(50)")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE document_details "
+                "ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'Account'"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE document_details "
+                "ADD COLUMN IF NOT EXISTS tax_id INTEGER "
+                "REFERENCES integration_taxes(id)"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE document_details "
+                "ADD COLUMN IF NOT EXISTS cost_center_id INTEGER "
+                "REFERENCES integration_cost_centers(id)"
+            )
+        )
         conn.commit()
 
 

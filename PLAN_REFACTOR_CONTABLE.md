@@ -92,23 +92,9 @@ El sistema no usa Alembic. El esquema se gestiona así:
   - [x] `tax_id: Optional[int] = None`
   - [x] `cost_center_id: Optional[int] = None`
 
-### Fase 3 — Migración SQL (xml-processor)
+### Fase 3 — Migración SQL (xml-processor) ✅
 **Archivo:** `services/xml-processor/app/adapters/api/routers/internal.py` — función `_migrate_tenant_db()`
-- [ ] Agregar al bloque `with engine.connect() as conn`:
-  ```sql
-  ALTER TABLE documents DROP COLUMN IF EXISTS accounting_entry_id;
-  ALTER TABLE documents
-    ADD COLUMN IF NOT EXISTS payment_type_id INTEGER
-    REFERENCES integration_payment_types(id);
-  ALTER TABLE document_details ADD COLUMN IF NOT EXISTS code VARCHAR(50);
-  ALTER TABLE document_details
-    ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'Account';
-  ALTER TABLE document_details
-    ADD COLUMN IF NOT EXISTS tax_id INTEGER REFERENCES integration_taxes(id);
-  ALTER TABLE document_details
-    ADD COLUMN IF NOT EXISTS cost_center_id INTEGER
-    REFERENCES integration_cost_centers(id);
-  ```
+- [x] Agregar 6 sentencias ALTER TABLE al bloque `with engine.connect() as conn`
 - [ ] Reconstruir imagen y provisionar tenants (ver sección "Cómo aplicar cambios de BD")
 
 ### Fase 4 — HTTP Client: IntegrationConfigClient (xml-processor)
