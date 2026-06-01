@@ -135,11 +135,10 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] Router `/full`: simplificado, retorna `DocumentResponse` con details enriquecidos
 - [x] `get_document_detail_use_case` en `dependencies.py`: eliminados odoo_client y llm_client
 
-### Fase 8 — Limpieza approve_document.py (xml-processor)
-**Archivo:** `services/xml-processor/app/application/use_cases/approve_document.py`
-- [ ] Eliminar `_notify_rules_service()` método completo
-- [ ] Eliminar `accounting_rules_client` del constructor
-- [ ] Eliminar import de `AccountingRulesClient`
+### Fase 8 — Limpieza approve_document.py (xml-processor) ✅
+- [x] `approve_document.py`: eliminados `_notify_rules_service`, `llm_client`, `accounting_rules_client`; use case vuelve a ser síncrono
+- [x] `dependencies.py`: factory simplificada, eliminados `get_llm_client`, `get_odoo_client`, `get_accounting_rules_client`, imports de `LlmClient`, `OdooClient`, `AccountingRulesClient`
+- [x] Router `documents.py`: `approve_document` handler ya no usa `await`, eliminados imports de DTOs de asiento
 
 ### Fase 9 — Nuevo Use Case: AssignAccountCodesUseCase (llm-service)
 **Nuevo archivo:** `services/llm-service/app/application/use_cases/assign_account_codes.py`

@@ -4,11 +4,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.application.dto.document import (
-    AccountingEntryData,
-    AccountingLineResponse,
     DocumentDetailCodeUpdateItem,
     DocumentDetailCodeUpdateResponse,
-    DocumentDetailWithAccountingResponse,
     DocumentResponse,
     DocumentStatusUpdateRequest,
     DocumentSummaryResponse,
@@ -17,7 +14,7 @@ from app.application.use_cases.approve_document import (
     ApproveDocumentUseCase,
     UnapproveDocumentUseCase,
 )
-from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
+from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase  # noqa: F401 — usado via Depends
 from app.application.use_cases.query_documents import (
     GetDocumentByIdUseCase,
     GetDocumentsByDateRangeUseCase,
@@ -156,13 +153,13 @@ def get_document_detail(
         409: {"description": "El documento no está en estado 'Causado' o ya está aprobado."},
     },
 )
-async def approve_document(
+def approve_document(
     document_id: int,
     use_case: ApproveDocumentUseCase = Depends(get_approve_document_use_case),
     concept_repo: ConceptRepository = Depends(get_concept_repo),
 ):
     try:
-        doc = await use_case.execute(document_id)
+        doc = use_case.execute(document_id)
     except EntityNotFoundException:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
