@@ -44,6 +44,23 @@ class DocumentRepository(DocumentRepositoryPort):
         self.db.refresh(doc)
         return doc
 
+    def update_detail_codes(self, assignments: list[dict]) -> int:
+        """Actualiza code y type en document_details. Retorna cantidad de filas actualizadas.
+
+        Cada dict en assignments debe tener: detail_id, code, type.
+        Solo actualiza filas cuyo ID exista en document_details.
+        """
+        updated = 0
+        for item in assignments:
+            row = self.db.query(DocumentDetail).filter(DocumentDetail.id == item["detail_id"]).first()
+            if row is None:
+                continue
+            row.code = item["code"]
+            row.type = item.get("type", "Account")
+            updated += 1
+        self.db.commit()
+        return updated
+
     def find_most_frequent_cost_center(
         self, issuer_nit: str, description: str
     ) -> Optional[int]:

@@ -97,6 +97,10 @@ def get_issuer_by_nit_use_case(db: Session = Depends(get_tenant_db)) -> GetIssue
     return GetIssuerByNitUseCase(issuer_repo=IssuerRepository(db))
 
 
+def get_document_repo(db: Session = Depends(get_tenant_db)) -> DocumentRepository:
+    return DocumentRepository(db)
+
+
 def get_concept_repo(db: Session = Depends(get_tenant_db)) -> ConceptRepository:
     return ConceptRepository(db)
 

@@ -121,13 +121,11 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] `DocumentRepository.find_most_frequent_cost_center(issuer_nit, description)` — ILIKE con primera palabra significativa + Counter.most_common(1)
 - [x] Sin resultado → `cost_center_id = None`
 
-### Fase 6 — Nuevo Endpoint PATCH /documents/{id}/details (xml-processor)
-**Archivo:** `services/xml-processor/app/adapters/api/routers/documents.py`
-- [ ] `PATCH /api/v1/documents/{document_id}/details`
-- [ ] Body: `list[{detail_id: int, code: str, type: str}]`
-- [ ] Use case / repositorio: bulk UPDATE `document_details`
-- [ ] Status 200, respuesta `{updated: int}`
-- [ ] Documentación Swagger completa
+### Fase 6 — Nuevo Endpoint PATCH /documents/{id}/details (xml-processor) ✅
+- [x] DTOs: `DocumentDetailCodeUpdateItem`, `DocumentDetailCodeUpdateResponse` en `dto/document.py`
+- [x] `DocumentRepository.update_detail_codes(assignments)` — bulk UPDATE por detail_id
+- [x] `get_document_repo` factory en `dependencies.py`
+- [x] `PATCH /api/v1/documents/{document_id}/details` en router — valida documento existe, ignora IDs inexistentes, Swagger completo
 
 ### Fase 7 — Actualizar GET /documents/{id}/full (xml-processor)
 **Archivo:** `services/xml-processor/app/application/use_cases/get_document_detail.py`

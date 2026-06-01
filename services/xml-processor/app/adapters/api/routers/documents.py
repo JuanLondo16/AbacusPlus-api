@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.application.dto.document import (
     AccountingEntryData,
     AccountingLineResponse,
+    DocumentDetailCodeUpdateItem,
+    DocumentDetailCodeUpdateResponse,
     DocumentDetailWithAccountingResponse,
     DocumentResponse,
     DocumentStatusUpdateRequest,
@@ -25,9 +27,11 @@ from app.dependencies import (
     get_concept_repo,
     get_document_by_id_use_case,
     get_document_detail_use_case,
+    get_document_repo,
     get_documents_by_date_range_use_case,
     get_unapprove_document_use_case,
 )
+from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
 from app.domain.exceptions.base import EntityNotFoundException
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 
@@ -184,6 +188,39 @@ async def approve_document(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     return DocumentSummaryResponse.model_validate(doc, from_attributes=True)
+
+
+@router.patch(
+    "/documents/{document_id}/details",
+    response_model=DocumentDetailCodeUpdateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Asignar cuentas PUC a líneas de detalle",
+    description=(
+        "Actualiza los campos `code` y `type` en las líneas de detalle de un documento.\n\n"
+        "Llamado por el llm-service al finalizar la asignación de cuentas PUC. "
+        "También puede invocarse manualmente para corregir asignaciones.\n\n"
+        "Solo se actualizan las líneas cuyos `detail_id` existan en `document_details`. "
+        "Los IDs inexistentes se ignoran sin error."
+    ),
+    response_description="Cantidad de líneas actualizadas correctamente.",
+    responses={
+        404: {"description": "Documento no encontrado."},
+    },
+)
+async def update_detail_codes(
+    document_id: int,
+    assignments: list[DocumentDetailCodeUpdateItem],
+    doc_repo: DocumentRepository = Depends(get_document_repo),
+):
+    doc = doc_repo.get_by_id(document_id)
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
+        )
+    updated = doc_repo.update_detail_codes(
+        [a.model_dump() for a in assignments]
+    )
+    return DocumentDetailCodeUpdateResponse(updated=updated)
 
 
 @router.patch(

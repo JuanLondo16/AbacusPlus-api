@@ -190,6 +190,23 @@ class DocumentDetailWithAccountingResponse(BaseModel):
     )
 
 
+class DocumentDetailCodeUpdateItem(BaseModel):
+    detail_id: int = Field(..., description="ID de la línea de detalle a actualizar.", examples=[42])
+    code: str = Field(
+        ..., description="Código PUC asignado por el LLM.", examples=["511500"]
+    )
+    type: str = Field(
+        "Account",
+        description="Tipo de ítem contable. Valores: Account, Product, FixedAsset.",
+        examples=["Account"],
+    )
+    model_config = {"json_schema_extra": {"example": {"detail_id": 42, "code": "511500", "type": "Account"}}}
+
+
+class DocumentDetailCodeUpdateResponse(BaseModel):
+    updated: int = Field(..., description="Cantidad de líneas actualizadas.", examples=[3])
+
+
 class DocumentStatusUpdateRequest(BaseModel):
     status: int = Field(
         ...,
