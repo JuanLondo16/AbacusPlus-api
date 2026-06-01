@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.application.use_cases.analyze_with_ai import AnalyzeWithAIUseCase
+from app.application.use_cases.assign_account_codes import AssignAccountCodesUseCase
 from app.application.use_cases.generate_accounting_entry import GenerateAccountingEntryUseCase
 from app.application.use_cases.query_accounting import QueryAccountingUseCase
 from app.application.use_cases.query_with_rag import QueryWithRAGUseCase
@@ -17,6 +18,7 @@ from app.infrastructure.ai.openai_service import OpenAIService
 from app.infrastructure.clients.accounting_rules_client import AccountingRulesClient
 from app.infrastructure.clients.catalog_client import CatalogClient
 from app.infrastructure.clients.document_client import DocumentClient
+from app.infrastructure.clients.integration_config_client import IntegrationConfigClient
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.config.auth_dependency import TokenData, get_tenant_db, get_token_data
 from app.infrastructure.persistence.repositories.accounting_repository import AccountingRepository
@@ -69,6 +71,28 @@ def get_query_with_rag_use_case(
     return QueryWithRAGUseCase(
         ai_service=get_openai_service(),
         rag_client=RagClient(base_url=url, bearer_token=token.raw_token),
+    )
+
+
+def get_integration_config_client(
+    token: Annotated[TokenData, Depends(get_token_data)],
+) -> IntegrationConfigClient:
+    url = os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007")
+    return IntegrationConfigClient(base_url=url, bearer_token=token.raw_token)
+
+
+def get_assign_account_codes_use_case(
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_tenant_db),
+) -> AssignAccountCodesUseCase:
+    xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
+    integration_url = os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007")
+    raw = token.raw_token if token else ""
+    return AssignAccountCodesUseCase(
+        ai_service=get_openai_service(),
+        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
+        integration_config_client=IntegrationConfigClient(base_url=integration_url, bearer_token=raw),
+        system_prompt_repo=SystemPromptRepository(db),
     )
 
 

@@ -140,24 +140,14 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] `dependencies.py`: factory simplificada, eliminados `get_llm_client`, `get_odoo_client`, `get_accounting_rules_client`, imports de `LlmClient`, `OdooClient`, `AccountingRulesClient`
 - [x] Router `documents.py`: `approve_document` handler ya no usa `await`, eliminados imports de DTOs de asiento
 
-### Fase 9 — Nuevo Use Case: AssignAccountCodesUseCase (llm-service)
-**Nuevo archivo:** `services/llm-service/app/application/use_cases/assign_account_codes.py`
-- [ ] Constructor: `document_client`, `integration_config_client`, `ai_service`, `system_prompt_repo`
-- [ ] `execute(document_id)`:
-  - [ ] GET document con details desde xml-processor
-  - [ ] GET chart-accounts desde integration-config-service (filtrar `accepts_movements=True`)
-  - [ ] GET historical assignments — details con `code IS NOT NULL` del mismo emisor
-  - [ ] GET active system prompt
-  - [ ] Construir user_prompt (items, PUC, historial, notas issuer)
-  - [ ] Llamar OpenAI
-  - [ ] Parsear JSON respuesta
-  - [ ] Validar `detail_id` existe y `code` existe en PUC
-  - [ ] PATCH `/api/v1/documents/{id}/details` con assignments válidos
-  - [ ] Retornar `{assigned, skipped, warnings}`
-
-**Sistema prompt:**
-- [ ] Usar el prompt de la Fase 4.3 del enunciado (asignación de cuentas PUC únicamente)
-- [ ] Crear en `system_prompts` table al iniciar (o vía `POST /accounting/system-prompts`)
+### Fase 9 — Nuevo Use Case: AssignAccountCodesUseCase (llm-service) ✅
+- [x] `assign_account_codes.py` — constructor con `ai_service`, `document_client`, `integration_config_client`, `system_prompt_repo`
+- [x] `execute(document_id)`: GET full document → GET chart-accounts → GET active prompt → build prompt → call OpenAI → parse → validate detail_id + PUC code → PATCH details → return `{assigned, skipped, warnings}`
+- [x] `_parse_response`: extrae JSON del content, valida detail_id y code contra PUC, ignora inválidos con warning
+- [x] `integration_config_client.py` (llm-service) — `get_chart_accounts()` best-effort
+- [x] `document_client.py` extendido — `get_document_full()` y `patch_detail_codes()`
+- [x] `dependencies.py` — factories `get_integration_config_client` y `get_assign_account_codes_use_case`
+- [x] System prompt del plan (asignación PUC únicamente) como `_DEFAULT_SYSTEM_PROMPT` en el use case
 
 ### Fase 10 — Nuevo HTTP Client: IntegrationConfigClient (llm-service)
 **Nuevo archivo:** `services/llm-service/app/infrastructure/clients/integration_config_client.py`

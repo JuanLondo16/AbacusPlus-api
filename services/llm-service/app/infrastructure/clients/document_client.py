@@ -49,6 +49,41 @@ class DocumentClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_document_full(self, document_id: int) -> dict | None:
+        """GET /documents/{id}/full — retorna documento con details enriquecidos (code, type, etc.)."""
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    f"{self._base_url}/api/v1/documents/{document_id}/full",
+                    headers=self._headers,
+                )
+        except httpx.TransportError as exc:
+            self._raise_connection_error(exc)
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.json()
+
+    async def patch_detail_codes(self, document_id: int, assignments: list[dict]) -> int:
+        """PATCH /documents/{id}/details — actualiza code y type en las líneas de detalle.
+
+        Retorna cantidad de filas actualizadas. Best-effort: retorna 0 en fallo.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.patch(
+                    f"{self._base_url}/api/v1/documents/{document_id}/details",
+                    json=assignments,
+                    headers=self._headers,
+                )
+                response.raise_for_status()
+                return response.json().get("updated", 0)
+        except Exception as exc:
+            logger.warning(
+                "No se pudo actualizar códigos de detalle para doc=%s: %s", document_id, exc
+            )
+            return 0
+
     async def list_by_date_range(
         self,
         dateini: date,
