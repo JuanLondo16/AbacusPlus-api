@@ -1,10 +1,11 @@
+from collections import Counter
 from datetime import date
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.domain.ports.repositories import DocumentRepositoryPort
-from app.infrastructure.persistence.models.document import Document
+from app.infrastructure.persistence.models.document import Document, DocumentDetail
 
 
 class DocumentRepository(DocumentRepositoryPort):
@@ -42,3 +43,27 @@ class DocumentRepository(DocumentRepositoryPort):
         self.db.commit()
         self.db.refresh(doc)
         return doc
+
+    def find_most_frequent_cost_center(
+        self, issuer_nit: str, description: str
+    ) -> Optional[int]:
+        """Busca el cost_center_id más usado históricamente para descripciones
+        similares del mismo emisor. Retorna None si no hay historial."""
+        words = [w for w in description.strip().split() if len(w) > 3]
+        if not words:
+            return None
+        pattern = f"%{words[0]}%"
+        rows = (
+            self.db.query(DocumentDetail.cost_center_id)
+            .join(Document, DocumentDetail.document_id == Document.id)
+            .filter(
+                Document.issuer_nit == issuer_nit,
+                DocumentDetail.cost_center_id.isnot(None),
+                DocumentDetail.description.ilike(pattern),
+            )
+            .all()
+        )
+        if not rows:
+            return None
+        counts = Counter(row.cost_center_id for row in rows)
+        return counts.most_common(1)[0][0]

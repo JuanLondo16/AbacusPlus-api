@@ -104,26 +104,22 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] Registrar en `dependencies.py` — factory `get_integration_config_client`
 - [x] Inyectar en `get_process_xml_use_case`
 
-### Fase 5 — Lógica de Enriquecimiento en process_xml.py
-**Archivo:** `services/xml-processor/app/application/use_cases/process_xml.py`
+### Fase 5 — Lógica de Enriquecimiento en process_xml.py ✅
+**Archivos modificados:**
+- `services/xml-processor/app/application/use_cases/process_xml.py`
+- `services/xml-processor/app/infrastructure/persistence/repositories/document_repository.py`
 
 **payment_type_id:**
-- [ ] Leer `issuer.payment_id` y asignarlo a `document.payment_type_id` antes de persistir
+- [x] `_ensure_issuer` ahora retorna el `Issuer`; `issuer.payment_id` se pasa a `_build_document`
 
 **tax_id (por cada detail):**
-- [ ] Fetch taxes de integration-config-service una vez por invocación del use case
-- [ ] Función `_match_tax(tax_type_str, taxes)`:
-  - [ ] Match `name` case-insensitive contra `tax_type_str`
-  - [ ] Si falla, parsear `tax_type_str` como float y comparar con `tax.percentage`
-- [ ] Si `tax_type in ("0", "", "0.00")` → `tax_id = None` sin búsqueda
-- [ ] Si no hay match → `tax_id = None` + `logger.warning(...)`
+- [x] Fetch taxes al inicio de `execute()` (best-effort, una sola llamada)
+- [x] `_match_tax(tax_type_str, taxes)`: match por `name` (case-insensitive) → match por `percentage` (±0.01) → warning + None
+- [x] Si `tax_type in ("0", "", "0.00", "0.0")` → `tax_id = None` sin búsqueda
 
 **cost_center_id (por cada detail):**
-- [ ] Método `find_cost_center_by_similar_description(issuer_id, description)` en repositorio
-  - [ ] SQL con `similarity()` (pg_trgm) o `ILIKE` con tokens clave
-  - [ ] Filtro: `document.issuer_id = issuer_id AND detail.cost_center_id IS NOT NULL`
-- [ ] Tomar `most_common(1)` del resultado
-- [ ] Sin resultado → `cost_center_id = None`
+- [x] `DocumentRepository.find_most_frequent_cost_center(issuer_nit, description)` — ILIKE con primera palabra significativa + Counter.most_common(1)
+- [x] Sin resultado → `cost_center_id = None`
 
 ### Fase 6 — Nuevo Endpoint PATCH /documents/{id}/details (xml-processor)
 **Archivo:** `services/xml-processor/app/adapters/api/routers/documents.py`

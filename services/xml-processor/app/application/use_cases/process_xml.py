@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Optional
 
 from fastapi import UploadFile
 
@@ -35,6 +36,7 @@ class ProcessXmlUseCase:
         tax_repo: TaxRepositoryPort,
         concept_repo: ConceptRepositoryPort,
         rag_client=None,
+        integration_config_client=None,
     ):
         self.document_repo = document_repo
         self.issuer_repo = issuer_repo
@@ -42,6 +44,7 @@ class ProcessXmlUseCase:
         self.tax_repo = tax_repo
         self.concept_repo = concept_repo
         self.rag_client = rag_client
+        self.integration_config_client = integration_config_client
 
     async def execute(self, file: UploadFile) -> dict:
         xml_content, filename = await self._extract_content(file)
@@ -55,11 +58,16 @@ class ProcessXmlUseCase:
         if duplicate:
             raise DuplicateEntityException("Document", xml_data.get("numero_documento", ""))
 
-        self._ensure_issuer(xml_data)
+        # Obtener impuestos de integration-config-service (best-effort, una vez por invocación)
+        taxes: list[dict] = []
+        if self.integration_config_client:
+            taxes = await self.integration_config_client.get_taxes()
+
+        issuer = self._ensure_issuer(xml_data)
         self._ensure_receiver(xml_data)
         self._ensure_tax(xml_data)
-        document = self._build_document(xml_data, filename)
-        self._build_details(document, xml_data)
+        document = self._build_document(xml_data, filename, payment_type_id=issuer.payment_id if issuer else None)
+        self._build_details(document, xml_data, taxes=taxes)
 
         created = self.document_repo.create(document)
         logger.info("Document created with ID: %d", created.id)
@@ -102,21 +110,23 @@ class ProcessXmlUseCase:
         xml_bytes = await file.read()
         return xml_bytes.decode("utf-8"), file.filename
 
-    def _ensure_issuer(self, xml_data: dict) -> None:
+    def _ensure_issuer(self, xml_data: dict) -> Issuer:
         emisor = xml_data.get("emisor", {})
         nit = emisor.get("nit", "")
-        if not self.issuer_repo.get_by_nit(nit):
-            contacto = emisor.get("contacto", {})
-            self.issuer_repo.create(
-                Issuer(
-                    name=emisor.get("nombre", ""),
-                    nit=nit,
-                    dv=dv_calculate(nit),
-                    phone=contacto.get("telefono", ""),
-                    email=contacto.get("email", ""),
-                    tipo_contribuyente=emisor.get("regimen") or None,
-                )
+        existing = self.issuer_repo.get_by_nit(nit)
+        if existing:
+            return existing
+        contacto = emisor.get("contacto", {})
+        return self.issuer_repo.create(
+            Issuer(
+                name=emisor.get("nombre", ""),
+                nit=nit,
+                dv=dv_calculate(nit),
+                phone=contacto.get("telefono", ""),
+                email=contacto.get("email", ""),
+                tipo_contribuyente=emisor.get("regimen") or None,
             )
+        )
 
     def _ensure_receiver(self, xml_data: dict) -> None:
         receptor = xml_data.get("receptor", {})
@@ -148,7 +158,7 @@ class ProcessXmlUseCase:
                 )
             )
 
-    def _build_document(self, xml_data: dict, filename: str) -> Document:
+    def _build_document(self, xml_data: dict, filename: str, payment_type_id: Optional[int] = None) -> Document:
         emisor = xml_data.get("emisor", {})
         receptor = xml_data.get("receptor", {})
         totales = xml_data.get("totales", {})
@@ -187,10 +197,12 @@ class ProcessXmlUseCase:
             retefuente=retefuente,
             reteica=reteica,
             status=DocumentStatus.PROCESADO,
+            payment_type_id=payment_type_id,
         )
 
-    def _build_details(self, document: Document, xml_data: dict) -> None:
+    def _build_details(self, document: Document, xml_data: dict, taxes: list[dict] | None = None) -> None:
         receiver_nit = xml_data.get("receptor", {}).get("nit", "")
+        issuer_nit = xml_data.get("emisor", {}).get("nit", "")
         for item in xml_data.get("items", []):
             description = item.get("descripcion", "")
             matched = self.concept_repo.find_matching_description(receiver_nit, description)
@@ -203,6 +215,12 @@ class ProcessXmlUseCase:
                 concept_description_id = created.id
 
             first_tax = (item.get("impuestos") or [{}])[0]
+            tax_type_str = str(first_tax.get("porcentaje") or 0)
+            tax_id = self._match_tax(tax_type_str, taxes or [])
+            cost_center_id = self.document_repo.find_most_frequent_cost_center(
+                issuer_nit, description
+            )
+
             document.details.append(
                 DocumentDetail(
                     description=description,
@@ -211,11 +229,37 @@ class ProcessXmlUseCase:
                     unit=item.get("unidad_medida") or "",
                     price=float(item.get("precio_unitario") or 0),
                     subtotal=float(item.get("valor_total") or 0),
-                    tax_type=str(first_tax.get("porcentaje") or 0),
+                    tax_type=tax_type_str,
                     tax_value=float(first_tax.get("valor") or 0),
                     total=float(item.get("valor_total") or 0) + float(first_tax.get("valor") or 0),
+                    tax_id=tax_id,
+                    cost_center_id=cost_center_id,
                 )
             )
+
+    @staticmethod
+    def _match_tax(tax_type_str: str, taxes: list[dict]) -> Optional[int]:
+        """Busca el id de integration_taxes que corresponde al porcentaje/nombre del ítem.
+
+        Retorna None si tax_type_str es cero/vacío o no hay coincidencia (y loguea warning).
+        """
+        if not taxes or tax_type_str.strip() in ("0", "", "0.00", "0.0"):
+            return None
+        normalized = tax_type_str.strip().lower()
+        for tax in taxes:
+            if str(tax.get("name", "")).lower() == normalized:
+                return tax["id"]
+        try:
+            pct = float(tax_type_str)
+            for tax in taxes:
+                if abs(float(tax.get("percentage", -999)) - pct) < 0.01:
+                    return tax["id"]
+        except (ValueError, TypeError):
+            pass
+        logger.warning(
+            "Sin coincidencia de impuesto para tax_type=%r — se deja tax_id=None", tax_type_str
+        )
+        return None
 
     def _build_chunk_content(self, xml_data: dict, document) -> str:
         emisor = xml_data.get("emisor", {})
