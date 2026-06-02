@@ -39,7 +39,9 @@ Cliente
                    │
                    ├─ POST /api/v1/query      ──►  llm-service :8003
                    │  POST /api/v1/analyses          │  POST /api/v1/chunks/search ──► rag-service :8002
-                   │  POST /api/v1/accounting        └─ OpenAI API (prompt RAG-aumentado)
+                   │  POST /api/v1/accounting        │  GET  /api/v1/integrations/chart-accounts
+                   │                                 │         ──► integration-config-service :8007
+                   │                                 └─ OpenAI API (asigna cuenta PUC por ítem)
                    │
                    ├─ POST /api/v1/chunks     ──►  rag-service :8002  (debug/admin)
                    │
@@ -50,12 +52,7 @@ Cliente
                    │                                (credenciales, plan de cuentas)
                    │
                    ├─ GET|POST /api/v1/integrations ──►  integration-config-service :8007
-                   │                                      (credenciales, centros costo, import)
-                   │
-                   ├─ GET|POST /api/v1/rules  ──►  accounting-rules-service :8009
-                   │                                │  memoria estructurada de causaciones aprobadas
-                   │                                │  ◄── recibe aprobaciones de xml-processor
-                   │                                └── ◄── lookup pre-LLM desde llm-service
+                   │                                      (credenciales, catálogos, import)
                    │
                    ├─ POST /api/v1/dian       ──►  session-proxy :8004
                    │  POST /api/v1/proxy            (auth DIAN, descarga ZIPs, cola arq)
@@ -73,20 +70,6 @@ api/
 │   │
 │   ├── xml-processor/          # Puerto 8001
 │   │
-│   ├── accounting-rules-service/   # Puerto 8009
-│   │   ├── app/
-│   │   │   ├── adapters/api/routers/   rules.py · lookups.py · internal.py
-│   │   │   ├── application/use_cases/  lookup_rules.py · record_approved_entry.py · compute_rule_stats.py
-│   │   │   ├── application/dto/        rule.py · lookup.py
-│   │   │   ├── domain/                 entities/ · value_objects/ · ports/ · exceptions/
-│   │   │   └── infrastructure/
-│   │   │       ├── ai/                 ollama_service.py  ← embeddings para matching semántico
-│   │   │       ├── config/             database.py · auth_dependency.py · tenant_connection_manager.py
-│   │   │       └── persistence/        models/ (accounting_rule, rule_match_attempt) · repositories/
-│   │   ├── tests/
-│   │   ├── Dockerfile
-│   │   └── requirements.txt
-│   │
 │   ├── xml-processor/          # Puerto 8001
 │   │   ├── app/
 │   │   │   ├── adapters/api/routers/   xml.py · documents.py · receivers.py
@@ -94,7 +77,7 @@ api/
 │   │   │   ├── application/dto/        document.py · receiver.py
 │   │   │   ├── domain/                 entities/ · exceptions/ · ports/ · value_objects/
 │   │   │   ├── infrastructure/
-│   │   │   │   ├── clients/            rag_client.py  ← HTTP client a rag-service
+│   │   │   │   ├── clients/            rag_client.py · llm_client.py · integration_config_client.py
 │   │   │   │   ├── config/             database.py · logging.py
 │   │   │   │   └── persistence/        models/ · repositories/
 │   │   │   └── utils/                  xml_parser.py · zip_handler.py · dian_dv.py · smart_match.py
@@ -123,12 +106,12 @@ api/
 │   ├── llm-service/            # Puerto 8003
 │   │   ├── app/
 │   │   │   ├── adapters/api/routers/   analyze.py · query.py · accounting.py
-│   │   │   ├── application/use_cases/  analyze_with_ai.py · query_with_rag.py · generate_accounting_entry.py
+│   │   │   ├── application/use_cases/  analyze_with_ai.py · query_with_rag.py · assign_account_codes.py
 │   │   │   ├── application/dto/        ai.py · query.py · accounting.py
 │   │   │   ├── domain/ports/           services.py  (AIServicePort · RagClientPort)
 │   │   │   └── infrastructure/
 │   │   │       ├── ai/                 openai_service.py
-│   │   │       ├── clients/            rag_client.py · xml_processor_client.py
+│   │   │       ├── clients/            rag_client.py · document_client.py · integration_config_client.py
 │   │   │       └── config/             logging.py
 │   │   ├── tests/
 │   │   ├── Dockerfile
@@ -197,8 +180,11 @@ api/
 ### Procesamiento de una factura
 1. Cliente sube ZIP/XML → `gateway :8000` → `xml-processor`
 2. `xml-processor` parsea, valida, guarda en PostgreSQL
-3. `xml-processor` llama a `rag-service` (`POST /api/v1/chunks`) — **best-effort**
-4. `rag-service` genera embedding con Ollama y guarda en `document_chunks` (pgvector)
+3. `xml-processor` enriquece cada línea: asigna `tax_id` y `cost_center_id` por historial — **best-effort**
+4. `xml-processor` llama a `rag-service` (`POST /api/v1/chunks`) — **best-effort**
+5. `rag-service` genera embedding con Ollama y guarda en `document_chunks` (pgvector)
+6. `xml-processor` llama a `llm-service` (`POST /api/v1/accounting/code-assignments/{id}`) — **best-effort**
+7. `llm-service` consulta el PUC en `integration-config-service`, llama a OpenAI y escribe `code`/`type` en cada línea de `document_details`
 
 ### Consulta RAG
 1. Cliente envía pregunta → `gateway :8000` → `llm-service`
@@ -256,7 +242,8 @@ api/
 | POST | `/api/v1/documents` | Procesa ZIP o XML DIAN, crea documento |
 | GET  | `/api/v1/documents` | Lista documentos (`?from_date=&to_date=`) |
 | GET  | `/api/v1/documents/{id}` | Detalle de un documento |
-| GET  | `/api/v1/documents/{id}/full` | Documento + último asiento contable |
+| GET  | `/api/v1/documents/{id}/full` | Documento + líneas de detalle con cuentas PUC asignadas |
+| PATCH| `/api/v1/documents/{id}/details` | Actualiza cuentas PUC en líneas de detalle (llamado por llm-service) |
 | PATCH| `/api/v1/documents/{id}/approve` | Aprueba documento (Causado → Aprobado) |
 | PATCH| `/api/v1/documents/{id}` | Actualiza estado (`{"status": 200}` revierte a Causado) |
 | GET  | `/api/v1/receivers` | Lista receptores |
@@ -282,13 +269,10 @@ api/
 |--------|------|-------------|
 | POST | `/api/v1/query` | Consulta RAG-aumentada con OpenAI |
 | POST | `/api/v1/analyses` | Prompt directo a OpenAI sin RAG |
-| POST | `/api/v1/accounting/entries` | Genera asiento contable para un documento |
-| GET  | `/api/v1/accounting/entries/{document_id}` | Documento + último asiento contable |
-| POST | `/api/v1/accounting/recalculations` | Recalcula asientos por rango de fechas |
-| POST | `/api/v1/accounting/entries/{document_id}/recalculations` | Recalcula asiento de un documento |
+| POST | `/api/v1/accounting/code-assignments/{document_id}` | Asigna cuentas PUC a cada línea de detalle usando OpenAI |
 | GET  | `/api/v1/accounting/system-prompts` | Lista prompts del sistema |
 | POST | `/api/v1/accounting/system-prompts` | Crea nuevo prompt del sistema |
-| PATCH| `/api/v1/accounting/system-prompts/{id}` | Actualiza prompt (`{"is_active": true}` activa) |
+| PATCH| `/api/v1/accounting/system-prompts/{id}` | Activa un prompt (`{"is_active": true}`) |
 | GET  | `/health` | Health check |
 
 ### session-proxy (:8004) — interno
@@ -336,17 +320,6 @@ api/
 | GET  | `/api/v1/integrations/purchase-invoice-parameters` | Lista plantillas (filtros: provider, account_key) |
 | GET  | `/health` | Health check |
 
-### accounting-rules-service (:8009) — interno
-| Método | Path | Descripción |
-|--------|------|-------------|
-| POST  | `/api/v1/rules` | Crear regla de causación manual |
-| GET   | `/api/v1/rules` | Listar reglas (filtros: `nit`, `match_key_type`, `min_confidence`) |
-| PATCH | `/api/v1/rules/{id}` | Activar/desactivar o ajustar score manualmente |
-| GET   | `/api/v1/rules/stats` | Métricas: hit_rate, miss_rate, precision |
-| POST  | `/api/v1/rules/lookups` | Consulta pre-LLM → retorna HIT/PARTIAL/MISS + causación sugerida |
-| POST  | `/api/v1/rules/approvals` | Recibe notificación de aprobación desde xml-processor (best-effort) |
-| GET   | `/health` | Health check |
-
 ## Infraestructura
 
 ### PostgreSQL + pgvector
@@ -365,6 +338,10 @@ api/
 ### Comunicación entre servicios
 - **Protocolo**: HTTP síncrono con `httpx`
 - `xml-processor` → `rag-service`: indexación best-effort (fallo no bloquea el XML)
+- `xml-processor` → `llm-service`: trigger asignación PUC best-effort (fallo no bloquea el XML)
+- `xml-processor` → `integration-config-service`: obtiene catálogo de impuestos al procesar (best-effort)
+- `llm-service` → `integration-config-service`: obtiene PUC para construir el prompt (best-effort)
+- `llm-service` → `xml-processor`: lee documento y escribe codes en details
 - `llm-service` → `rag-service`: búsqueda semántica (fallo propaga excepción)
 
 ## Testing
@@ -388,11 +365,13 @@ docker run --rm -v "$(pwd)/services/llm-service:/app" --workdir //app python:3.9
 
 ```
 # PostgreSQL
+# Cada tenant tiene su propia base de datos: abacus_t_{slug}
+# La base por defecto de desarrollo es: abacus
 DATABASE_HOST=database
 DATABASE_PORT=5432
 DATABASE_USER=master
 DATABASE_PASSWORD=master
-DATABASE_NAME=xml2data
+DATABASE_NAME=abacus
 
 # OpenAI (llm-service)
 OPENAI_API_KEY=sk-...
@@ -424,11 +403,8 @@ SESSION_TTL_SECONDS=3600
 # Redis (session-proxy + xml-processor batch)
 REDIS_URL=redis://redis:6379
 
-# accounting-rules-service
-ACCOUNTING_RULES_SERVICE_URL=http://accounting-rules-service:8009
-RULES_HIT_THRESHOLD=0.85
-RULES_PARTIAL_THRESHOLD=0.50
-RULES_DECAY_MONTHLY_FACTOR=0.995
+# integration-config-service (usado por xml-processor y llm-service)
+INTEGRATION_CONFIG_URL=http://integration-config-service:8007
 ```
 
 ## Reglas de desarrollo
@@ -502,8 +478,10 @@ Los specs OpenAPI de cada servicio también se exponen en el gateway:
 
 - **Hexagonal por servicio**: cada microservicio tiene su propio dominio, puertos y adaptadores. No se comparte código entre servicios.
 - **Best-effort en indexación**: si el rag-service no está disponible al procesar un XML, el xml-processor loguea un warning y continúa. La factura se guarda igual.
-- **Best-effort en causación**: si el llm-service no está disponible tras procesar un ZIP, se loguea warning y el documento queda guardado. Se puede re-generar manualmente con `POST /api/v1/accounting/generate`.
+- **LLM asigna cuentas PUC por ítem, no asientos completos**: el rol del LLM es asignar un código del Plan Único de Cuentas (PUC) a cada línea de detalle de la factura. Los asientos contables completos quedan a cargo del software de destino (SIIGO/Odoo). El historial de asignaciones vive en `document_details.code`.
+- **Best-effort en asignación de cuentas**: si el llm-service no está disponible tras procesar un XML, se loguea warning y el documento queda guardado sin codes. Se puede reasignar manualmente con `POST /api/v1/accounting/code-assignments/{id}`.
+- **Enriquecimiento automático de líneas**: al procesar cada XML, xml-processor asigna automáticamente `tax_id` (lookup en integration-config-service), `cost_center_id` (historial de la misma empresa) y `payment_type_id` (del emisor) antes de guardar el documento.
 - **Dominio independiente**: las entidades de dominio no se comparten entre servicios. Cada uno define sus propios contratos.
+- **Multi-tenant**: cada tenant tiene su propia base de datos PostgreSQL (`abacus_t_{slug}`). El endpoint `POST /internal/provision-tenant` crea/migra las tablas de un servicio en la base del tenant. Orden recomendado: provisionar `integration-config-service` antes que `xml-processor` (FK cruzadas).
 - **pgvector nativo**: la búsqueda vectorial usa el operador `<=>` directamente en SQL para máximo rendimiento.
 - **Ollama en contenedor separado**: permite cambiar el modelo de embeddings sin tocar el código de rag-service (solo variable `OLLAMA_EMBED_MODEL`).
-- **accounting-rules-service como memoria estructurada de causaciones aprobadas**: la fuente de verdad es `PATCH /approve` en xml-processor. Al aprobar, xml-processor busca las líneas del asiento en llm-service y notifica al rules-service (best-effort). El rules-service aprende: refuerza reglas cuando el contador aprueba sin editar, penaliza cuando edita antes de aprobar. Antes de cada llamada a OpenAI, llm-service consulta el rules-service (POST /rules/lookups): HIT → incluye causación sugerida en prompt; PARTIAL → incluye lo conocido y pide al LLM completar; MISS → llama al LLM sin contexto adicional. El fallo del rules-service nunca bloquea el flujo principal (neither xml-processor approve ni llm-service generate).

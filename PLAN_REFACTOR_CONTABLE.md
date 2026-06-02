@@ -202,14 +202,16 @@ Completada como parte de Fase 9.
 - [x] Eliminados: `test_accounting_chart_account_validation.py`, `test_recalculate_accounting_document.py` (testeaban funcionalidad eliminada)
 - [x] Tests restantes pasan
 
-### Fase 17 — CLAUDE.md
-- [ ] Diagrama de arquitectura: eliminar `accounting-rules-service :8009` y bloque `rules`
-- [ ] Tabla endpoints `llm-service`: reemplazar `/accounting/entries/*` por `/accounting/code-assignments/{id}`
-- [ ] Tabla endpoints `xml-processor`: actualizar `/documents/{id}/full`
-- [ ] Sección "Flujo de datos": reemplazar generación de asiento por asignación de cuentas PUC
-- [ ] Sección "Variables de entorno": eliminar `ACCOUNTING_RULES_SERVICE_URL`, cambiar default `DATABASE_NAME` de `xml2data` → `abacus`
-- [ ] Sección "Decisiones de diseño": actualizar nota del motor de causación
-- [ ] Actualizar `database.py` de todos los servicios: cambiar default `DATABASE_NAME` de `"xml2data"` → `"abacus"`
+### Fase 17 — CLAUDE.md ✅
+- [x] Diagrama de arquitectura: eliminado bloque `accounting-rules-service`, actualizados flujos de llm-service
+- [x] Estructura de carpetas: eliminada entrada de accounting-rules-service, actualizados clients de xml-processor y llm-service
+- [x] Flujo de datos: 7 pasos que incluyen enriquecimiento de líneas y asignación PUC
+- [x] Endpoints xml-processor: `/full` actualizado + nuevo `PATCH /documents/{id}/details`
+- [x] Endpoints llm-service: solo `code-assignments` + system-prompts
+- [x] Eliminada sección completa de accounting-rules-service (:8009)
+- [x] Variables de entorno: `DATABASE_NAME=abacus`, eliminado bloque accounting-rules-service, agregado `INTEGRATION_CONFIG_URL`
+- [x] Comunicación entre servicios: 6 relaciones documentadas
+- [x] Decisiones de diseño: reemplazado por nuevo diseño PUC + multi-tenant + enriquecimiento automático
 
 ---
 
