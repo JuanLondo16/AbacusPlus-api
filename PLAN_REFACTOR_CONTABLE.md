@@ -163,12 +163,12 @@ Completada como parte de Fase 9.
 - [x] `ProcessXmlUseCase` inyecta `llm_client`, llama al final de `execute()` tras RAG
 - [x] `dependencies.py` — `get_llm_client` factory + inyección en `get_process_xml_use_case`
 
-### Fase 13 — Limpieza llm-service
-- [ ] Eliminar `app/application/use_cases/generate_accounting_entry.py`
-- [ ] Eliminar `app/infrastructure/clients/accounting_rules_client.py`
-- [ ] Eliminar `app/infrastructure/persistence/models/accounting_entry.py`
-- [ ] Eliminar `app/infrastructure/persistence/repositories/accounting_repository.py`
-- [ ] Actualizar `app/main.py` — quitar imports y registros de lo eliminado
+### Fase 13 — Limpieza llm-service ✅
+- [x] Eliminados: `generate_accounting_entry.py`, `query_accounting.py`, `recalculate_accounting_batch.py`, `recalculate_accounting_document.py`
+- [x] Eliminados: `accounting_rules_client.py`, `accounting_entry.py` (model), `accounting_repository.py`
+- [x] `main.py` — eliminados `_run_migrations()`, `_migrate_generated_tables()`, import de `accounting_entry` model
+- [x] `dependencies.py` — reescrito, solo factories activos (assign, analyze, rag, document, integration_config)
+- [x] `system_prompt_repository.py` — `create_default_if_none` apunta a `assign_account_codes._DEFAULT_SYSTEM_PROMPT`
 
 ### Fase 14 — Eliminar accounting-rules-service
 - [ ] `docker-compose.yml` — eliminar servicio `accounting-rules-service`

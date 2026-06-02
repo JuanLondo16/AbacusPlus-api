@@ -36,10 +36,10 @@ class SystemPromptRepository:
 
     def create_default_if_none(self) -> None:
         if self._db.query(SystemPrompt).count() == 0:
-            from app.application.use_cases.generate_accounting_entry import _DEFAULT_SYSTEM_PROMPT
+            from app.application.use_cases.assign_account_codes import _DEFAULT_SYSTEM_PROMPT
 
             default = SystemPrompt(
-                name="PUC Colombia — Causación v2",
+                name="PUC Colombia — Asignación de cuentas v1",
                 content=_DEFAULT_SYSTEM_PROMPT,
                 is_active=True,
             )
