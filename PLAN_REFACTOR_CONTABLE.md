@@ -149,22 +149,14 @@ El sistema no usa Alembic. El esquema se gestiona así:
 - [x] `dependencies.py` — factories `get_integration_config_client` y `get_assign_account_codes_use_case`
 - [x] System prompt del plan (asignación PUC únicamente) como `_DEFAULT_SYSTEM_PROMPT` en el use case
 
-### Fase 10 — Nuevo HTTP Client: IntegrationConfigClient (llm-service)
-**Nuevo archivo:** `services/llm-service/app/infrastructure/clients/integration_config_client.py`
-- [ ] Método `async get_chart_accounts(active_only=True) -> list[dict]` → `GET /api/v1/integrations/chart-accounts`
-- [ ] Timeout 5s, best-effort
+### Fase 10 — Nuevo HTTP Client: IntegrationConfigClient (llm-service) ✅
+Completada como parte de Fase 9.
 
-### Fase 11 — Router accounting.py (llm-service) — Reemplazar endpoints
-**Archivo:** `services/llm-service/app/adapters/api/routers/accounting.py`
-- [ ] Eliminar `POST /accounting/entries`
-- [ ] Eliminar `GET /accounting/entries/{document_id}`
-- [ ] Eliminar `POST /accounting/recalculations`
-- [ ] Eliminar `POST /accounting/entries/{document_id}/recalculations`
-- [ ] Crear `POST /accounting/code-assignments/{document_id}`
-  - [ ] Llama `AssignAccountCodesUseCase.execute(document_id)`
-  - [ ] Status 200, best-effort
-  - [ ] Documentación Swagger completa
-- [ ] Mantener y actualizar descripción de endpoints `system-prompts`
+### Fase 11 — Router accounting.py (llm-service) — Reemplazar endpoints ✅
+- [x] Eliminados: `POST /accounting/entries`, `GET /accounting/entries/{document_id}`, `POST /accounting/recalculations`, `POST /accounting/entries/{document_id}/recalculations`
+- [x] Creado: `POST /accounting/code-assignments/{document_id}` con Swagger completo
+- [x] Mantenidos y actualizados: 3 endpoints de `system-prompts`
+- [x] `CodeAssignmentResponse` DTO agregado a `dto/accounting.py`
 
 ### Fase 12 — Trigger automático al procesar XML (xml-processor)
 **Archivo:** `services/xml-processor/app/application/use_cases/process_xml.py`

@@ -277,3 +277,29 @@ class SystemPromptActivateRequest(BaseModel):
     )
 
     model_config = {"json_schema_extra": {"example": {"is_active": True}}}
+
+
+# ── Asignación de cuentas PUC ────────────────────────────────────────────────
+
+
+class CodeAssignmentResponse(BaseModel):
+    """Resultado de la asignación de cuentas PUC a las líneas de un documento."""
+
+    assigned: int = Field(
+        ...,
+        description="Cantidad de líneas de detalle actualizadas con cuenta PUC.",
+        examples=[3],
+    )
+    skipped: int = Field(
+        ...,
+        description="Cantidad de líneas omitidas (código inválido, detail_id inexistente, etc.).",
+        examples=[0],
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Lista de advertencias generadas durante la asignación.",
+    )
+
+    model_config = {
+        "json_schema_extra": {"example": {"assigned": 3, "skipped": 0, "warnings": []}}
+    }
