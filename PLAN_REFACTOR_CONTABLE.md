@@ -176,21 +176,21 @@ Completada como parte de Fase 9.
 - [x] `.env` — eliminadas 4 variables del bloque accounting-rules-service
 - [x] `xml-processor/accounting_rules_client.py` — eliminado en Fase 8
 
-### Fase 15 — DTOs y Swagger
+### Fase 15 — DTOs y Swagger ✅
 **xml-processor:**
-- [ ] `DocumentResponse`: eliminar `accounting_entry_id`, agregar `payment_type_id`
-- [ ] `DocumentDetailResponse`: agregar `code`, `type`, `tax_id`, `cost_center_id`
-- [ ] `DocumentSummaryResponse`: eliminar `accounting_entry_id`, agregar `payment_type_id`
-- [ ] Renombrar `DocumentDetailWithAccountingResponse` → `DocumentFullResponse` con campo `details`
-- [ ] Nuevo `DocumentDetailCodeUpdateRequest` para el PATCH bulk
+- [x] `DocumentDetailResponse`: agregados `code`, `type`, `tax_id`, `cost_center_id` con Field docs completos
+- [x] `DocumentResponse`: reemplazado `accounting_entry_id` → `payment_type_id`
+- [x] `DocumentSummaryResponse`: reemplazado `accounting_entry_id` → `payment_type_id`
+- [x] Eliminadas clases obsoletas: `AccountingLineResponse`, `AccountingEntryData`, `DocumentDetailWithAccountingResponse`
+- [x] Nuevos DTOs: `DocumentDetailCodeUpdateItem`, `DocumentDetailCodeUpdateResponse`
+- [x] `GetDocumentDetailWithAccountingUseCase` renombrado → `GetDocumentDetailUseCase`
 
 **llm-service:**
-- [ ] Nuevo `CodeAssignmentResponse {assigned: int, skipped: int, warnings: list[str]}`
-- [ ] Eliminar `GenerateAccountingRequest`, `AccountingEntryResponse`, `EntryLineResponse`
+- [x] `CodeAssignmentResponse` agregado
+- [x] Eliminadas 9 clases obsoletas: `GenerateAccountingRequest`, `EntryLine`, `EntryLineResponse`, `AccountingEntryResponse`, `DocumentWithAccountingResponse`, `RecalculateAccountingBatchRequest`, `RecalculateAccountingDocumentRequest`, `RecalculateAccountingItemResult`, `RecalculateAccountingBatchResponse`, `RecalculateDocumentBody`
+- [x] Import `date` eliminado (ya no usado)
 
-**Documentación:**
-- [ ] Todos los campos nuevos con `Field(description=..., examples=[...])`
-- [ ] Todos los endpoints nuevos/modificados con `summary`, `description`, `response_description`, códigos de error
+**Documentación:** todos los campos y endpoints nuevos tienen `Field(description=..., examples=[...])` + Swagger completo
 
 ### Fase 16 — Tests
 **xml-processor:**

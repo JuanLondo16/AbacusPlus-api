@@ -14,7 +14,7 @@ from app.application.use_cases.approve_document import (
     ApproveDocumentUseCase,
     UnapproveDocumentUseCase,
 )
-from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase  # noqa: F401 — usado via Depends
+from app.application.use_cases.get_document_detail import GetDocumentDetailUseCase
 from app.application.use_cases.query_documents import (
     GetDocumentByIdUseCase,
     GetDocumentsByDateRangeUseCase,
@@ -121,7 +121,7 @@ async def get_document(
 )
 def get_document_detail(
     document_id: int,
-    use_case: GetDocumentDetailWithAccountingUseCase = Depends(get_document_detail_use_case),
+    use_case: GetDocumentDetailUseCase = Depends(get_document_detail_use_case),
     concept_repo: ConceptRepository = Depends(get_concept_repo),
 ):
     try:

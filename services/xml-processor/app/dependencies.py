@@ -9,7 +9,7 @@ from app.application.use_cases.approve_document import (
     ApproveDocumentUseCase,
     UnapproveDocumentUseCase,
 )
-from app.application.use_cases.get_document_detail import GetDocumentDetailWithAccountingUseCase
+from app.application.use_cases.get_document_detail import GetDocumentDetailUseCase
 from app.application.use_cases.process_downloads import ProcessDownloadsUseCase
 from app.application.use_cases.process_single_file import ProcessSingleFileUseCase
 from app.application.use_cases.process_xml import ProcessXmlUseCase
@@ -146,5 +146,5 @@ def get_unapprove_document_use_case(
 
 def get_document_detail_use_case(
     db: Session = Depends(get_tenant_db),
-) -> GetDocumentDetailWithAccountingUseCase:
-    return GetDocumentDetailWithAccountingUseCase(document_repo=DocumentRepository(db))
+) -> GetDocumentDetailUseCase:
+    return GetDocumentDetailUseCase(document_repo=DocumentRepository(db))

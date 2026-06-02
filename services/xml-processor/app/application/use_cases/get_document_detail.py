@@ -2,7 +2,7 @@ from app.domain.exceptions.base import EntityNotFoundException
 from app.domain.ports.repositories import DocumentRepositoryPort
 
 
-class GetDocumentDetailWithAccountingUseCase:
+class GetDocumentDetailUseCase:
     """Devuelve el documento completo con todas sus líneas de detalle enriquecidas."""
 
     def __init__(self, document_repo: DocumentRepositoryPort):
