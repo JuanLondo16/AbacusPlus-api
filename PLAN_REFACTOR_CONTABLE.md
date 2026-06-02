@@ -170,12 +170,11 @@ Completada como parte de Fase 9.
 - [x] `dependencies.py` — reescrito, solo factories activos (assign, analyze, rag, document, integration_config)
 - [x] `system_prompt_repository.py` — `create_default_if_none` apunta a `assign_account_codes._DEFAULT_SYSTEM_PROMPT`
 
-### Fase 14 — Eliminar accounting-rules-service
-- [ ] `docker-compose.yml` — eliminar servicio `accounting-rules-service`
-- [ ] `services/gateway/nginx.conf` — eliminar location block para `:8009`
-- [ ] `.env` — eliminar `ACCOUNTING_RULES_SERVICE_URL`
-- [ ] `xml-processor`: eliminar `accounting_rules_client.py` de `infrastructure/clients/`
-- [ ] Confirmar si se desea snapshot de tabla `accounting_rules` antes de eliminar el servicio
+### Fase 14 — Eliminar accounting-rules-service ✅
+- [x] `docker-compose.yml` — eliminado bloque completo del servicio + `depends_on` en gateway + `ACCOUNTING_RULES_SERVICE_URL` en xml-processor y llm-service
+- [x] `nginx.conf` — eliminadas: variable `$accounting_rules_url`, location `/api/v1/rules`, openapi route, health route
+- [x] `.env` — eliminadas 4 variables del bloque accounting-rules-service
+- [x] `xml-processor/accounting_rules_client.py` — eliminado en Fase 8
 
 ### Fase 15 — DTOs y Swagger
 **xml-processor:**
