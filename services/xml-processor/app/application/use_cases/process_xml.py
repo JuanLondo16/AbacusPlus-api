@@ -37,6 +37,7 @@ class ProcessXmlUseCase:
         concept_repo: ConceptRepositoryPort,
         rag_client=None,
         integration_config_client=None,
+        llm_client=None,
     ):
         self.document_repo = document_repo
         self.issuer_repo = issuer_repo
@@ -45,6 +46,7 @@ class ProcessXmlUseCase:
         self.concept_repo = concept_repo
         self.rag_client = rag_client
         self.integration_config_client = integration_config_client
+        self.llm_client = llm_client
 
     async def execute(self, file: UploadFile) -> dict:
         xml_content, filename = await self._extract_content(file)
@@ -80,6 +82,10 @@ class ProcessXmlUseCase:
                 source_id=created.id,
                 content=content,
             )
+
+        # Disparar asignación de cuentas PUC en llm-service (best-effort)
+        if self.llm_client:
+            await self.llm_client.trigger_code_assignment(created.id)
 
         return {
             "status": "success",

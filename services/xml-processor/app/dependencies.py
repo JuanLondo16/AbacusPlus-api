@@ -20,6 +20,7 @@ from app.application.use_cases.query_documents import (
 from app.application.use_cases.query_issuers import GetIssuerByNitUseCase
 from app.application.use_cases.query_receivers import GetAllReceiversUseCase
 from app.infrastructure.clients.integration_config_client import IntegrationConfigClient
+from app.infrastructure.clients.llm_client import LlmClient
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.config.auth_dependency import TokenData, get_tenant_db, get_token_data
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
@@ -50,11 +51,17 @@ def get_integration_config_client(
     return IntegrationConfigClient(base_url=url, bearer_token=token.raw_token)
 
 
+def get_llm_client(token: Annotated[TokenData, Depends(get_token_data)]) -> LlmClient:
+    url = os.getenv("LLM_SERVICE_URL", "http://llm-service:8003")
+    return LlmClient(base_url=url, bearer_token=token.raw_token)
+
+
 
 def get_process_xml_use_case(
     db: Session = Depends(get_tenant_db),
     rag_client: RagClient = Depends(get_rag_client),
     integration_config_client: IntegrationConfigClient = Depends(get_integration_config_client),
+    llm_client: LlmClient = Depends(get_llm_client),
 ) -> ProcessXmlUseCase:
     return ProcessXmlUseCase(
         document_repo=DocumentRepository(db),
@@ -64,6 +71,7 @@ def get_process_xml_use_case(
         concept_repo=ConceptRepository(db),
         rag_client=rag_client,
         integration_config_client=integration_config_client,
+        llm_client=llm_client,
     )
 
 

@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import httpx
 
@@ -7,34 +6,33 @@ logger = logging.getLogger(__name__)
 
 
 class LlmClient:
-    """Cliente HTTP para llamar al llm-service y obtener asientos contables."""
+    """Cliente HTTP para llamar al llm-service."""
 
     def __init__(self, base_url: str, bearer_token: str = ""):
         self.base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
 
-    async def get_accounting_entry(self, document_id: int) -> Optional[dict]:
-        """
-        Consulta el último asiento contable generado para un documento.
-
-        Llama a GET /api/v1/accounting/entries/{document_id} en llm-service
-        y retorna el objeto `accounting_entry`, o None si no existe.
-        """
-        url = f"{self.base_url}/api/v1/accounting/entries/{document_id}"
+    async def trigger_code_assignment(self, document_id: int) -> None:
+        """Dispara la asignación de cuentas PUC en llm-service. Best-effort."""
+        url = f"{self.base_url}/api/v1/accounting/code-assignments/{document_id}"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url, headers=self._headers)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=self._headers)
                 if response.status_code == 200:
                     data = response.json()
-                    return data.get("accounting_entry")
-                if response.status_code == 404:
-                    return None
-                logger.warning(
-                    "llm-service retornó status %s para document_id=%s",
-                    response.status_code,
-                    document_id,
-                )
-                return None
-        except httpx.RequestError as exc:
-            logger.warning("No se pudo conectar a llm-service: %s", exc)
-            return None
+                    logger.info(
+                        "Asignación PUC doc=%s: assigned=%s skipped=%s",
+                        document_id,
+                        data.get("assigned"),
+                        data.get("skipped"),
+                    )
+                else:
+                    logger.warning(
+                        "llm-service retornó status %s al asignar cuentas para doc=%s",
+                        response.status_code,
+                        document_id,
+                    )
+        except Exception as exc:
+            logger.warning(
+                "No se pudo disparar asignación de cuentas para doc=%s: %s", document_id, exc
+            )

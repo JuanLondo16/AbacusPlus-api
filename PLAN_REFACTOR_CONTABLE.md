@@ -158,10 +158,10 @@ Completada como parte de Fase 9.
 - [x] Mantenidos y actualizados: 3 endpoints de `system-prompts`
 - [x] `CodeAssignmentResponse` DTO agregado a `dto/accounting.py`
 
-### Fase 12 — Trigger automático al procesar XML (xml-processor)
-**Archivo:** `services/xml-processor/app/application/use_cases/process_xml.py`
-- [ ] Al final de `execute()`, llamada best-effort a `POST /api/v1/accounting/code-assignments/{document_id}` vía `LlmClient`
-- [ ] Patrón idéntico al de indexación RAG existente: fallo no bloquea, solo loguea warning
+### Fase 12 — Trigger automático al procesar XML (xml-processor) ✅
+- [x] `llm_client.py` reemplazado — `trigger_code_assignment(document_id)` best-effort (timeout 30s)
+- [x] `ProcessXmlUseCase` inyecta `llm_client`, llama al final de `execute()` tras RAG
+- [x] `dependencies.py` — `get_llm_client` factory + inyección en `get_process_xml_use_case`
 
 ### Fase 13 — Limpieza llm-service
 - [ ] Eliminar `app/application/use_cases/generate_accounting_entry.py`
