@@ -21,6 +21,9 @@ def db_session():
 
     # Import all models to register tables in Base.metadata
     import app.infrastructure.persistence.models.document  # noqa: F401
+    import app.infrastructure.persistence.models.integration_cost_center  # noqa: F401
+    import app.infrastructure.persistence.models.integration_payment_type  # noqa: F401
+    import app.infrastructure.persistence.models.integration_tax  # noqa: F401
     import app.infrastructure.persistence.models.issuer  # noqa: F401
     import app.infrastructure.persistence.models.receiver  # noqa: F401
     import app.infrastructure.persistence.models.tax  # noqa: F401
