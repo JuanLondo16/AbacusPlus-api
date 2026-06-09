@@ -23,13 +23,13 @@ class SyncSiigoPaymentTypesUseCase:
         self.credential_repository = credential_repository
         self.payment_type_repository = payment_type_repository
 
-    def execute(self, account_key: str = "default") -> ImportPaymentTypesResponse:
-        credential = self.credential_repository.get(
-            provider=_SIIGO_PROVIDER, account_key=account_key
-        )
-        if credential is None:
-            raise EntityNotFoundException("IntegrationCredential", f"siigo/{account_key}")
+    def execute(self) -> ImportPaymentTypesResponse:
+        credentials = self.credential_repository.list(provider=_SIIGO_PROVIDER)
+        if not credentials:
+            raise EntityNotFoundException("IntegrationCredential", "siigo")
 
+        credential = credentials[0]
+        account_key = credential.account_key
         client = SiigoApiClient(credential)
         self._ensure_token(client, account_key)
 
@@ -41,7 +41,7 @@ class SyncSiigoPaymentTypesUseCase:
         raw_items = SiigoApiClient._extract_results(payload)
 
         payment_types = [self._map_item(item, document_type) for item in raw_items]
-        imported = self.payment_type_repository.upsert_many(payment_types)
+        imported = self.payment_type_repository.upsert_many(payment_types, deactivate_missing=True)
 
         return ImportPaymentTypesResponse(
             imported=imported,
@@ -76,6 +76,7 @@ class SyncSiigoPaymentTypesUseCase:
     @staticmethod
     def _map_item(item: dict[str, Any], document_type: str) -> dict[str, Any]:
         return {
+            "id": item.get("id"),
             "name": str(item.get("name") or item.get("id") or ""),
             "type": str(item.get("type") or document_type),
             "active": item.get("active", True),

@@ -10,7 +10,7 @@ class UserRepository:
         self._db = db
 
     def get_by_email(self, email: str) -> Optional[User]:
-        return self._db.query(User).filter(User.email == email, User.is_active is True).first()
+        return self._db.query(User).filter(User.email == email, User.is_active == True).first()
 
     def get_by_id(self, user_id) -> Optional[User]:
         return self._db.query(User).filter(User.id == user_id).first()
@@ -20,7 +20,7 @@ class UserRepository:
         return [r.role for r in roles]
 
     def list_users(self) -> list[User]:
-        return self._db.query(User).filter(User.is_active is True).order_by(User.created_at).all()
+        return self._db.query(User).filter(User.is_active == True).order_by(User.created_at).all()
 
     def create(self, email: str, password_hash: str, full_name: Optional[str] = None) -> User:
         user = User(email=email, password_hash=password_hash, full_name=full_name)

@@ -45,21 +45,35 @@ class DocumentRepository(DocumentRepositoryPort):
         return doc
 
     def update_detail_codes(self, assignments: list[dict]) -> int:
-        """Actualiza code y type en document_details. Retorna cantidad de filas actualizadas.
+        """Actualiza campos de document_details. Solo modifica los campos presentes (no None).
 
-        Cada dict en assignments debe tener: detail_id, code, type.
-        Solo actualiza filas cuyo ID exista en document_details.
+        Campos soportados: code, type, cost_center_id, tax_id.
         """
         updated = 0
         for item in assignments:
             row = self.db.query(DocumentDetail).filter(DocumentDetail.id == item["detail_id"]).first()
             if row is None:
                 continue
-            row.code = item["code"]
-            row.type = item.get("type", "Account")
+            if item.get("code") is not None:
+                row.code = item["code"]
+            if item.get("type") is not None:
+                row.type = item["type"]
+            if item.get("cost_center_id") is not None:
+                row.cost_center_id = item["cost_center_id"]
+            if item.get("tax_id") is not None:
+                row.tax_id = item["tax_id"]
             updated += 1
         self.db.commit()
         return updated
+
+    def update_payment_type(self, document_id: int, payment_type_id: int) -> Optional[Document]:
+        row = self.db.query(Document).filter(Document.id == document_id).first()
+        if row is None:
+            return None
+        row.payment_type_id = payment_type_id
+        self.db.commit()
+        self.db.refresh(row)
+        return row
 
     def find_most_frequent_cost_center(
         self, issuer_nit: str, description: str

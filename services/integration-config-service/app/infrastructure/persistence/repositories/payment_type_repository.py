@@ -9,15 +9,26 @@ class PaymentTypeRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def upsert_many(self, payment_types: Iterable[dict]) -> int:
+    def upsert_many(self, payment_types: Iterable[dict], deactivate_missing: bool = False) -> int:
+        items = list(payment_types)
+        incoming_ids = [item["id"] for item in items if item.get("id") is not None]
+
+        if deactivate_missing and incoming_ids:
+            self.db.query(PaymentType).filter(
+                PaymentType.id.notin_(incoming_ids)
+            ).delete(synchronize_session=False)
+
         synced = 0
-        for item in payment_types:
+        for item in items:
+            siigo_id = item.get("id")
             name = str(item["name"]).strip()
-            model = self.db.query(PaymentType).filter(PaymentType.name == name).one_or_none()
+
+            model = self.db.query(PaymentType).filter(PaymentType.id == siigo_id).one_or_none()
             if model is None:
-                model = PaymentType(name=name)
+                model = PaymentType(id=siigo_id)
                 self.db.add(model)
 
+            model.name = name
             model.type = item["type"]
             model.active = item.get("active", True)
             synced += 1

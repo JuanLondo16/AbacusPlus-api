@@ -23,23 +23,26 @@ basándote en:
 
 REGLAS ESTRICTAS:
 - Responde ÚNICAMENTE con un objeto JSON. Sin explicaciones, sin markdown, sin texto adicional.
+- Responde ÚNICAMENTE con un objeto JSON. Sin explicaciones, sin markdown, sin texto adicional.
 - El JSON debe tener exactamente esta estructura:
   {
-    "assignments": [
-      { "detail_id": "<id exacto recibido>", "code": "<código PUC>", "type": "<Account|Product|FixedAsset>" }
+    "items": [
+      {
+        "item_id": "<id exacto recibido>",
+        "description": "<descripción del ítem>",
+        "suggested_account_code": "<código PUC>",
+        "suggested_account_name": "<nombre de la cuenta PUC>"
+      }
     ]
   }
-- El campo "detail_id" debe ser exactamente el mismo valor recibido en el input, sin modificación.
-- El campo "code" debe ser un código existente en el PUC proporcionado.
-- El campo "type" debe ser uno de: "Account", "Product", "FixedAsset".
+- El campo "item_id" debe ser exactamente el mismo valor recibido en el input, sin modificación.
+- El campo "suggested_account_code" debe ser un código existente en el PUC proporcionado.
 - NO calcules valores monetarios.
 - NO valides débitos ni créditos.
 - NO generes asientos contables.
 - NO agregues campos adicionales al JSON.
-- Si el historial tiene una asignación previa para una descripción idéntica o muy similar del mismo proveedor, \
-  prioriza esa cuenta salvo que las notas del proveedor indiquen lo contrario.
 - Si no puedes determinar la cuenta con certeza razonable, asigna la cuenta de gastos generales más apropiada \
-  según el PUC y marca type como "Account".\
+  según el PUC.\
 """
 
 
@@ -78,6 +81,7 @@ class AssignAccountCodesUseCase:
 
         system_prompt_obj = self._system_prompt_repo.get_active()
         system_prompt = system_prompt_obj.content if system_prompt_obj else _DEFAULT_SYSTEM_PROMPT
+        logger.info("LLM system_prompt for doc=%s: %s", document_id, system_prompt)
 
         user_prompt = self._build_prompt(document, details, chart_accounts)
 
@@ -86,6 +90,7 @@ class AssignAccountCodesUseCase:
             system_prompt=system_prompt,
         )
         raw_content: str = ai_response.get("content", "")
+        logger.info("LLM raw_response for doc=%s: %s", document_id, raw_content)
 
         assignments, parse_warnings = self._parse_response(raw_content, details, puc_index)
         warnings.extend(parse_warnings)
@@ -101,12 +106,8 @@ class AssignAccountCodesUseCase:
     def _build_prompt(self, document: dict, details: list[dict], chart_accounts: list[dict]) -> str:
         items = [
             {
-                "detail_id": d["id"],
+                "item_id": d["id"],
                 "description": d.get("description", ""),
-                "quantity": d.get("quantity"),
-                "unit_price": d.get("price"),
-                "subtotal": d.get("subtotal"),
-                "tax_type": d.get("tax_type", "0"),
                 "type": d.get("type", "Account"),
             }
             for d in details
@@ -118,17 +119,10 @@ class AssignAccountCodesUseCase:
             if a.get("accepts_movements", True)
         ]
 
-        issuer_notes = document.get("issuer_notes") or ""
-
         prompt_data: dict = {
-            "issuer_name": document.get("issuer_name", ""),
-            "issuer_nit": document.get("issuer_nit", ""),
-            "document_number": document.get("document_number", ""),
             "items": items,
             "chart_accounts": puc_entries,
         }
-        if issuer_notes:
-            prompt_data["issuer_notes"] = issuer_notes
 
         return json.dumps(prompt_data, ensure_ascii=False, indent=2)
 
@@ -153,12 +147,12 @@ class AssignAccountCodesUseCase:
                 warnings.append("No se pudo parsear la respuesta del LLM")
                 return [], warnings
 
-        raw_assignments = parsed.get("assignments", [])
+        raw_assignments = parsed.get("assignments") or parsed.get("items", [])
         valid: list[dict] = []
 
         for item in raw_assignments:
-            detail_id = item.get("detail_id")
-            code = str(item.get("code", "")).strip()
+            detail_id = item.get("item_id")
+            code = str(item.get("code") or item.get("suggested_account_code", "")).strip()
             item_type = item.get("type", "Account")
 
             try:

@@ -206,7 +206,7 @@ class ProcessXmlUseCase:
             payment_type_id=payment_type_id,
         )
 
-    def _build_details(self, document: Document, xml_data: dict, taxes: list[dict] | None = None) -> None:
+    def _build_details(self, document: Document, xml_data: dict, taxes: Optional[list] = None) -> None:
         receiver_nit = xml_data.get("receptor", {}).get("nit", "")
         issuer_nit = xml_data.get("emisor", {}).get("nit", "")
         for item in xml_data.get("items", []):

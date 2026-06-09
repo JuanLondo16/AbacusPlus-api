@@ -11,9 +11,13 @@ logger = logging.getLogger(__name__)
 class DocumentClient:
     """Cliente HTTP para obtener documentos desde xml-processor."""
 
-    def __init__(self, base_url: str, bearer_token: str = ""):
+    def __init__(self, base_url: str, bearer_token: str = "", internal_secret: str = "", tenant_slug: str = ""):
         self._base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
+        if internal_secret:
+            self._headers["x-internal-secret"] = internal_secret
+        if tenant_slug:
+            self._headers["x-tenant-slug"] = tenant_slug
 
     def _raise_connection_error(self, exc: Exception) -> None:
         raise HTTPException(
@@ -49,12 +53,12 @@ class DocumentClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_document_full(self, document_id: int) -> dict | None:
-        """GET /documents/{id}/full — retorna documento con details enriquecidos (code, type, etc.)."""
+    async def get_document_full(self, document_id: int) -> Optional[dict]:
+        """GET /internal/documents/{id}/full — retorna documento con details enriquecidos."""
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(
-                    f"{self._base_url}/api/v1/documents/{document_id}/full",
+                    f"{self._base_url}/internal/documents/{document_id}/full",
                     headers=self._headers,
                 )
         except httpx.TransportError as exc:
@@ -65,14 +69,14 @@ class DocumentClient:
         return response.json()
 
     async def patch_detail_codes(self, document_id: int, assignments: list[dict]) -> int:
-        """PATCH /documents/{id}/details — actualiza code y type en las líneas de detalle.
+        """PATCH /internal/documents/{id}/details — actualiza code y type en líneas de detalle.
 
         Retorna cantidad de filas actualizadas. Best-effort: retorna 0 en fallo.
         """
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.patch(
-                    f"{self._base_url}/api/v1/documents/{document_id}/details",
+                    f"{self._base_url}/internal/documents/{document_id}/details",
                     json=assignments,
                     headers=self._headers,
                 )

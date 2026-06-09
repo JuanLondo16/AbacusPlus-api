@@ -128,19 +128,36 @@ class DocumentSummaryResponse(BaseModel):
 
 class DocumentDetailCodeUpdateItem(BaseModel):
     detail_id: int = Field(..., description="ID de la línea de detalle a actualizar.", examples=[42])
-    code: str = Field(
-        ..., description="Código PUC asignado por el LLM.", examples=["511500"]
+    code: Optional[str] = Field(
+        None, description="Código PUC. Omitir para no modificar.", examples=["511500"]
     )
-    type: str = Field(
-        "Account",
-        description="Tipo de ítem contable. Valores: Account, Product, FixedAsset.",
+    type: Optional[str] = Field(
+        None,
+        description="Tipo de ítem contable. Valores: Account, Product, FixedAsset. Omitir para no modificar.",
         examples=["Account"],
     )
-    model_config = {"json_schema_extra": {"example": {"detail_id": 42, "code": "511500", "type": "Account"}}}
+    cost_center_id: Optional[int] = Field(
+        None, description="ID del centro de costo. Omitir para no modificar.", examples=[1]
+    )
+    tax_id: Optional[int] = Field(
+        None, description="ID del impuesto. Omitir para no modificar.", examples=[2]
+    )
+    model_config = {
+        "json_schema_extra": {
+            "example": {"detail_id": 42, "code": "511500", "type": "Account", "cost_center_id": 1, "tax_id": 2}
+        }
+    }
 
 
 class DocumentDetailCodeUpdateResponse(BaseModel):
     updated: int = Field(..., description="Cantidad de líneas actualizadas.", examples=[3])
+
+
+class DocumentPaymentTypeUpdateRequest(BaseModel):
+    payment_type_id: int = Field(
+        ..., description="ID del medio de pago a asignar al documento.", examples=[1]
+    )
+    model_config = {"json_schema_extra": {"example": {"payment_type_id": 1}}}
 
 
 class DocumentStatusUpdateRequest(BaseModel):

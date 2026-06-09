@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.application.dto.document import (
     DocumentDetailCodeUpdateItem,
     DocumentDetailCodeUpdateResponse,
+    DocumentPaymentTypeUpdateRequest,
     DocumentResponse,
     DocumentStatusUpdateRequest,
     DocumentSummaryResponse,
@@ -200,6 +201,30 @@ async def update_detail_codes(
         [a.model_dump() for a in assignments]
     )
     return DocumentDetailCodeUpdateResponse(updated=updated)
+
+
+@router.patch(
+    "/documents/{document_id}/payment-type",
+    response_model=DocumentSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Actualizar medio de pago de un documento",
+    description="Asigna o cambia el `payment_type_id` de un documento.",
+    response_description="Documento actualizado.",
+    responses={
+        404: {"description": "Documento no encontrado."},
+    },
+)
+def update_payment_type(
+    document_id: int,
+    request: DocumentPaymentTypeUpdateRequest,
+    doc_repo: DocumentRepository = Depends(get_document_repo),
+):
+    doc = doc_repo.update_payment_type(document_id, request.payment_type_id)
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
+        )
+    return DocumentSummaryResponse.model_validate(doc, from_attributes=True)
 
 
 @router.patch(

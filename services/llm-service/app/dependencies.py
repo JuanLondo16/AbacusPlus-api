@@ -66,10 +66,15 @@ def get_assign_account_codes_use_case(
 ) -> AssignAccountCodesUseCase:
     xml_url = os.getenv("XML_PROCESSOR_URL", "http://xml-processor:8001")
     integration_url = os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007")
+    internal_secret = os.getenv("INTERNAL_SECRET", "")
     raw = token.raw_token if token else ""
     return AssignAccountCodesUseCase(
         ai_service=get_openai_service(),
-        document_client=DocumentClient(base_url=xml_url, bearer_token=raw),
+        document_client=DocumentClient(
+            base_url=xml_url,
+            internal_secret=internal_secret,
+            tenant_slug=token.tenant_slug,
+        ),
         integration_config_client=IntegrationConfigClient(base_url=integration_url, bearer_token=raw),
         system_prompt_repo=SystemPromptRepository(db),
     )

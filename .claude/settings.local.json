@@ -44,7 +44,11 @@
       "PowerShell(Get-ChildItem *)",
       "Bash([ -f \"C:\\\\docker\\\\projects\\\\AbacusPlus\\\\api/services/$svc/pytest.ini\" ])",
       "Bash(python *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git rm *)",
+      "PowerShell(docker run --rm -v \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\\\\llm-service:/app\" --workdir /app python:3.11-slim bash -c \"pip install -r requirements.txt -q && python -m pytest tests/ -x -q\" 2>&1)"
     ]
   }
 }

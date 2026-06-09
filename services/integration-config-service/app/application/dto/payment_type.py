@@ -23,13 +23,3 @@ class ImportPaymentTypesResponse(BaseModel):
     )
 
 
-class SyncSiigoPaymentTypesRequest(BaseModel):
-    account_key: str = Field(
-        "default",
-        description="Llave de cuenta en integration_credentials para el proveedor siigo.",
-        examples=["default"],
-    )
-
-    model_config = {
-        "json_schema_extra": {"example": {"account_key": "default"}}
-    }

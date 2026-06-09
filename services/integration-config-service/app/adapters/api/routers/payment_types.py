@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from app.application.dto.payment_type import (
     ImportPaymentTypesResponse,
     PaymentTypeResponse,
-    SyncSiigoPaymentTypesRequest,
 )
 from app.application.use_cases.import_payment_types import ImportPaymentTypesUseCase
 from app.application.use_cases.sync_siigo_payment_types import SyncSiigoPaymentTypesUseCase
@@ -88,8 +87,9 @@ async def import_payment_types_from_excel(
     description=(
         "Consulta el endpoint `GET /v1/payment-types` de la API de SIIGO y sincroniza "
         "los resultados en la tabla local `integration_payment_types`.\n\n"
+        "Usa la primera credencial activa del proveedor `siigo` registrada en el sistema. "
         "El parametro `document_type` se lee desde `extra_config.default_document_type` "
-        "en las credenciales de la cuenta indicada. Si no está configurado, usa `FC` por defecto.\n\n"
+        "de esa credencial. Si no está configurado, usa `FC` por defecto.\n\n"
         "La operacion es idempotente por `name`: actualiza si ya existe, crea si no.\n\n"
         "Si el token de acceso ha expirado o no existe, autentica automaticamente contra SIIGO "
         "y persiste el nuevo token antes de hacer la consulta."
@@ -101,7 +101,6 @@ async def import_payment_types_from_excel(
     },
 )
 def sync_payment_types_from_siigo(
-    request: SyncSiigoPaymentTypesRequest,
     use_case: SyncSiigoPaymentTypesUseCase = Depends(get_sync_siigo_payment_types_use_case),
 ) -> ImportPaymentTypesResponse:
-    return use_case.execute(account_key=request.account_key)
+    return use_case.execute()

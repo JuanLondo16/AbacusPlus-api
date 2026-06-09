@@ -10,12 +10,12 @@ class TenantRepository:
         self._db = db
 
     def get_by_slug(self, slug: str) -> Optional[Tenant]:
-        return self._db.query(Tenant).filter(Tenant.slug == slug, Tenant.is_active is True).first()
+        return self._db.query(Tenant).filter(Tenant.slug == slug, Tenant.is_active == True).first()
 
     def get_by_email_domain(self, domain: str) -> Optional[Tenant]:
         return (
             self._db.query(Tenant)
-            .filter(Tenant.email_domain == domain, Tenant.is_active is True)
+            .filter(Tenant.email_domain == domain, Tenant.is_active == True)
             .first()
         )
 
@@ -25,7 +25,7 @@ class TenantRepository:
     def list_all(self) -> list[Tenant]:
         return (
             self._db.query(Tenant)
-            .filter(Tenant.is_active is True)
+            .filter(Tenant.is_active == True)
             .order_by(Tenant.created_at)
             .all()
         )
