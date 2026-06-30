@@ -21,7 +21,6 @@ SERVICES = [
     "rag-service",
     "llm-service",
     "session-proxy",
-    "accounting-rules-service",
 ]
 
 BASELINE_FILE = ROOT / ".coverage-baseline.json"

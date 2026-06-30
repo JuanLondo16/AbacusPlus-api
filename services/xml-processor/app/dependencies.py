@@ -26,6 +26,9 @@ from app.infrastructure.config.auth_dependency import TokenData, get_tenant_db, 
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
+from app.infrastructure.persistence.repositories.document_tax_repository import (
+    DocumentTaxRepository,
+)
 from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
 from app.infrastructure.persistence.repositories.processing_log_repository import (
     ProcessingLogRepository,
@@ -95,6 +98,10 @@ def get_issuer_by_nit_use_case(db: Session = Depends(get_tenant_db)) -> GetIssue
 
 def get_document_repo(db: Session = Depends(get_tenant_db)) -> DocumentRepository:
     return DocumentRepository(db)
+
+
+def get_document_tax_repo(db: Session = Depends(get_tenant_db)) -> DocumentTaxRepository:
+    return DocumentTaxRepository(db)
 
 
 def get_concept_repo(db: Session = Depends(get_tenant_db)) -> ConceptRepository:

@@ -23,6 +23,7 @@ _PAYMENT_MEANS = {
     "ZZZ": "Acuerdo mutuo",
 }
 
+# Códigos de tipo de identificación según Resolución DIAN 0042/2020, Anexo Técnico v1.9
 _SCHEME_ID = {
     "11": "Registro civil",
     "12": "Tarjeta de identidad",
@@ -144,6 +145,10 @@ def _parse_tax_subtotals(tax_total_node) -> list:
 
     Handles both percentage-based taxes (IVA, ReteRenta, ReteICA) and
     per-unit taxes (INC Bolsas / TaxScheme 22) where cbc:Percent is absent.
+
+    INC Bolsas (código 22) es un impuesto ecológico de monto fijo por bolsa plástica
+    (no porcentual), definido por la Ley 1819/2016. El XML omite cbc:Percent y usa
+    cbc:PerUnitAmount en su lugar — de ahí la lógica de fallback en este parser.
     """
     taxes = []
     for sub in tax_total_node.findall("cac:TaxSubtotal", _NS):
@@ -226,7 +231,9 @@ def parse_xml(xml_content: str) -> dict:
         raise ValueError(f"XML malformado: {exc}") from exc
 
     try:
-        # Unwrap AttachedDocument → extract inner Invoice from CDATA
+        # Algunos emisores colombianos envían la factura envuelta en un ApplicationResponse
+        # o AttachedDocument (formato requerido por ciertos operadores tecnológicos). La
+        # factura UBL real viene serializada como texto en cbc:Description (CDATA).
         if root.tag.endswith("AttachedDocument"):
             attachment = root.find(".//cac:Attachment/cac:ExternalReference/cbc:Description", _NS)
             if attachment is not None and attachment.text:

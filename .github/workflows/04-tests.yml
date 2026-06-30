@@ -22,8 +22,6 @@ jobs:
             python: "3.9"
           - service: session-proxy
             python: "3.9"
-          - service: accounting-rules-service
-            python: "3.9"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,7 +48,6 @@ jobs:
           RAG_SERVICE_URL: http://localhost:8002
           LLM_SERVICE_URL: http://localhost:8003
           XML_PROCESSOR_URL: http://localhost:8001
-          ACCOUNTING_RULES_SERVICE_URL: http://localhost:8009
           SECRET_KEY: test-secret-key-for-ci
           REDIS_URL: redis://localhost:6379
       - uses: actions/upload-artifact@v4

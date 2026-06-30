@@ -29,13 +29,11 @@ Checks que deben pasar (agregarlos uno a uno en el buscador):
 02 - Security / pip-audit (siigo-service)
 02 - Security / pip-audit (integration-config-service)
 02 - Security / pip-audit (auth-service)
-02 - Security / pip-audit (accounting-rules-service)
 02 - Security / semgrep (OWASP API rules)
 04 - Tests / pytest (xml-processor / py3.9)
 04 - Tests / pytest (rag-service / py3.9)
 04 - Tests / pytest (llm-service / py3.9)
 04 - Tests / pytest (session-proxy / py3.9)
-04 - Tests / pytest (accounting-rules-service / py3.9)
 03 - PR Checks / coverage-gate
 ```
 

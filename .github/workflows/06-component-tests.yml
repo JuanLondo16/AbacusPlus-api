@@ -17,7 +17,6 @@ jobs:
           - xml-processor
           - rag-service
           - llm-service
-          - accounting-rules-service
           - siigo-service
           - integration-config-service
           - auth-service
@@ -69,10 +68,7 @@ jobs:
           RAG_SERVICE_URL: http://localhost:18002
           LLM_SERVICE_URL: http://localhost:18003
           XML_PROCESSOR_URL: http://localhost:18001
-          ACCOUNTING_RULES_SERVICE_URL: http://localhost:18009
           SECRET_KEY: test-secret-key-for-ci
-          RULES_HIT_THRESHOLD: "0.85"
-          RULES_PARTIAL_THRESHOLD: "0.50"
           EXTERNAL_BASE_URL: https://catalogo-vpfe.dian.gov.co
           EXTERNAL_LOGIN_PATH: /User/AuthToken
           SESSION_TTL_SECONDS: "3600"

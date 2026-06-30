@@ -25,7 +25,6 @@ SERVICES = [
     "xml-processor",
     "rag-service",
     "llm-service",
-    "accounting-rules-service",
     "auth-service",
     "integration-config-service",
     "odoo-service",

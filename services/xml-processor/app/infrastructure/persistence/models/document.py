@@ -44,6 +44,8 @@ class Document(Base):
 
     # Relación con DocumentDetail
     details = relationship("DocumentDetail", back_populates="document")
+    # Relación con DocumentTax
+    taxes = relationship("DocumentTax", back_populates="document")
 
 
 class DocumentDetail(Base):

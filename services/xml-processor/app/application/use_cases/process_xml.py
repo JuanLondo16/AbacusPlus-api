@@ -28,6 +28,13 @@ ALLOWED_EXTENSIONS = {"xml", "zip"}
 
 
 class ProcessXmlUseCase:
+    """Orquesta el procesamiento de un archivo ZIP/XML DIAN.
+
+    Flujo: extracción → parseo → deduplicación → enriquecimiento de líneas
+    → persistencia → indexación RAG (best-effort) → asignación PUC (best-effort).
+    Los clientes opcionales (rag_client, llm_client) se inyectan como None en tests.
+    """
+
     def __init__(
         self,
         document_repo: DocumentRepositoryPort,
@@ -207,6 +214,16 @@ class ProcessXmlUseCase:
         )
 
     def _build_details(self, document: Document, xml_data: dict, taxes: Optional[list] = None) -> None:
+        """Construye las líneas de detalle enriquecidas y las adjunta al documento.
+
+        Enriquecimiento por línea:
+        - concept_description_id: reutiliza descripciones previas del mismo receptor
+          para mantener consistencia en el historial de asignaciones PUC.
+        - tax_id: vincula al catálogo de integration-config-service (best-effort).
+        - cost_center_id: hereda el centro de costo más frecuente para el mismo
+          emisor+descripción, permitiendo que los documentos futuros no requieran
+          asignación manual si el patrón ya existe.
+        """
         receiver_nit = xml_data.get("receptor", {}).get("nit", "")
         issuer_nit = xml_data.get("emisor", {}).get("nit", "")
         for item in xml_data.get("items", []):
@@ -248,6 +265,13 @@ class ProcessXmlUseCase:
         """Busca el id de integration_taxes que corresponde al porcentaje/nombre del ítem.
 
         Retorna None si tax_type_str es cero/vacío o no hay coincidencia (y loguea warning).
+
+        Estrategias en orden:
+        1. Comparación exacta por nombre (ej: "19.0" vs name "19.0") — funciona cuando
+           el catálogo usa strings idénticos al XML DIAN.
+        2. Comparación numérica con tolerancia 0.01 — cubre casos donde el catálogo
+           guarda "19" y el XML emite "19.00" o viceversa.
+        3. None + warning — impuesto no catalogado; el documento se guarda igual.
         """
         if not taxes or tax_type_str.strip() in ("0", "", "0.00", "0.0"):
             return None

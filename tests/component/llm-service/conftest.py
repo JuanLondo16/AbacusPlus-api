@@ -1,6 +1,6 @@
 """
 Setup para component tests de llm-service.
-Mockea OpenAI, rag-service, xml-processor y accounting-rules con respx.
+Mockea OpenAI, rag-service y xml-processor con respx.
 """
 
 import sys

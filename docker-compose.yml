@@ -1,3 +1,4 @@
+name: abacus-api
 services:
 
   # ── Gateway (Nginx) ────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ services:
       - auth-service
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Auth Service (JWT RS256, Tenants, Usuarios) ───────────────────────────
   auth-service:
@@ -57,7 +58,7 @@ services:
         condition: service_started
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 1: Procesamiento XML/ZIP ─────────────────────────────────
   xml-processor:
@@ -88,7 +89,7 @@ services:
         condition: service_started
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 2: RAG (embeddings + búsqueda vectorial) ─────────────────
   rag-service:
@@ -116,7 +117,7 @@ services:
         condition: service_started
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 3: LLM Orchestration (OpenAI + RAG) ─────────────────────
   llm-service:
@@ -144,7 +145,7 @@ services:
         condition: service_started
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 4: Session Proxy (portal externo con cookies) ───────────
   session-proxy:
@@ -177,7 +178,7 @@ services:
       - redis
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   session-proxy-worker:
     build:
@@ -203,7 +204,7 @@ services:
       - xml-processor
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 5: Odoo (asientos contables de compra) ──────────────────
   odoo-service:
@@ -234,7 +235,7 @@ services:
         condition: service_started
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 6: SIIGO (credenciales, plan de cuentas y compras) ─────
   siigo-service:
@@ -260,7 +261,7 @@ services:
         condition: service_healthy
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Microservicio 7: Configuracion de integraciones externas ─────────────
   integration-config-service:
@@ -284,7 +285,7 @@ services:
         condition: service_healthy
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   # ── Infraestructura ────────────────────────────────────────────────────────
   database:
@@ -306,7 +307,7 @@ services:
       retries: 10
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   ollama:
     image: ollama/ollama
@@ -317,7 +318,7 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - abacus-network
-    restart: unless-stopped
+    #restart: unless-stopped
 
   ollama-init:
     image: ollama/ollama
@@ -330,7 +331,7 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - abacus-network
-    restart: on-failure
+    #restart: on-failure
 
   redis:
     image: redis:alpine

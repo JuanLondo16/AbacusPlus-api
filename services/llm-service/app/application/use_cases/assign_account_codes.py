@@ -10,6 +10,8 @@ from app.infrastructure.persistence.repositories.system_prompt_repository import
 
 logger = logging.getLogger(__name__)
 
+# La instrucción "solo JSON" se repite dos veces en el prompt: los LLMs respetan
+# mejor las restricciones de formato cuando se refuerzan explícitamente.
 _DEFAULT_SYSTEM_PROMPT = """\
 Eres un experto en contabilidad colombiana especializado en la asignación de cuentas del \
 Plan Único de Cuentas (PUC) para facturas de compra electrónicas DIAN.
@@ -104,6 +106,12 @@ class AssignAccountCodesUseCase:
         return {"assigned": updated, "skipped": skipped, "warnings": warnings}
 
     def _build_prompt(self, document: dict, details: list[dict], chart_accounts: list[dict]) -> str:
+        """Construye el prompt de usuario con los ítems y el catálogo PUC filtrado.
+
+        Se envía el catálogo completo (solo cuentas que aceptan movimientos) para que
+        el LLM pueda elegir cualquier código válido. Filtrar aquí ahorraría tokens pero
+        requeriría lógica de pre-clasificación que es exactamente lo que delega al LLM.
+        """
         items = [
             {
                 "item_id": d["id"],
@@ -129,6 +137,13 @@ class AssignAccountCodesUseCase:
     def _parse_response(
         self, raw: str, details: list[dict], puc_index: dict
     ) -> tuple[list[dict], list[str]]:
+        """Parsea la respuesta del LLM y valida cada asignación contra el PUC local.
+
+        El fallback con regex extrae el primer bloque {...} del texto porque algunos
+        modelos ignoran la instrucción de responder solo JSON y envuelven la respuesta
+        en markdown (```json ... ```). Acepta tanto "items" como "assignments" como
+        clave raíz por retrocompatibilidad con versiones anteriores del prompt.
+        """
         warnings: list[str] = []
         valid_detail_ids = {d["id"] for d in details}
 

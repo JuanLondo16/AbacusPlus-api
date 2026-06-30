@@ -1,86 +1,110 @@
-# XML Reader API
+# AbacusPlus API
 
-FastAPI microservice for processing Colombian DIAN electronic invoices (XML/ZIP). Extracts invoice data, manages issuers, receivers, taxes, and concept matching.
+Plataforma de procesamiento de facturas electrónicas DIAN y causación contable automática. Recibe facturas en formato XML/ZIP, las indexa para búsqueda semántica, y asigna cuentas del Plan Único de Cuentas (PUC) a cada línea de detalle mediante IA.
 
-## Architecture
+## Arquitectura
 
-Hexagonal architecture (Ports & Adapters):
+7 microservicios detrás de un gateway Nginx:
 
 ```
-app/
-├── domain/           # Core business logic (no external dependencies)
-│   ├── entities/     # Pure dataclass entities
-│   ├── value_objects/ # NIT with verification digit
-│   ├── exceptions/   # Domain exception hierarchy
-│   └── ports/        # Abstract interfaces (repositories, services)
-├── application/      # Use cases and DTOs
-│   ├── use_cases/    # ProcessXml, QueryDocuments, QueryReceivers
-│   └── dto/          # Pydantic v2 request/response models
-├── infrastructure/   # External adapters (output)
-│   ├── persistence/  # SQLAlchemy models and repository implementations
-│   └── config/       # Database and logging configuration
-├── adapters/         # Input adapters
-│   └── api/          # FastAPI routers and error handlers
-├── utils/            # XML parsing, ZIP extraction, text matching
-├── dependencies.py   # Composition root (DI wiring)
-└── main.py           # FastAPI application entry point
+Cliente
+  │
+  └─ :8000  ──►  gateway (Nginx)
+                   │
+                   ├─ POST /api/v1/documents  ──►  xml-processor :8001
+                   │  GET  /api/v1/documents        │  parsea ZIP/XML → PostgreSQL
+                   │  GET  /api/v1/receivers         └─ POST /api/v1/chunks  ──►  rag-service :8002
+                   │  GET  /api/v1/catalog                                          (indexa embedding)
+                   │  POST /api/v1/batch-jobs
+                   │
+                   ├─ POST /api/v1/query      ──►  llm-service :8003
+                   │  POST /api/v1/accounting        │  POST /chunks/search ──► rag-service :8002
+                   │                                 │  GET  /integrations/chart-accounts
+                   │                                 │         ──► integration-config-service :8007
+                   │                                 └─ OpenAI API (asigna PUC por ítem)
+                   │
+                   ├─ GET|POST /api/v1/siigo  ──►  siigo-service :8006
+                   │
+                   ├─ GET|POST /api/v1/integrations ──►  integration-config-service :8007
+                   │
+                   ├─ POST /api/v1/dian       ──►  session-proxy :8004
+                   │
+                   └─ GET|POST /api/v1/odoo   ──►  odoo-service :8005
 ```
 
-## Setup
+## Servicios
 
-### Prerequisites
+| Servicio | Puerto | Responsabilidad |
+|----------|--------|-----------------|
+| [gateway](services/gateway/) | 8000 | Entrada única — proxy Nginx a todos los servicios |
+| [xml-processor](services/xml-processor/README.md) | 8001 | Parseo ZIP/XML DIAN, persistencia, enriquecimiento de líneas |
+| [rag-service](services/rag-service/README.md) | 8002 | Indexación y búsqueda vectorial con pgvector + Ollama |
+| [llm-service](services/llm-service/README.md) | 8003 | Consultas RAG y asignación PUC por ítem vía OpenAI |
+| [session-proxy](services/session-proxy/README.md) | 8004 | Autenticación DIAN, descarga de ZIPs, cola de trabajos |
+| [odoo-service](services/odoo-service/README.md) | 8005 | Sincronización de facturas de compra desde Odoo |
+| [siigo-service](services/siigo-service/README.md) | 8006 | Autenticación y sincronización de plan de cuentas SIIGO |
+| [integration-config-service](services/integration-config-service/README.md) | 8007 | Catálogo agnóstico: cuentas PUC, centros de costo, credenciales |
 
-- Python 3.9+
-- MySQL 8.0
-- Docker & Docker Compose (optional)
+## Quickstart
 
-### Environment Variables
+```bash
+# Copiar y configurar variables de entorno
+cp .env.example .env   # editar al menos OPENAI_API_KEY
 
-Create a `.env` file:
+# Levantar todos los servicios
+docker-compose up --build
+
+# Documentación interactiva (Swagger)
+open http://localhost:8000/docs
+
+# Health check
+curl http://localhost:8000/health
+```
+
+## Variables de entorno esenciales
 
 ```env
-DATABASE_HOST=localhost
-DATABASE_PORT=3306
-DATABASE_USER=root
-DATABASE_PASSWORD=
-DATABASE_NAME=xml_reader_db
+# Base de datos (PostgreSQL + pgvector)
+DATABASE_HOST=database
+DATABASE_PORT=5432
+DATABASE_USER=master
+DATABASE_PASSWORD=master
+DATABASE_NAME=abacus
+
+# OpenAI — requerido para asignación PUC y consultas RAG
+OPENAI_API_KEY=sk-...
+
+# Ollama — embeddings locales (levanta automáticamente con docker-compose)
+OLLAMA_HOST=http://ollama:11434
+OLLAMA_EMBED_MODEL=nomic-embed-text
+
+# SIIGO (opcional, solo si se usa integración SIIGO)
+SIIGO_BASE_URL=https://api.siigo.com
 ```
 
-### Local Development
+Ver `.env` para la lista completa de variables.
+
+## Testing
+
+Cada servicio tiene su propio directorio `tests/`. Los tests no requieren servicios externos levantados (usan mocks o SQLite in-memory).
 
 ```bash
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# xml-processor
+docker run --rm -v "$(pwd)/services/xml-processor:/app" --workdir //app python:3.9-slim \
+  bash -c "pip install -r requirements.txt -q && python -m pytest tests/ -v"
+
+# rag-service
+docker run --rm -v "$(pwd)/services/rag-service:/app" --workdir //app python:3.9-slim \
+  bash -c "pip install -r requirements.txt -q && python -m pytest tests/ -v"
+
+# llm-service
+docker run --rm -v "$(pwd)/services/llm-service:/app" --workdir //app python:3.9-slim \
+  bash -c "pip install -r requirements.txt -q && python -m pytest tests/ -v"
 ```
 
-### Docker
+## Infraestructura
 
-```bash
-docker-compose up --build
-```
-
-## Running Tests
-
-```bash
-pytest tests/ -v
-```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Welcome message |
-| GET | `/health` | Health check |
-| POST | `/api/v1/readxml` | Process a DIAN XML/ZIP invoice |
-| GET | `/api/v1/documents/` | List documents by date range |
-| GET | `/api/v1/documents/{id}` | Get document by ID |
-| GET | `/api/v1/receivers` | List all receivers |
-
-## Tech Stack
-
-- **FastAPI** - Web framework
-- **SQLAlchemy** - ORM
-- **Pydantic v2** - Data validation
-- **MySQL** - Database
-- **lxml** - XML parsing
-- **scikit-learn + Levenshtein** - Concept text matching
+- **PostgreSQL 16 + pgvector** — base de datos principal y búsqueda vectorial (`<=>` coseno)
+- **Ollama** (`nomic-embed-text`, 768 dims) — embeddings locales, descarga automática al primer `up`
+- **Redis** — cola de trabajos para descargas DIAN en batch (arq worker)
+- **Playwright** — automatización del portal DIAN en session-proxy

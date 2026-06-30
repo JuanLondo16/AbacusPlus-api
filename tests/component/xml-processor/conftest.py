@@ -1,6 +1,6 @@
 """
 Setup para component tests de xml-processor.
-Mockea rag-service, llm-service y accounting-rules con respx.
+Mockea rag-service y llm-service con respx.
 Base de datos real con SQLAlchemy.
 """
 
@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "services" / "xml-processor"))
 
 from app.dependencies import (  # noqa: E402
-    get_accounting_rules_client,
     get_llm_client,
     get_rag_client,
 )
@@ -40,11 +39,6 @@ class FakeLlmClient:
 
     async def get_document_with_accounting(self, *args, **kwargs):
         return None
-
-
-class FakeAccountingRulesClient:
-    async def record_approval(self, *args, **kwargs):
-        pass
 
 
 class FakeTokenData:
@@ -82,7 +76,6 @@ def client(db_session: Session):
     app.dependency_overrides[get_token_data] = lambda: FakeTokenData()
     app.dependency_overrides[get_rag_client] = lambda: FakeRagClient()
     app.dependency_overrides[get_llm_client] = lambda: FakeLlmClient()
-    app.dependency_overrides[get_accounting_rules_client] = lambda: FakeAccountingRulesClient()
 
     with respx.mock(assert_all_mocked=False):  # noqa: SIM117
         with TestClient(app) as c:

@@ -45,13 +45,3 @@ def rag_service_url():
     proc.terminate()
 
 
-@pytest.fixture(scope="session")
-def accounting_rules_url():
-    port = 18009
-    proc = _start_service("accounting-rules-service", port)
-    url = f"http://localhost:{port}"
-    if not _wait_for_service(f"{url}/health"):
-        proc.terminate()
-        pytest.skip("accounting-rules-service no arrancó en tiempo")
-    yield url
-    proc.terminate()

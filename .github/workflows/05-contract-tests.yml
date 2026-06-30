@@ -34,7 +34,6 @@ jobs:
       - name: Instalar dependencias de los servicios productores
         run: |
           pip install -r services/rag-service/requirements.txt -q
-          pip install -r services/accounting-rules-service/requirements.txt -q
           pip install schemathesis==3.36.0 httpx pytest
 
       - name: Levantar rag-service en background (puerto 18002)
@@ -51,25 +50,9 @@ jobs:
           OLLAMA_EMBED_MODEL: nomic-embed-text
           SECRET_KEY: test-secret-key-for-ci
 
-      - name: Levantar accounting-rules-service en background (puerto 18009)
-        run: |
-          cd services/accounting-rules-service
-          python -m uvicorn app.main:app --port 18009 --host 0.0.0.0 &
-        env:
-          DATABASE_HOST: localhost
-          DATABASE_PORT: "5432"
-          DATABASE_USER: master
-          DATABASE_PASSWORD: master
-          DATABASE_NAME: xml2data
-          OLLAMA_HOST: http://localhost:11434
-          OLLAMA_EMBED_MODEL: nomic-embed-text
-          SECRET_KEY: test-secret-key-for-ci
-          RULES_HIT_THRESHOLD: "0.85"
-          RULES_PARTIAL_THRESHOLD: "0.50"
-
       - name: Esperar a que los servicios estén listos
         run: |
-          for port in 18002 18009; do
+          for port in 18002; do
             for i in {1..30}; do
               curl -fsS http://localhost:$port/health && break
               sleep 2

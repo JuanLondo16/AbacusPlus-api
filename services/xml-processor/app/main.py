@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.adapters.api.error_handlers import domain_exception_handler, unhandled_exception_handler
 from app.adapters.api.routers.batch import router as batch_router
 from app.adapters.api.routers.catalog import router as catalog_router
+from app.adapters.api.routers.document_taxes import router as document_taxes_router
 from app.adapters.api.routers.documents import router as documents_router
 from app.adapters.api.routers.internal import router as internal_router
 from app.adapters.api.routers.issuers import router as issuers_router
@@ -16,10 +17,14 @@ from app.adapters.api.routers.xml import router as xml_router
 from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.config.logging import setup_logging
-from app.infrastructure.persistence.models import (  # noqa: F401  # noqa: F401
+from app.infrastructure.persistence.models import (  # noqa: F401
     concept,
     cost_center,
     document,
+    document_tax,
+    integration_cost_center,
+    integration_payment_type,
+    integration_tax,
     issuer,
     processing_log,
     puc,
@@ -116,6 +121,7 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(xml_router, prefix="/api/v1", tags=["xml"])
 app.include_router(documents_router, prefix="/api/v1", tags=["documents"])
+app.include_router(document_taxes_router, prefix="/api/v1", tags=["document-taxes"])
 app.include_router(receivers_router, prefix="/api/v1", tags=["receivers"])
 app.include_router(issuers_router, prefix="/api/v1", tags=["issuers"])
 app.include_router(catalog_router, prefix="/api/v1", tags=["catalog"])

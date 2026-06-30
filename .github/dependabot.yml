@@ -54,8 +54,3 @@ updates:
       interval: monthly
     labels: [dependencies, auth-service]
 
-  - package-ecosystem: pip
-    directory: /services/accounting-rules-service
-    schedule:
-      interval: monthly
-    labels: [dependencies, accounting-rules-service]
