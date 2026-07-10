@@ -24,7 +24,7 @@ class LoginUseCase:
     async def execute(self, request: LoginRequest) -> LoginResponse:
         cookies = await self._client.login(
             login_url=self._login_url,
-            credentials={"token": request.token},
+            credentials={"token": request.token, "pk": request.pk, "rk": request.rk},
         )
 
         if not cookies:

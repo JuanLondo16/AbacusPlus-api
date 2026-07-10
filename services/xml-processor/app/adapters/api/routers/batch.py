@@ -65,7 +65,7 @@ async def process_single_file(
     request: ProcessFileRequest,
     use_case: ProcessSingleFileUseCase = Depends(get_process_single_file_use_case),
 ):
-    result = await use_case.execute(request.filename, request.job_id)
+    result = await use_case.execute(request.filename, request.job_id, request.tenant_slug)
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

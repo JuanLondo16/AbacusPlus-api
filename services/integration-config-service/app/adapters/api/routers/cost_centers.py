@@ -2,9 +2,17 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
-from app.application.dto.cost_center import CostCenterResponse, ImportCostCentersResponse
+from app.application.dto.cost_center import (
+    CostCenterResponse,
+    ImportCostCentersResponse,
+)
 from app.application.use_cases.import_cost_centers import ImportCostCentersUseCase
-from app.dependencies import get_cost_center_repository, get_import_cost_centers_use_case
+from app.application.use_cases.sync_siigo_cost_centers import SyncSiigoCostCentersUseCase
+from app.dependencies import (
+    get_cost_center_repository,
+    get_import_cost_centers_use_case,
+    get_sync_siigo_cost_centers_use_case,
+)
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
 router = APIRouter()
@@ -73,3 +81,28 @@ async def import_cost_centers_from_excel(
         sheet_name=sheet_name,
         file_content=content,
     )
+
+
+@router.post(
+    "/integrations/cost-centers/siigo-syncs",
+    response_model=ImportCostCentersResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sincronizar centros de costo desde SIIGO",
+    description=(
+        "Consulta el endpoint `GET /v1/cost-centers` de la API de SIIGO y sincroniza "
+        "los resultados en la tabla local `integration_cost_centers`.\n\n"
+        "La operacion es idempotente por `code`: actualiza si ya existe, crea si no. "
+        "Los centros de costo que ya no existen en SIIGO son eliminados de la tabla local.\n\n"
+        "Si el token de acceso ha expirado o no existe, autentica automaticamente contra SIIGO "
+        "y persiste el nuevo token antes de hacer la consulta."
+    ),
+    response_description="Resumen de centros de costo sincronizados y listado resultante.",
+    responses={
+        404: {"description": "No existe credencial activa para siigo con el account_key indicado."},
+        502: {"description": "SIIGO no responde o retorna error."},
+    },
+)
+def sync_cost_centers_from_siigo(
+    use_case: SyncSiigoCostCentersUseCase = Depends(get_sync_siigo_cost_centers_use_case),
+) -> ImportCostCentersResponse:
+    return use_case.execute()

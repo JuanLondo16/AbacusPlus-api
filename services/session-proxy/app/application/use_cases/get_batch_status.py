@@ -84,6 +84,7 @@ class GetBatchStatusUseCase:
 
         job_details = []
         all_finished = True
+        auth_error_messages: list[str] = []
 
         for job_id in job_ids:
             progress = await self._progress.get(job_id)
@@ -105,9 +106,12 @@ class GetBatchStatusUseCase:
             # xml_processed
             xml_done = _parse_bool(progress.get("xml_done", "0"))
             xml_status = progress.get("xml_status", "")
+            xml_err = progress.get("xml_error", "")
             if xml_done:
                 if xml_status == "error":
                     xml.error += 1
+                    if xml_err.startswith("AUTH_FAILED:"):
+                        auth_error_messages.append(xml_err[len("AUTH_FAILED:"):].strip())
                 else:
                     xml.done += 1
             else:
@@ -136,6 +140,11 @@ class GetBatchStatusUseCase:
         elapsed = round((now - started_at.replace(tzinfo=timezone.utc)).total_seconds(), 1)
         is_done = all_finished and total > 0
 
+        # Superficie de error de auth: todos los jobs fallaron con AUTH_FAILED
+        auth_error: Optional[str] = None
+        if auth_error_messages and len(auth_error_messages) == total:
+            auth_error = auth_error_messages[0]
+
         return BatchStatusResponse(
             batch_id=batch_id,
             total=total,
@@ -144,5 +153,6 @@ class GetBatchStatusUseCase:
             is_done=is_done,
             started_at=started_at.isoformat(),
             summary=BatchStepSummary(downloaded=dl, xml_processed=xml, accounting=acc),
+            auth_error=auth_error,
             jobs=job_details if detail else None,
         )

@@ -9,9 +9,17 @@ class CostCenterRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def upsert_many(self, cost_centers: Iterable[dict]) -> int:
+    def upsert_many(self, cost_centers: Iterable[dict], deactivate_missing: bool = False) -> int:
+        items = list(cost_centers)
+        incoming_codes = [str(item["code"]) for item in items if item.get("code")]
+
+        if deactivate_missing and incoming_codes:
+            self.db.query(CostCenter).filter(
+                CostCenter.code.notin_(incoming_codes)
+            ).delete(synchronize_session=False)
+
         synced = 0
-        for cost_center in cost_centers:
+        for cost_center in items:
             code = str(cost_center["code"])
             model = (
                 self.db.query(CostCenter)

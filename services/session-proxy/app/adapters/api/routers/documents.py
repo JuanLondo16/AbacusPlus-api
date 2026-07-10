@@ -14,7 +14,8 @@ from app.dependencies import (
     get_fetch_and_enqueue_use_case,
     get_job_status_use_case,
 )
-from app.infrastructure.config.auth_dependency import get_token_data
+from app.domain.exceptions.base import ExternalAuthException, ExternalRequestException
+from app.infrastructure.config.auth_dependency import TokenData, get_token_data
 
 router = APIRouter(dependencies=[Depends(get_token_data)])
 
@@ -34,9 +35,15 @@ router = APIRouter(dependencies=[Depends(get_token_data)])
 )
 async def enqueue_document_downloads(
     request: DocumentsRangeRequest,
+    token: TokenData = Depends(get_token_data),
     use_case: FetchAndEnqueueDocumentsUseCase = Depends(get_fetch_and_enqueue_use_case),
 ):
-    return await use_case.execute(request)
+    try:
+        return await use_case.execute(request, token.tenant_slug)
+    except ExternalAuthException as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=e.message)
+    except ExternalRequestException as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=e.message)
 
 
 @router.get(

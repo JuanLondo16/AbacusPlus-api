@@ -81,7 +81,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir /app/app
     depends_on:
       database:
         condition: service_healthy
@@ -173,7 +173,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - DOWNLOADS_DIR=/app/downloads
       - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload --reload-dir /app/app
     depends_on:
       - redis
     networks:
@@ -185,7 +185,15 @@ services:
       context: ./services/session-proxy
       dockerfile: Dockerfile
     container_name: abacus_session_proxy_worker
-    command: python -m arq app.infrastructure.workers.download_worker.WorkerSettings
+    # Display virtual Xvfb para correr Chromium headful (headless=False), lo que reduce
+    # drásticamente la detección de Cloudflare Turnstile. Restart-safe: limpia lock viejo
+    # y espera a que Xvfb quede listo antes de arrancar el worker.
+    command: >
+      sh -c "rm -f /tmp/.X99-lock /tmp/.X11-unix/X99;
+      Xvfb :99 -screen 0 1280x720x24 -nolisten tcp -ac >/tmp/xvfb.log 2>&1 &
+      export DISPLAY=:99;
+      for i in $$(seq 1 40); do [ -e /tmp/.X11-unix/X99 ] && break; sleep 0.25; done;
+      exec python -m arq app.infrastructure.workers.download_worker.WorkerSettings"
     volumes:
       - ./services/session-proxy/app:/app/app
       - ./downloads:/app/downloads
@@ -199,6 +207,11 @@ services:
       - REDIS_URL=redis://redis:6379
       - DOWNLOADS_DIR=/app/downloads
       - XML_PROCESSOR_URL=http://xml-processor:8001
+      - BROWSER_HEADLESS=false
+      - BROWSER_PROFILE_DIR=/app/downloads/.pw-profile
+      - BROWSER_CHANNEL=${BROWSER_CHANNEL:-chrome}
+      - CAPSOLVER_API_KEY=${CAPSOLVER_API_KEY:-}
+      - TURNSTILE_SITEKEY=${TURNSTILE_SITEKEY:-0x4AAAAAAAg1WuNb-OnOa76z}
     depends_on:
       - redis
       - xml-processor

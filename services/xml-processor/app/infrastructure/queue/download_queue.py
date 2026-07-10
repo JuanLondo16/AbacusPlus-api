@@ -15,6 +15,7 @@ from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.domain.exceptions.base import DuplicateEntityException
 from app.infrastructure.clients.rag_client import RagClient
 from app.infrastructure.config.database import SessionLocal
+from app.infrastructure.config.tenant_connection_manager import get_session_for_tenant
 from app.infrastructure.persistence.models.processing_log import ProcessingLog
 from app.infrastructure.persistence.repositories.concept_repository import ConceptRepository
 from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
@@ -144,19 +145,23 @@ async def process_queue_worker() -> None:
         item = await _queue.get()
         # Soporta tanto tuplas (path, job_id) como paths sueltos (compatibilidad)
         if isinstance(item, tuple):
-            file_path, job_id = item
+            if len(item) == 3:
+                file_path, job_id, tenant_slug = item
+            else:
+                file_path, job_id = item
+                tenant_slug = ""
         else:
-            file_path, job_id = item, None
+            file_path, job_id, tenant_slug = item, None, ""
 
         try:
-            await _process_single_file(file_path, job_id)
+            await _process_single_file(file_path, job_id, tenant_slug)
         except Exception as e:
             logger.error("Error inesperado procesando %s: %s", file_path.name, e)
         finally:
             _queue.task_done()
 
 
-async def _process_single_file(file_path: Path, job_id: Optional[str]) -> None:
+async def _process_single_file(file_path: Path, job_id: Optional[str], tenant_slug: str = "") -> None:
     downloads_dir = file_path.parent
     processed_dir = downloads_dir / "processed"
     errors_dir = downloads_dir / "errors"
@@ -166,7 +171,7 @@ async def _process_single_file(file_path: Path, job_id: Optional[str]) -> None:
     progress = get_progress_store() if job_id else None
     xml_filename = _peek_xml_filename(file_path)
 
-    db = SessionLocal()
+    db = get_session_for_tenant(tenant_slug) if tenant_slug else SessionLocal()
     try:
         rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8002")
         use_case = ProcessXmlUseCase(
@@ -281,8 +286,7 @@ async def _trigger_accounting(document_id: int):
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{url}/api/v1/accounting/generate",
-                json={"document_id": document_id},
+                f"{url}/api/v1/accounting/code-assignments/{document_id}",
             )
         if response.status_code in (200, 201):
             logger.info("Causación contable generada para documento %d", document_id)

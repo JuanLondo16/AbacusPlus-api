@@ -18,24 +18,48 @@ def _migrate_tenant_db(engine) -> None:
 
     Base.metadata.create_all(bind=engine, checkfirst=True)
 
+    migrations = [
+        # integration_cost_centers: drop legacy columns, add constraint, add new columns
+        "ALTER TABLE integration_cost_centers DROP COLUMN IF EXISTS provider",
+        "ALTER TABLE integration_cost_centers DROP COLUMN IF EXISTS account_key",
+        "ALTER TABLE integration_cost_centers DROP CONSTRAINT IF EXISTS uq_cost_center_provider_key_code",
+        (
+            "DO $$ BEGIN "
+            "IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_cost_center_code') "
+            "THEN ALTER TABLE integration_cost_centers ADD CONSTRAINT uq_cost_center_code UNIQUE (code); "
+            "END IF; END $$"
+        ),
+        "ALTER TABLE integration_cost_centers ADD COLUMN IF NOT EXISTS external_id VARCHAR(120)",
+        "ALTER TABLE integration_cost_centers ADD COLUMN IF NOT EXISTS raw_payload JSONB NOT NULL DEFAULT '{}'",
+        "ALTER TABLE integration_cost_centers ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_cost_centers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_cost_centers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        # integration_chart_accounts
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS external_id VARCHAR(120)",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS account_type VARCHAR(80)",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS level INTEGER",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS parent_code VARCHAR(80)",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS accepts_movements BOOLEAN",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS raw_payload JSONB NOT NULL DEFAULT '{}'",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_chart_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        # integration_products
+        "ALTER TABLE integration_products ADD COLUMN IF NOT EXISTS raw_payload JSONB NOT NULL DEFAULT '{}'",
+        "ALTER TABLE integration_products ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_products ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        # integration_payment_types
+        "ALTER TABLE integration_payment_types ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_payment_types ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        # integration_taxes
+        "ALTER TABLE integration_taxes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_taxes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+    ]
+
     with engine.connect() as conn:
-        # Eliminar provider y account_key de integration_cost_centers (simplificación)
-        conn.execute(text("ALTER TABLE integration_cost_centers DROP COLUMN IF EXISTS provider"))
-        conn.execute(text("ALTER TABLE integration_cost_centers DROP COLUMN IF EXISTS account_key"))
-        conn.execute(
-            text(
-                "ALTER TABLE integration_cost_centers "
-                "DROP CONSTRAINT IF EXISTS uq_cost_center_provider_key_code"
-            )
-        )
-        conn.execute(
-            text(
-                "DO $$ BEGIN "
-                "IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_cost_center_code') "
-                "THEN ALTER TABLE integration_cost_centers ADD CONSTRAINT uq_cost_center_code UNIQUE (code); "
-                "END IF; END $$"
-            )
-        )
+        for sql in migrations:
+            conn.execute(text(sql))
         conn.commit()
 
 

@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.application.use_cases.import_chart_accounts import ImportChartAccountsUseCase
 from app.application.use_cases.import_cost_centers import ImportCostCentersUseCase
 from app.application.use_cases.import_payment_types import ImportPaymentTypesUseCase
+from app.application.use_cases.sync_siigo_cost_centers import SyncSiigoCostCentersUseCase
+from app.application.use_cases.sync_siigo_products import SyncSiigoProductsUseCase
 from app.application.use_cases.import_taxes import ImportTaxesUseCase
 from app.application.use_cases.sync_siigo_payment_types import SyncSiigoPaymentTypesUseCase
 from app.application.use_cases.sync_siigo_taxes import SyncSiigoTaxesUseCase
@@ -54,6 +56,15 @@ def get_import_cost_centers_use_case(
     return ImportCostCentersUseCase(CostCenterRepository(db))
 
 
+def get_sync_siigo_cost_centers_use_case(
+    db: Session = Depends(get_tenant_db),
+) -> SyncSiigoCostCentersUseCase:
+    return SyncSiigoCostCentersUseCase(
+        credential_repository=IntegrationCredentialRepository(db),
+        cost_center_repository=CostCenterRepository(db),
+    )
+
+
 def get_payment_type_repository(db: Session = Depends(get_tenant_db)) -> PaymentTypeRepository:
     return PaymentTypeRepository(db)
 
@@ -94,3 +105,12 @@ def get_product_repository(db: Session = Depends(get_tenant_db)) -> ProductRepos
 
 def get_import_products_use_case(db: Session = Depends(get_tenant_db)) -> ImportProductsUseCase:
     return ImportProductsUseCase(ProductRepository(db))
+
+
+def get_sync_siigo_products_use_case(
+    db: Session = Depends(get_tenant_db),
+) -> SyncSiigoProductsUseCase:
+    return SyncSiigoProductsUseCase(
+        credential_repository=IntegrationCredentialRepository(db),
+        product_repository=ProductRepository(db),
+    )

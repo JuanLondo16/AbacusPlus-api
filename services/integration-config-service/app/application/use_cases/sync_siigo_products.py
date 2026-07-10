@@ -1,45 +1,47 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from app.application.dto.tax import ImportTaxesResponse
+from app.application.dto.product import ImportProductsResponse
 from app.domain.exceptions.base import EntityNotFoundException
 from app.infrastructure.clients.siigo_client import SiigoApiClient, token_expiration_from_response
 from app.infrastructure.persistence.repositories.integration_repository import (
     IntegrationCredentialRepository,
 )
-from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
+from app.infrastructure.persistence.repositories.product_repository import ProductRepository
 
 _SIIGO_PROVIDER = "siigo"
-_TAXES_PATH = "/v1/taxes"
+_PRODUCTS_PATH = "/v1/products"
 
 
-class SyncSiigoTaxesUseCase:
+class SyncSiigoProductsUseCase:
     def __init__(
         self,
         credential_repository: IntegrationCredentialRepository,
-        tax_repository: TaxRepository,
+        product_repository: ProductRepository,
     ):
         self.credential_repository = credential_repository
-        self.tax_repository = tax_repository
+        self.product_repository = product_repository
 
-    def execute(self) -> ImportTaxesResponse:
+    def execute(self) -> ImportProductsResponse:
         credentials = self.credential_repository.list(provider=_SIIGO_PROVIDER)
         if not credentials:
             raise EntityNotFoundException("IntegrationCredential", "siigo")
 
         credential = credentials[0]
         account_key = credential.account_key
-
         client = SiigoApiClient(credential)
         self._ensure_token(client, account_key)
 
-        payload = client.get(_TAXES_PATH)
+        payload = client.get(_PRODUCTS_PATH)
         raw_items = SiigoApiClient._extract_results(payload)
 
-        taxes = [self._map_item(item) for item in raw_items]
-        imported = self.tax_repository.upsert_many(taxes)
+        products = [self._map_item(item) for item in raw_items]
+        imported = self.product_repository.upsert_many(products, deactivate_missing=True)
 
-        return ImportTaxesResponse(imported=imported, taxes=self.tax_repository.list())
+        return ImportProductsResponse(
+            imported=imported,
+            products=self.product_repository.list(),
+        )
 
     def _ensure_token(self, client: SiigoApiClient, account_key: str) -> None:
         credential = client.credential
@@ -69,8 +71,9 @@ class SyncSiigoTaxesUseCase:
     @staticmethod
     def _map_item(item: dict[str, Any]) -> dict[str, Any]:
         return {
-            "name": str(item.get("name") or item.get("id") or ""),
-            "type": str(item.get("type") or ""),
-            "percentage": float(item.get("percentage") or item.get("rate") or 0),
+            "code": str(item.get("code") or item.get("id") or ""),
+            "type": str(item.get("type") or "").lower(),
+            "description": str(item.get("description") or item.get("name") or ""),
             "active": item.get("active", True),
+            "raw_payload": item,
         }

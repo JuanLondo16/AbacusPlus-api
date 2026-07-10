@@ -9,9 +9,17 @@ class ProductRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def upsert_many(self, products: Iterable[dict]) -> int:
+    def upsert_many(self, products: Iterable[dict], deactivate_missing: bool = False) -> int:
+        items = list(products)
+        incoming_codes = [str(item["code"]) for item in items if item.get("code")]
+
+        if deactivate_missing and incoming_codes:
+            self.db.query(Product).filter(
+                Product.code.notin_(incoming_codes)
+            ).delete(synchronize_session=False)
+
         synced = 0
-        for product in products:
+        for product in items:
             code = str(product["code"])
             model = self.db.query(Product).filter(Product.code == code).one_or_none()
             if model is None:

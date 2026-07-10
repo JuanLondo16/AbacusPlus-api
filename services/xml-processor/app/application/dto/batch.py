@@ -17,6 +17,10 @@ class ProcessFileRequest(BaseModel):
         ...,
         description="ID del job ARQ que originó la descarga. Se usa para actualizar el estado en Redis.",
     )
+    tenant_slug: str = Field(
+        "",
+        description="Slug del tenant (ej: 'ikbo'). Determina la DB destino. Vacío = DB por defecto.",
+    )
 
 
 class ProcessingLogResponse(BaseModel):

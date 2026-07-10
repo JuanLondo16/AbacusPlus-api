@@ -13,13 +13,13 @@ class ProcessSingleFileUseCase:
         self._dir = Path(downloads_dir)
         self._queue = queue
 
-    async def execute(self, filename: str, job_id: str) -> Optional[EnqueueBatchResponse]:
+    async def execute(self, filename: str, job_id: str, tenant_slug: str = "") -> Optional[EnqueueBatchResponse]:
         file_path = self._dir / filename
         if not file_path.is_file():
             logger.warning("Archivo no encontrado: %s", file_path)
             return None
 
-        await self._queue.put((file_path, job_id))
-        logger.info("ZIP encolado para procesamiento: %s (job_id=%s)", filename, job_id)
+        await self._queue.put((file_path, job_id, tenant_slug))
+        logger.info("ZIP encolado para procesamiento: %s (job_id=%s, tenant=%s)", filename, job_id, tenant_slug)
 
         return EnqueueBatchResponse(queued=1, files=[filename])

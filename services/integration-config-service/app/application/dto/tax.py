@@ -23,15 +23,3 @@ class ImportTaxesResponse(BaseModel):
     taxes: list[TaxResponse] = Field(
         ..., description="Impuestos almacenados despues de la importacion."
     )
-
-
-class SyncSiigoTaxesRequest(BaseModel):
-    account_key: str = Field(
-        "default",
-        description="Llave de cuenta en integration_credentials para el proveedor siigo.",
-        examples=["default"],
-    )
-
-    model_config = {
-        "json_schema_extra": {"example": {"account_key": "default"}}
-    }

@@ -48,7 +48,19 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git rm *)",
-      "PowerShell(docker run --rm -v \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\\\\llm-service:/app\" --workdir /app python:3.11-slim bash -c \"pip install -r requirements.txt -q && python -m pytest tests/ -x -q\" 2>&1)"
+      "PowerShell(docker run --rm -v \"c:\\\\docker\\\\projects\\\\AbacusPlus\\\\api\\\\services\\\\llm-service:/app\" --workdir /app python:3.11-slim bash -c \"pip install -r requirements.txt -q && python -m pytest tests/ -x -q\" 2>&1)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/dian/sessions/debug -H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YTA5ZTFkNy02NmM1LTQyODUtYWU4My1kMTk0ZTY5YmVkNTMiLCJ0ZW5hbnRfaWQiOiI3YjYzZmExNy1mZDA4LTRkYmMtODIyMi0xYmVjOWM5ZTUzODMiLCJ0ZW5hbnRfc2x1ZyI6Imlr Ym8iLCJlbWFpbCI6ImFkbWluQGlrYm8uY28iLCJyb2xlcyI6WyJ0ZW5hbnRfYWRtaW4iXSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc4Mjg2OTUxOSwiZXhwIjoxNzgyODczMTE5fQ.hgNYjnYyozyrGoPeEi6nrdF-4_L2RHK4-PMtOsrWBv9Eys7JZtICs32w11cVYamY3z0KPMQryUvUnqlNHwW_d-wJGJj8yRLprnsGAm1sMly2d1dDH7qGFSIELVBRstX-RDqh2nNP-T_51iJ74fFdlxnqqCysJXYhLferTygGL047PKg_KuRKD5wusPD4kVy3BSqbFPkdCRdvIuJfHheGpkVrTr3CdUh_dBAWQUjdX6ahBy7a9yUHtjBW7SG8Yboqo4st1b2edj1-JVo7KM6My6s4cyEZkBmUc722jk3I9fWAPPAq3li4p_Tn3ZPq-QlsxuWKuiEGyvGB2Cxl2JOstQ' -H 'Content-Type: application/json' -d '{\"token\":\"0d61db85-f0b4-415b-8d15-3c242899070b\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/sessions -H 'Content-Type: application/json' -d '{\"email\":\"admin@ikbo.co\",\"password\":\"admin123\"}')",
+      "Bash(curl -s \"http://localhost:8000/api/v1/auth/sessions\" -X OPTIONS)",
+      "Bash(curl -s \"http://localhost:8008/openapi.json\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(m,p\\) for p,pv in d.get\\('paths',{}\\).items\\(\\) for m in pv]\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(MSYS_NO_PATHCONV=1 docker cp /tmp/mint.py abacus_session_proxy:/tmp/mint.py)",
+      "Bash(MSYS_NO_PATHCONV=1 docker exec abacus_session_proxy python3 /tmp/mint.py)",
+      "Bash(MSYS_NO_PATHCONV=1 docker exec abacus_session_proxy python3 -c \"import os; v=os.environ['JWT_PRIVATE_KEY']; print\\(repr\\(v[:50]\\)\\); print\\('has_backslash_n:', '\\\\\\\\\\\\\\\\n' in v\\); print\\('has_real_nl:', chr\\(10\\) in v\\)\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -X POST http://localhost:8004/api/v1/dian/downloads -H 'Content-Type: application/json' -H 'Authorization: Bearer __CMDSUB_OUTPUT__' -d '{\"token\":\"dbd56b95-5d49-4113-888e-220619b0820c\",\"StartDate\":\"2026-07-01\",\"EndDate\":\"2026-07-01\"}')",
+      "Bash(docker restart *)"
     ]
   }
 }

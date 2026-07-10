@@ -10,7 +10,7 @@ from app.infrastructure.queue.job_progress_store import JobProgressStore
 
 logger = logging.getLogger(__name__)
 
-DOWNLOAD_ZIP_FUNCTION = "download_zip"
+DOWNLOAD_BATCH_FUNCTION = "download_batch"
 
 
 class FetchAndEnqueueDocumentsUseCase:
@@ -32,7 +32,7 @@ class FetchAndEnqueueDocumentsUseCase:
         self._batch_store = batch_store
         self._progress = job_progress_store
 
-    async def execute(self, request: DocumentsRangeRequest) -> EnqueueDownloadsResponse:
+    async def execute(self, request: DocumentsRangeRequest, tenant_slug: str = "") -> EnqueueDownloadsResponse:
         batch_id = str(uuid.uuid4())
         started_at = datetime.now(timezone.utc)
 
@@ -41,7 +41,7 @@ class FetchAndEnqueueDocumentsUseCase:
 
         result = await self._client.login_and_request(
             login_url=self._login_url,
-            credentials={"token": request.token},
+            credentials={"token": request.token, "pk": request.pk, "rk": request.rk},
             method="POST",
             url=documents_url,
             body=body,
@@ -59,8 +59,13 @@ class FetchAndEnqueueDocumentsUseCase:
             request.EndDate,
             len(raw_docs),
         )
+        if raw_docs:
+            logger.info("Claves del primer documento: %s", list(raw_docs[0].keys()))
+            logger.info("Primer documento (crudo): %s", raw_docs[0])
 
-        job_ids = []
+        # El progreso se lleva por trackId (clave = track_id). El endpoint de estado
+        # itera estos "job_ids" lógicos; el job ARQ real que descarga el lote es uno solo.
+        track_ids: list[str] = []
         job_track_map: dict[str, str] = {}
         for doc in raw_docs:
             track_id = doc.get("Id") or doc.get("id")
@@ -70,23 +75,36 @@ class FetchAndEnqueueDocumentsUseCase:
             if str(doc_type_id) == "96":
                 logger.info("Documento ignorado (DocumentTypeId=96) — trackId: %s", track_id)
                 continue
-            job_id = await self._queue.enqueue(
-                DOWNLOAD_ZIP_FUNCTION,
-                track_id=track_id,
-                token=request.token,
-            )
-            job_ids.append(job_id)
-            job_track_map[job_id] = str(track_id)
-            await self._progress.init(job_id, str(track_id))
-            logger.info("Job encolado para trackId: %s → %s", track_id, job_id)
+            track_id = str(track_id)
+            track_ids.append(track_id)
+            job_track_map[track_id] = track_id
+            await self._progress.init(track_id, track_id)
 
-        await self._batch_store.save(batch_id, job_ids, started_at, job_track_map)
-        logger.info("Batch %s iniciado con %d jobs", batch_id, len(job_ids))
+        if track_ids:
+            arq_job_id = await self._queue.enqueue(
+                DOWNLOAD_BATCH_FUNCTION,
+                batch_id=batch_id,
+                track_ids=track_ids,
+                token=request.token,
+                pk=request.pk,
+                rk=request.rk,
+                tenant_slug=tenant_slug,
+            )
+            logger.info(
+                "Batch %s encolado (job ARQ %s) con %d documentos",
+                batch_id,
+                arq_job_id,
+                len(track_ids),
+            )
+        else:
+            logger.info("Batch %s sin documentos descargables", batch_id)
+
+        await self._batch_store.save(batch_id, track_ids, started_at, job_track_map)
 
         return EnqueueDownloadsResponse(
             batch_id=batch_id,
-            enqueued=len(job_ids),
-            job_ids=job_ids,
+            enqueued=len(track_ids),
+            job_ids=track_ids,
             StartDate=request.StartDate,
             EndDate=request.EndDate,
             started_at=started_at.isoformat(),

@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 class DocumentsRangeRequest(BaseModel):
     token: str
+    pk: str = Field("", description="Partner key del portal DIAN (ej. '10910094|1125638394'). Usa EXTERNAL_FIXED_PK del entorno si está vacío.")
+    rk: str = Field("", description="Representative key del portal DIAN (ej. '901031352'). Usa EXTERNAL_FIXED_RK del entorno si está vacío.")
     StartDate: str
     EndDate: str
     draw: int = 1
@@ -108,6 +110,14 @@ class BatchStatusResponse(BaseModel):
     )
     started_at: str = Field(..., description="Fecha y hora de inicio (ISO 8601 UTC).")
     summary: BatchStepSummary = Field(..., description="Conteo de jobs por estado en cada etapa.")
+    auth_error: Optional[str] = Field(
+        None,
+        description=(
+            "Presente cuando todos los jobs fallaron por error de autenticación con el portal DIAN "
+            "(token vencido, Cloudflare bloqueó el navegador, etc.). "
+            "Describe la causa específica para que puedas corregirla antes de reintentar."
+        ),
+    )
     jobs: Optional[list[JobProgressDetail]] = Field(
         None, description="Detalle por job. Solo presente cuando se solicita con ?detail=true."
     )

@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.application.dto.product import ImportProductsResponse, ProductResponse
 from app.application.use_cases.import_products import ImportProductsUseCase
-from app.dependencies import get_import_products_use_case, get_product_repository
+from app.application.use_cases.sync_siigo_products import SyncSiigoProductsUseCase
+from app.dependencies import get_import_products_use_case, get_product_repository, get_sync_siigo_products_use_case
 from app.infrastructure.persistence.repositories.product_repository import ProductRepository
 
 router = APIRouter()
@@ -79,3 +80,28 @@ async def import_products_from_excel(
         sheet_name=sheet_name,
         file_content=content,
     )
+
+
+@router.post(
+    "/integrations/products/siigo-syncs",
+    response_model=ImportProductsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sincronizar productos y servicios desde SIIGO",
+    description=(
+        "Consulta el endpoint `GET /v1/products` de la API de SIIGO y sincroniza "
+        "los resultados en la tabla local `integration_products`.\n\n"
+        "La operacion es idempotente por `code`: actualiza si ya existe, crea si no. "
+        "Los productos que ya no existen en SIIGO son eliminados de la tabla local.\n\n"
+        "Si el token de acceso ha expirado o no existe, autentica automaticamente contra SIIGO "
+        "y persiste el nuevo token antes de hacer la consulta."
+    ),
+    response_description="Resumen de productos sincronizados y listado resultante.",
+    responses={
+        404: {"description": "No existe credencial activa para siigo con el account_key indicado."},
+        502: {"description": "SIIGO no responde o retorna error."},
+    },
+)
+def sync_products_from_siigo(
+    use_case: SyncSiigoProductsUseCase = Depends(get_sync_siigo_products_use_case),
+) -> ImportProductsResponse:
+    return use_case.execute()

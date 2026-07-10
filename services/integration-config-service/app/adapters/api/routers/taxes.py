@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
-from app.application.dto.tax import ImportTaxesResponse, SyncSiigoTaxesRequest, TaxResponse
+from app.application.dto.tax import ImportTaxesResponse, TaxResponse
 from app.application.use_cases.import_taxes import ImportTaxesUseCase
 from app.application.use_cases.sync_siigo_taxes import SyncSiigoTaxesUseCase
 from app.dependencies import (
@@ -96,7 +96,6 @@ async def import_taxes_from_excel(
     },
 )
 def sync_taxes_from_siigo(
-    request: SyncSiigoTaxesRequest,
     use_case: SyncSiigoTaxesUseCase = Depends(get_sync_siigo_taxes_use_case),
 ) -> ImportTaxesResponse:
-    return use_case.execute(account_key=request.account_key)
+    return use_case.execute()

@@ -1,45 +1,47 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from app.application.dto.tax import ImportTaxesResponse
+from app.application.dto.cost_center import ImportCostCentersResponse
 from app.domain.exceptions.base import EntityNotFoundException
 from app.infrastructure.clients.siigo_client import SiigoApiClient, token_expiration_from_response
 from app.infrastructure.persistence.repositories.integration_repository import (
     IntegrationCredentialRepository,
 )
-from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
+from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
 _SIIGO_PROVIDER = "siigo"
-_TAXES_PATH = "/v1/taxes"
+_COST_CENTERS_PATH = "/v1/cost-centers"
 
 
-class SyncSiigoTaxesUseCase:
+class SyncSiigoCostCentersUseCase:
     def __init__(
         self,
         credential_repository: IntegrationCredentialRepository,
-        tax_repository: TaxRepository,
+        cost_center_repository: CostCenterRepository,
     ):
         self.credential_repository = credential_repository
-        self.tax_repository = tax_repository
+        self.cost_center_repository = cost_center_repository
 
-    def execute(self) -> ImportTaxesResponse:
+    def execute(self) -> ImportCostCentersResponse:
         credentials = self.credential_repository.list(provider=_SIIGO_PROVIDER)
         if not credentials:
             raise EntityNotFoundException("IntegrationCredential", "siigo")
 
         credential = credentials[0]
         account_key = credential.account_key
-
         client = SiigoApiClient(credential)
         self._ensure_token(client, account_key)
 
-        payload = client.get(_TAXES_PATH)
+        payload = client.get(_COST_CENTERS_PATH)
         raw_items = SiigoApiClient._extract_results(payload)
 
-        taxes = [self._map_item(item) for item in raw_items]
-        imported = self.tax_repository.upsert_many(taxes)
+        cost_centers = [self._map_item(item) for item in raw_items]
+        imported = self.cost_center_repository.upsert_many(cost_centers, deactivate_missing=True)
 
-        return ImportTaxesResponse(imported=imported, taxes=self.tax_repository.list())
+        return ImportCostCentersResponse(
+            imported=imported,
+            cost_centers=self.cost_center_repository.list(),
+        )
 
     def _ensure_token(self, client: SiigoApiClient, account_key: str) -> None:
         credential = client.credential
@@ -69,8 +71,9 @@ class SyncSiigoTaxesUseCase:
     @staticmethod
     def _map_item(item: dict[str, Any]) -> dict[str, Any]:
         return {
-            "name": str(item.get("name") or item.get("id") or ""),
-            "type": str(item.get("type") or ""),
-            "percentage": float(item.get("percentage") or item.get("rate") or 0),
+            "external_id": str(item["id"]) if item.get("id") is not None else None,
+            "code": str(item.get("code") or item.get("id") or ""),
+            "name": str(item.get("name") or ""),
             "active": item.get("active", True),
+            "raw_payload": item,
         }
