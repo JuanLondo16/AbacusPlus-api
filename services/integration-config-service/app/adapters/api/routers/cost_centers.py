@@ -13,6 +13,7 @@ from app.dependencies import (
     get_import_cost_centers_use_case,
     get_sync_siigo_cost_centers_use_case,
 )
+from app.infrastructure.config.auth_dependency import require_write
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
 router = APIRouter()
@@ -54,6 +55,7 @@ def list_cost_centers(
 
 @router.post(
     "/integrations/cost-centers/imports",
+    dependencies=[Depends(require_write)],
     response_model=ImportCostCentersResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar centros de costo desde Excel",
@@ -85,6 +87,7 @@ async def import_cost_centers_from_excel(
 
 @router.post(
     "/integrations/cost-centers/siigo-syncs",
+    dependencies=[Depends(require_write)],
     response_model=ImportCostCentersResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar centros de costo desde SIIGO",

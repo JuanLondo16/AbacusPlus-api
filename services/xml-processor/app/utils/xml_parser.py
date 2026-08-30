@@ -1,5 +1,13 @@
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: S405 # nosemgrep: use-defused-xml — solo register_namespace/ParseError, el parseo usa defusedxml
 from typing import Optional
+
+from defusedxml.common import DefusedXmlException
+
+# El XML llega de terceros (ZIP de la DIAN o carga manual), así que el parseo se hace con
+# defusedxml: ElementTree de la librería estándar es vulnerable a expansión de entidades
+# («billion laughs»), que permitiría agotar memoria y CPU del servicio con un solo archivo.
+# defusedxml es un reemplazo directo y rechaza DTD, entidades y referencias externas.
+from defusedxml.ElementTree import fromstring as parse_xml_string
 
 # UBL 2.1 DIAN namespaces
 _NS = {
@@ -91,6 +99,27 @@ def _format_amount(value) -> str:
     return s or "0"
 
 
+def _collect_tax_level_codes(party_node) -> Optional[str]:
+    """Reúne TODOS los códigos de responsabilidad fiscal (RUT) del party.
+
+    En la DIAN las responsabilidades viajan en `cbc:TaxLevelCode`, y un mismo tercero puede
+    tener varias: dentro de un elemento separadas por `;` (p. ej. "O-13;O-23") y/o en varios
+    elementos `TaxLevelCode`. Antes se tomaba solo el primero y se perdían responsabilidades
+    clave para decidir retenciones (Gran Contribuyente, Autorretenedor, Agente de ret. IVA…).
+    Aquí se recogen todos, se deduplican conservando el orden y se unen con `;`.
+    """
+    codes: list[str] = []
+    for el in party_node.findall(".//cac:PartyTaxScheme/cbc:TaxLevelCode", _NS):
+        raw = (el.text or "").strip()
+        if not raw:
+            continue
+        for part in raw.split(";"):
+            code = part.strip()
+            if code and code not in codes:
+                codes.append(code)
+    return ";".join(codes) if codes else None
+
+
 def _parse_party(party_node, additional_account_id: Optional[str]) -> dict:
     """Build a party dict from a cac:Party node (emisor or receptor)."""
     if party_node is None:
@@ -120,7 +149,7 @@ def _parse_party(party_node, additional_account_id: Optional[str]) -> dict:
         "nit": nit,
         "tipo_identificacion": _SCHEME_ID.get(scheme_id, scheme_id),
         "tipo_persona": _PERSON_TYPE.get(additional_account_id, additional_account_id),
-        "regimen": _text(party_node, ".//cac:PartyTaxScheme/cbc:TaxLevelCode"),
+        "regimen": _collect_tax_level_codes(party_node),
         "direccion": {
             "ciudad": _text(party_node, ".//cac:PhysicalLocation/cac:Address/cbc:CityName"),
             "departamento": _text(
@@ -226,9 +255,12 @@ def parse_xml(xml_content: str) -> dict:
         ValueError: If the XML is malformed or required fields are missing.
     """
     try:
-        root = ET.fromstring(xml_content)
+        root = parse_xml_string(xml_content)
     except ET.ParseError as exc:
         raise ValueError(f"XML malformado: {exc}") from exc
+    except DefusedXmlException as exc:
+        # DTD, entidades o referencias externas: se rechaza el documento sin procesarlo.
+        raise ValueError(f"XML rechazado por seguridad: {exc}") from exc
 
     try:
         # Algunos emisores colombianos envían la factura envuelta en un ApplicationResponse
@@ -238,9 +270,11 @@ def parse_xml(xml_content: str) -> dict:
             attachment = root.find(".//cac:Attachment/cac:ExternalReference/cbc:Description", _NS)
             if attachment is not None and attachment.text:
                 try:
-                    root = ET.fromstring(attachment.text.strip())
+                    root = parse_xml_string(attachment.text.strip())
                 except ET.ParseError as exc:
                     raise ValueError(f"XML interno (Invoice) malformado: {exc}") from exc
+                except DefusedXmlException as exc:
+                    raise ValueError(f"XML interno rechazado por seguridad: {exc}") from exc
 
         for prefix, uri in _NS.items():
             ET.register_namespace(prefix, uri)

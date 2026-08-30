@@ -20,6 +20,10 @@ class DocumentDetailEntity:
     type: str = "Account"
     tax_id: Optional[int] = None
     cost_center_id: Optional[int] = None
+    #: TODOS los impuestos de la línea, tal como los declara la DIAN. `tax_type`/`tax_value`
+    #: son el principal —el de mayor importe—; esta lista es la completa. Una línea puede
+    #: llevar IVA e impuesto al consumo a la vez, y perder el segundo costaba dinero real.
+    taxes: Optional[list] = None
 
 
 @dataclass

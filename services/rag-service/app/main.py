@@ -10,6 +10,7 @@ from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.persistence.models import chunk as _chunk_model  # noqa: F401
+from app.infrastructure.persistence.tenant_migrations import run_tenant_migrations
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine, checkfirst=True)
+    run_tenant_migrations(engine)
     logger.info("Tabla document_chunks verificada/creada")
     yield
 

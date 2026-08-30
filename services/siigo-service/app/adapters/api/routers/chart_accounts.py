@@ -6,12 +6,14 @@ from app.application.dto.chart_account import (
 )
 from app.application.use_cases.sync_chart_accounts import SyncChartAccountsUseCase
 from app.dependencies import get_sync_chart_accounts_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/siigo/chart-accounts/syncs",
+    dependencies=[Depends(require_write)],
     response_model=SyncChartAccountsResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar plan de cuentas desde SIIGO",

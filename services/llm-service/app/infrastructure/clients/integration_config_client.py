@@ -1,34 +1,129 @@
 import logging
+from typing import Optional
 
-import httpx
+from app.infrastructure.clients.catalog_cache import catalog_cache
+from app.infrastructure.clients.http_pool import get_client
 
 logger = logging.getLogger(__name__)
 
 
 class IntegrationConfigClient:
-    """Cliente HTTP para consultar catálogos del integration-config-service."""
+    """Cliente HTTP para consultar catálogos del integration-config-service.
 
-    def __init__(self, base_url: str, bearer_token: str = ""):
+    `tenant_slug` viene del token ya validado y solo se usa como clave de la caché de
+    catálogos: **no** se envía como cabecera ni sustituye a la autorización, que sigue siendo
+    el token del usuario. Sin él, el cliente funciona igual pero sin caché.
+    """
+
+    def __init__(self, base_url: str, bearer_token: str = "", tenant_slug: str = ""):
         self._base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
+        self._tenant_slug = tenant_slug
+
+    async def _get_json(self, path: str, params: Optional[dict] = None, timeout: float = 5.0):
+        client = await get_client()
+        response = await client.get(
+            f"{self._base_url}{path}",
+            params=params or {},
+            headers=self._headers,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def get_chart_accounts(self, active_only: bool = True) -> list[dict]:
         """Retorna el plan de cuentas configurado.
 
-        Llamada best-effort: retorna lista vacía si el servicio no está disponible.
+        Cacheado por empresa: es un catálogo de configuración, idéntico para todos los
+        documentos del mismo cliente, y se pedía entero una vez por documento causado.
+
+        Llamada best-effort: retorna lista vacía si el servicio no está disponible. Ese vacío
+        nunca se cachea (ver `catalog_cache`), para que una caída momentánea no se prolongue.
         """
         params = {"active": "true"} if active_only else {}
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(
-                    f"{self._base_url}/api/v1/integrations/chart-accounts",
-                    params=params,
-                    headers=self._headers,
+
+        async def _cargar() -> list[dict]:
+            try:
+                return await self._get_json(
+                    "/api/v1/integrations/chart-accounts", params=params
                 )
-                response.raise_for_status()
-                return response.json()
+            except Exception as exc:
+                logger.warning(
+                    "No se pudo obtener plan de cuentas de integration-config-service: %s", exc
+                )
+                return []
+
+        return await catalog_cache.get_or_load(
+            self._tenant_slug, f"chart_accounts:{active_only}", _cargar
+        )
+
+    async def get_taxes(self) -> list[dict]:
+        """RF-08: catálogo de impuestos y retenciones sincronizado con SIIGO.
+
+        Es la fuente autorizada de los porcentajes: el modelo elige qué retención aplica,
+        pero la tarifa se toma siempre de aquí. Llamada best-effort, como el resto.
+        """
+
+        async def _cargar() -> list[dict]:
+            try:
+                return await self._get_json("/api/v1/integrations/taxes")
+            except Exception as exc:
+                logger.warning("No se pudo obtener el catálogo de impuestos: %s", exc)
+                return []
+
+        return await catalog_cache.get_or_load(self._tenant_slug, "taxes", _cargar)
+
+    async def get_fiscal_profile(self) -> Optional[dict]:
+        """Perfil fiscal del tenant (el COMPRADOR): define si la empresa es agente de retención.
+
+        Es autoritativo sobre el `TaxLevelCode` del receptor en el XML. Best-effort: si no está
+        disponible, se devuelve None y la decisión cae al dato del XML.
+        """
+        try:
+            return await self._get_json("/api/v1/integrations/fiscal-profile")
         except Exception as exc:
-            logger.warning(
-                "No se pudo obtener plan de cuentas de integration-config-service: %s", exc
-            )
+            logger.warning("No se pudo obtener el perfil fiscal del tenant: %s", exc)
+            return None
+
+    async def get_cost_centers(self) -> list[dict]:
+        """Retorna los centros de costo configurados.
+
+        Su nombre da contexto al modelo sobre el área que consume el gasto (p. ej.
+        «Gastos de Personal» o «Desarrollo de plataformas»), que ayuda a desambiguar
+        descripciones genéricas. Llamada best-effort: la asignación no depende de esto.
+
+        Cacheado por empresa por la misma razón que el plan de cuentas.
+        """
+
+        async def _cargar() -> list[dict]:
+            try:
+                return await self._get_json("/api/v1/integrations/cost-centers")
+            except Exception as exc:
+                logger.warning(
+                    "No se pudo obtener centros de costo de integration-config-service: %s", exc
+                )
+                return []
+
+        return await catalog_cache.get_or_load(self._tenant_slug, "cost_centers", _cargar)
+
+    async def get_retention_criteria(self) -> list[dict]:
+        """RF-08: criterios del contador de ESTA empresa sobre cómo determinar retenciones.
+
+        Son datos por tenant, no una configuración global: cada contador tiene su criterio y
+        estos cambian con la norma o con su interpretación. Por eso se consultan al servicio
+        en cada sugerencia en vez de estar escritos en el código de este servicio, donde
+        cambiar uno exigiría un despliegue y se aplicaría a todos los clientes por igual.
+
+        Se piden TODOS y entran todos al prompt: no es una recuperación por relevancia. Son
+        reglas que gobiernan cada factura, y hacerlas depender de una búsqueda semántica
+        significaría que algún día no llegan y el modelo decide sin ellas sin que se note.
+
+        Best-effort, como el resto del cliente: sin criterios la sugerencia se apoya en las
+        tablas oficiales y el perfil fiscal, que son las fuentes vinculantes.
+        """
+        try:
+            payload = await self._get_json("/api/v1/integrations/retention-criteria")
+            return payload.get("criterios", [])
+        except Exception as exc:
+            logger.warning("RF-08: no se pudieron obtener los criterios del contador: %s", exc)
             return []

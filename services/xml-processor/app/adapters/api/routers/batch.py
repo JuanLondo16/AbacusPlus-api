@@ -14,6 +14,7 @@ from app.dependencies import (
     get_process_single_file_use_case,
     get_processing_log_repo,
 )
+from app.infrastructure.config.auth_dependency import require_write
 from app.infrastructure.persistence.repositories.processing_log_repository import (
     ProcessingLogRepository,
 )
@@ -23,6 +24,7 @@ router = APIRouter()
 
 @router.post(
     "/batch-jobs/downloads",
+    dependencies=[Depends(require_write)],
     response_model=EnqueueBatchResponse,
     status_code=202,
     summary="Procesar descargas pendientes",
@@ -46,6 +48,7 @@ async def process_downloads(
 
 @router.post(
     "/batch-jobs/file",
+    dependencies=[Depends(require_write)],
     response_model=EnqueueBatchResponse,
     status_code=202,
     summary="Procesar un ZIP específico por nombre de archivo",

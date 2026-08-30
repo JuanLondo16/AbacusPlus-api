@@ -12,6 +12,13 @@ from app.domain.ports.repositories import (
     ReceiverRepositoryPort,
     TaxRepositoryPort,
 )
+from app.domain.services.line_taxes import (
+    extraer_impuestos_de_linea,
+    impuesto_principal,
+    total_de_impuestos,
+)
+from app.domain.services.tax_resolution import resolver_impuesto
+from app.domain.services.xml_withholdings import extraer_retenciones_del_xml, total_retenido
 from app.domain.value_objects.document_status import DocumentStatus
 from app.infrastructure.persistence.models.concept import ConceptDescription
 from app.infrastructure.persistence.models.document import Document, DocumentDetail
@@ -31,8 +38,12 @@ class ProcessXmlUseCase:
     """Orquesta el procesamiento de un archivo ZIP/XML DIAN.
 
     Flujo: extracción → parseo → deduplicación → enriquecimiento de líneas
-    → persistencia → indexación RAG (best-effort) → asignación PUC (best-effort).
-    Los clientes opcionales (rag_client, llm_client) se inyectan como None en tests.
+    → persistencia → asignación PUC (best-effort).
+
+    RF-08: el procesamiento NO alimenta el RAG. El documento recién creado todavía no tiene
+    ninguna decisión contable validada, así que no puede servir de precedente; el
+    conocimiento se genera al contabilizarlo en SIIGO.
+    Los clientes opcionales (llm_client) se inyectan como None en tests.
     """
 
     def __init__(
@@ -42,18 +53,20 @@ class ProcessXmlUseCase:
         receiver_repo: ReceiverRepositoryPort,
         tax_repo: TaxRepositoryPort,
         concept_repo: ConceptRepositoryPort,
-        rag_client=None,
         integration_config_client=None,
         llm_client=None,
+        tenant_slug: str = "",
     ):
         self.document_repo = document_repo
         self.issuer_repo = issuer_repo
         self.receiver_repo = receiver_repo
         self.tax_repo = tax_repo
         self.concept_repo = concept_repo
-        self.rag_client = rag_client
         self.integration_config_client = integration_config_client
         self.llm_client = llm_client
+        #: Tenant de la ejecución. Vacío en la vía interactiva (el cliente lleva el JWT) y
+        #: explícito en la del worker de descargas DIAN, que corre sin sesión de usuario.
+        self.tenant_slug = tenant_slug
 
     async def execute(self, file: UploadFile) -> dict:
         xml_content, filename = await self._extract_content(file)
@@ -81,18 +94,36 @@ class ProcessXmlUseCase:
         created = self.document_repo.create(document)
         logger.info("Document created with ID: %d", created.id)
 
-        # Indexar en rag-service de forma best-effort
-        if self.rag_client:
-            content = self._build_chunk_content(xml_data, created)
-            await self.rag_client.index_chunk(
-                source_type="invoice",
-                source_id=created.id,
-                content=content,
-            )
+        # RF-08: aquí NO se indexa nada en el RAG.
+        #
+        # Un documento recién procesado no tiene todavía ninguna decisión contable: sus
+        # cuentas son las que propuso el sistema y sus retenciones ni siquiera se han
+        # revisado. Indexarlo lo convertiría en precedente de sí mismo, y el modelo acabaría
+        # aprendiendo de sus propias sugerencias sin que ninguna persona ni SIIGO las hubiera
+        # validado. El conocimiento se genera en un solo momento del ciclo de vida —cuando el
+        # documento queda CONTABILIZADO en SIIGO— y lo publica `AccountingKnowledgePublisher`.
 
-        # Disparar asignación de cuentas PUC en llm-service (best-effort)
+        # Disparar asignación de cuentas PUC en llm-service (best-effort).
+        #
+        # Solo cuando ya existe historial confirmado por el contador. En la primera descarga
+        # desde la DIAN el tenant no tiene ninguna cuenta validada por una persona, así que
+        # el modelo no tendría precedente sobre el que apoyarse: el documento se deja tal
+        # como llegó y el contador decide, ya sea asignando a mano o pidiendo la sugerencia
+        # de forma explícita desde la interfaz.
         if self.llm_client:
-            await self.llm_client.trigger_code_assignment(created.id)
+            if self.document_repo.has_confirmed_accounting_history():
+                await self.llm_client.trigger_code_assignment(created.id)
+                # RF-08: la IA determina las retenciones del tercero durante el procesamiento
+                # del documento, no solo cuando el contador pulsa el botón. Va después de la
+                # asignación de cuentas porque ambas comparten el prerrequisito del PUC: si
+                # falta, la primera ya habrá dejado el aviso en el log.
+                await self.llm_client.trigger_retention_suggestion(created.id)
+            else:
+                logger.info(
+                    "Documento %d guardado sin asignación automática: el tenant aún no "
+                    "tiene contabilizaciones confirmadas por el usuario.",
+                    created.id,
+                )
 
         return {
             "status": "success",
@@ -183,9 +214,20 @@ class ProcessXmlUseCase:
             else str(tipo or "")
         )
 
-        retenciones = xml_data.get("retenciones", [])
-        retefuente = sum(float(r.get("valor") or 0) for r in retenciones if r.get("codigo") == "06")
-        reteica = sum(float(r.get("valor") or 0) for r in retenciones if r.get("codigo") == "07")
+        # Las retenciones que el PROVEEDOR declara en el XML.
+        #
+        # No son la fuente de verdad —quien decide qué se retiene es el perfil fiscal del
+        # comprador y la ficha del tercero en SIIGO— sino la única señal independiente para
+        # contrastar lo que Abacus determina. Importa porque SIIGO no informa qué retenciones
+        # practicó: `PurchasesOut` no trae ningún campo `retentions`.
+        #
+        # Antes se sumaban solo los esquemas 06 y 07 en dos columnas que nadie leía, y el 08
+        # (ReteIVA) se descartaba entero.
+        retenciones_xml = extraer_retenciones_del_xml(xml_data.get("retenciones", []))
+        retefuente = total_retenido(
+            [r for r in retenciones_xml if r["tipo"] == "retefuente"]
+        )
+        reteica = total_retenido([r for r in retenciones_xml if r["tipo"] == "reteica"])
 
         return Document(
             document_name=filename,
@@ -204,11 +246,16 @@ class ProcessXmlUseCase:
             receiver_nit=receptor.get("nit", ""),
             receiver_phone=receptor.get("contacto", {}).get("telefono", ""),
             receiver_email=receptor.get("contacto", {}).get("email", ""),
+            # Responsabilidades del comprador (RUT), para decidir si es agente de retención.
+            receiver_responsibilities=receptor.get("regimen"),
             subtotal=float(totales.get("subtotal") or 0),
             total_taxes=float(totales.get("total_impuestos") or 0),
             total=float(totales.get("total") or 0),
             retefuente=retefuente,
             reteica=reteica,
+            # La lista completa, incluido el ReteIVA que antes se perdía, para poder
+            # contrastarla después contra lo que el sistema determine.
+            xml_withholdings=retenciones_xml or None,
             status=DocumentStatus.PROCESADO,
             payment_type_id=payment_type_id,
         )
@@ -237,13 +284,34 @@ class ProcessXmlUseCase:
                 )
                 concept_description_id = created.id
 
-            first_tax = (item.get("impuestos") or [{}])[0]
-            tax_type_str = str(first_tax.get("porcentaje") or 0)
-            tax_id = self._match_tax(tax_type_str, taxes or [])
+            # TODOS los impuestos de la línea, no solo el primero.
+            #
+            # Antes se tomaba `(item["impuestos"] or [{}])[0]` y el resto se descartaba sin
+            # rastro. Sobre los 45 XML reales del cliente eso perdía $7.363,44 repartidos en
+            # 19 documentos: ocho facturas de telecomunicaciones declaran IVA 19 % e impuesto
+            # al consumo 4 % en el MISMO renglón. La línea de ajuste que cuadraba el total
+            # después hacía la pérdida invisible.
+            impuestos = extraer_impuestos_de_linea(item.get("impuestos"))
+
+            # Cada impuesto se enlaza con el catálogo por separado: en una línea con IVA e
+            # INC, cada uno tiene su propio id en SIIGO.
+            for impuesto in impuestos:
+                impuesto["tax_id"] = self._match_tax(
+                    str(impuesto.get("porcentaje") or 0), taxes or []
+                )
+
+            # `tax_type`/`tax_value` conservan el impuesto PRINCIPAL —el de mayor importe—
+            # porque los leen la interfaz y el RAG, y porque es el que describe la línea.
+            principal = impuesto_principal(impuestos)
+            tax_type_str = str(principal["porcentaje"]) if principal else "0"
+            tax_value = principal["valor"] if principal else 0.0
+            tax_id = principal.get("tax_id") if principal else None
+
             cost_center_id = self.document_repo.find_most_frequent_cost_center(
                 issuer_nit, description
             )
 
+            subtotal = float(item.get("valor_total") or 0)
             document.details.append(
                 DocumentDetail(
                     description=description,
@@ -251,10 +319,13 @@ class ProcessXmlUseCase:
                     quantity=float(item.get("cantidad") or 0),
                     unit=item.get("unidad_medida") or "",
                     price=float(item.get("precio_unitario") or 0),
-                    subtotal=float(item.get("valor_total") or 0),
+                    subtotal=subtotal,
                     tax_type=tax_type_str,
-                    tax_value=float(first_tax.get("valor") or 0),
-                    total=float(item.get("valor_total") or 0) + float(first_tax.get("valor") or 0),
+                    tax_value=tax_value,
+                    taxes=impuestos or None,
+                    # El total de la línea suma TODOS sus impuestos, no solo el principal:
+                    # es la cifra que debe cuadrar contra el total de la factura.
+                    total=subtotal + total_de_impuestos(impuestos),
                     tax_id=tax_id,
                     cost_center_id=cost_center_id,
                 )
@@ -262,19 +333,16 @@ class ProcessXmlUseCase:
 
     @staticmethod
     def _match_tax(tax_type_str: str, taxes: list[dict]) -> Optional[int]:
-        """Busca el id de integration_taxes que corresponde al porcentaje/nombre del ítem.
+        """Id del catálogo que corresponde al impuesto de la línea, o None.
 
-        Retorna None si tax_type_str es cero/vacío o no hay coincidencia (y loguea warning).
-
-        Estrategias en orden:
-        1. Comparación exacta por nombre (ej: "19.0" vs name "19.0") — funciona cuando
-           el catálogo usa strings idénticos al XML DIAN.
-        2. Comparación numérica con tolerancia 0.01 — cubre casos donde el catálogo
-           guarda "19" y el XML emite "19.00" o viceversa.
-        3. None + warning — impuesto no catalogado; el documento se guarda igual.
+        Delega en `domain/services/tax_resolution.py`, que es la ÚNICA forma de responder
+        esta pregunta en todo el servicio. Antes había aquí una segunda implementación que
+        comparaba primero por nombre y no desempataba entre impuestos del mismo porcentaje,
+        de modo que esta capa y la del envío podían resolver la misma línea de forma distinta
+        —y lo hacían—.
         """
-        if not taxes or tax_type_str.strip() in ("0", "", "0.00", "0.0"):
-            return None
+        return resolver_impuesto(tax_type_str, taxes, nombre=tax_type_str)
+
         normalized = tax_type_str.strip().lower()
         for tax in taxes:
             if str(tax.get("name", "")).lower() == normalized:
@@ -291,21 +359,3 @@ class ProcessXmlUseCase:
         )
         return None
 
-    def _build_chunk_content(self, xml_data: dict, document) -> str:
-        emisor = xml_data.get("emisor", {})
-        receptor = xml_data.get("receptor", {})
-        lines = [
-            f"Factura {document.document_number} del {document.date}",
-            f"Emisor: {emisor.get('nombre', '')} NIT {emisor.get('nit', '')}",
-            f"Receptor: {receptor.get('nombre', '')} NIT {receptor.get('nit', '')}",
-            f"Moneda: {document.currency} | Subtotal: {document.subtotal} | "
-            f"Impuestos: {document.total_taxes} | Total: {document.total}",
-            "Items:",
-        ]
-        for item in xml_data.get("items", []):
-            lines.append(
-                f"  - {item.get('descripcion', '')} | "
-                f"cant: {item.get('cantidad', '')} | "
-                f"precio: {item.get('precio_unitario', '')}"
-            )
-        return "\n".join(lines)

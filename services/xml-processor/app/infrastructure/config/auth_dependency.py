@@ -34,6 +34,48 @@ def get_token_data(
     return TokenData(payload, credentials.credentials)
 
 
+#: Roles que pueden modificar la imputación de un documento o contabilizarlo.
+#:
+#: El sistema define tres roles (`tenant_admin`, `operator`, `viewer`) y hasta ahora ninguno
+#: se comprobaba: un usuario invitado como «solo lectura» tenía exactamente las mismas
+#: facultades que un administrador, incluida la de crear facturas de compra reales en SIIGO.
+#:
+#: `viewer` queda deliberadamente fuera: es el único rol cuyo nombre promete una limitación,
+#: y quien invita a alguien con él da por hecho que no podrá alterar la contabilidad.
+ROLES_ESCRITURA = frozenset({"tenant_admin", "operator"})
+
+
+def require_roles(*permitidos: str):
+    """Dependencia que exige al usuario alguno de los roles indicados.
+
+    Se aplica solo a los endpoints que escriben. Las lecturas siguen abiertas a cualquier
+    usuario autenticado del cliente, que es lo que `viewer` significa.
+
+    Un token sin ningún rol se rechaza: todos los usuarios reciben uno al crearse —el
+    administrador al aprovisionar el cliente, los demás al ser invitados—, así que la
+    ausencia de rol no es un caso legítimo, sino un token manipulado o un usuario en un
+    estado inconsistente. Denegar es la única respuesta segura.
+    """
+    permitidos_set = frozenset(permitidos)
+
+    def _verificar(token: Annotated[TokenData, Depends(get_token_data)]) -> TokenData:
+        if not permitidos_set.intersection(token.roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Su usuario no tiene permiso para esta operación. "
+                    f"Se requiere uno de estos roles: {', '.join(sorted(permitidos_set))}."
+                ),
+            )
+        return token
+
+    return _verificar
+
+
+#: Atajo para el caso mayoritario: escribir sobre un documento (RF-01, 02, 03, 05, 06, 07).
+require_write = require_roles(*ROLES_ESCRITURA)
+
+
 def get_tenant_db(token: Annotated[TokenData, Depends(get_token_data)]):
     db = get_session_for_tenant(token.tenant_slug)
     try:

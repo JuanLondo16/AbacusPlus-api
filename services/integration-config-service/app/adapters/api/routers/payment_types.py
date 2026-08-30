@@ -13,7 +13,10 @@ from app.dependencies import (
     get_payment_type_repository,
     get_sync_siigo_payment_types_use_case,
 )
-from app.infrastructure.persistence.repositories.payment_type_repository import PaymentTypeRepository
+from app.infrastructure.config.auth_dependency import require_write
+from app.infrastructure.persistence.repositories.payment_type_repository import (
+    PaymentTypeRepository,
+)
 
 router = APIRouter()
 
@@ -53,6 +56,7 @@ def list_payment_types(
 
 @router.post(
     "/integrations/payment-types/imports",
+    dependencies=[Depends(require_write)],
     response_model=ImportPaymentTypesResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar tipos de pago desde Excel",
@@ -81,6 +85,7 @@ async def import_payment_types_from_excel(
 
 @router.post(
     "/integrations/payment-types/siigo-syncs",
+    dependencies=[Depends(require_write)],
     response_model=ImportPaymentTypesResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar tipos de pago desde SIIGO",

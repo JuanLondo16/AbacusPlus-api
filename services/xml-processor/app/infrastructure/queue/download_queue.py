@@ -12,8 +12,9 @@ from typing import Optional
 import httpx
 
 from app.application.use_cases.process_xml import ProcessXmlUseCase
+from app.application.use_cases.publish_document_files import PublishDocumentFilesUseCase
 from app.domain.exceptions.base import DuplicateEntityException
-from app.infrastructure.clients.rag_client import RagClient
+from app.infrastructure.clients.integration_config_client import IntegrationConfigClient
 from app.infrastructure.config.database import SessionLocal
 from app.infrastructure.config.tenant_connection_manager import get_session_for_tenant
 from app.infrastructure.persistence.models.processing_log import ProcessingLog
@@ -88,17 +89,24 @@ def _build_pdf_name(
     return f"IKB - DOCU - {date_str} - V01 - {suffix}.pdf"
 
 
-def _extract_files_to_processed(file_path: Path, processed_dir: Path, document_data: dict) -> None:
+def _extract_files_to_processed(
+    file_path: Path, processed_dir: Path, document_data: dict
+) -> tuple[Optional[bytes], Optional[bytes]]:
     """
     Descomprime el ZIP y:
     - Deja el XML en processed/xml/{nombre_original}.xml
     - Deja el PDF en processed/pdf/{nomenclatura_IKB}.pdf
+
+    Retorna (pdf_bytes, xml_bytes) para poder almacenarlos en la base de datos y visualizarlos
+    luego. Cada uno es None si el ZIP no lo contiene.
     """
     pdf_dir = processed_dir / "pdf"
     xml_dir = processed_dir / "xml"
     pdf_dir.mkdir(exist_ok=True)
     xml_dir.mkdir(exist_ok=True)
 
+    pdf_bytes: Optional[bytes] = None
+    xml_bytes: Optional[bytes] = None
     try:
         with zipfile.ZipFile(str(file_path)) as zf:
             for member in zf.namelist():
@@ -108,11 +116,18 @@ def _extract_files_to_processed(file_path: Path, processed_dir: Path, document_d
                 member_name = PurePosixPath(member).name
 
                 if name_lower.endswith(".xml"):
+                    data = zf.read(member)
+                    if xml_bytes is None:
+                        xml_bytes = data
                     dest = xml_dir / member_name
-                    dest.write_bytes(zf.read(member))
+                    dest.write_bytes(data)
                     logger.info("XML extraído → %s", dest)
 
                 elif name_lower.endswith(".pdf"):
+                    data = zf.read(member)
+                    # Solo aceptamos un PDF real (firma %PDF-) para no guardar basura.
+                    if data[:5] == b"%PDF-":
+                        pdf_bytes = data
                     pdf_name = _build_pdf_name(
                         document_data.get("date"),
                         document_data.get("document_type", ""),
@@ -120,11 +135,43 @@ def _extract_files_to_processed(file_path: Path, processed_dir: Path, document_d
                         document_data.get("issuer_name", ""),
                     )
                     dest = pdf_dir / pdf_name
-                    dest.write_bytes(zf.read(member))
+                    dest.write_bytes(data)
                     logger.info("PDF extraído y renombrado → %s", dest)
 
     except Exception as e:
         logger.warning("No se pudieron extraer archivos del ZIP %s: %s", file_path.name, e)
+
+    return pdf_bytes, xml_bytes
+
+
+def _read_pdf_from_zip(file_path: Path) -> Optional[bytes]:
+    """Lee (sin escribir a disco) el primer PDF válido dentro del ZIP. None si no hay."""
+    try:
+        with zipfile.ZipFile(str(file_path)) as zf:
+            for member in zf.namelist():
+                if member.startswith(("__MACOSX/", "._")):
+                    continue
+                if member.lower().endswith(".pdf"):
+                    data = zf.read(member)
+                    if data[:5] == b"%PDF-":
+                        return data
+    except Exception as e:
+        logger.warning("No se pudo leer PDF del ZIP %s: %s", file_path.name, e)
+    return None
+
+
+def _read_xml_from_zip(file_path: Path) -> Optional[bytes]:
+    """Lee (sin escribir a disco) el primer XML dentro del ZIP. None si no hay."""
+    try:
+        with zipfile.ZipFile(str(file_path)) as zf:
+            for member in zf.namelist():
+                if member.startswith(("__MACOSX/", "._")):
+                    continue
+                if member.lower().endswith(".xml"):
+                    return zf.read(member)
+    except Exception as e:
+        logger.warning("No se pudo leer XML del ZIP %s: %s", file_path.name, e)
+    return None
 
 
 class FileWrapper:
@@ -161,6 +208,18 @@ async def process_queue_worker() -> None:
             _queue.task_done()
 
 
+
+def build_integration_config_client(tenant_slug: str) -> IntegrationConfigClient:
+    """Cliente del catálogo para el procesamiento en segundo plano.
+
+    Existe por el mismo motivo que `build_siigo_service_client`: centralizar la URL del
+    servicio y dejar claro que aquí se habla por el canal interno. La descarga masiva no
+    tiene JWT de usuario, así que la ruta con token responde 403 — y ese 403, silenciado por
+    el `except` del cliente, es lo que dejó 151 de 152 líneas sin `tax_id`.
+    """
+    url = os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007")
+    return IntegrationConfigClient(base_url=url, tenant_slug=tenant_slug)
+
 async def _process_single_file(file_path: Path, job_id: Optional[str], tenant_slug: str = "") -> None:
     downloads_dir = file_path.parent
     processed_dir = downloads_dir / "processed"
@@ -173,20 +232,58 @@ async def _process_single_file(file_path: Path, job_id: Optional[str], tenant_sl
 
     db = get_session_for_tenant(tenant_slug) if tenant_slug else SessionLocal()
     try:
-        rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8002")
         use_case = ProcessXmlUseCase(
             document_repo=DocumentRepository(db),
             issuer_repo=IssuerRepository(db),
             receiver_repo=ReceiverRepository(db),
             tax_repo=TaxRepository(db),
             concept_repo=ConceptRepository(db),
-            rag_client=RagClient(base_url=rag_url),
+            # RF-08: la descarga desde la DIAN no genera conocimiento. Un documento recién
+            # bajado no tiene ninguna decisión contable validada; el RAG se alimenta cuando
+            # ese documento llegue a contabilizarse en SIIGO.
+            tenant_slug=tenant_slug,
+            # El catálogo de impuestos, por el canal interno. Sin él, cada línea del
+            # documento queda sin `tax_id`: la interfaz no muestra su impuesto y el envío
+            # a SIIGO no puede respetar el que el contador hubiera elegido.
+            integration_config_client=(
+                build_integration_config_client(tenant_slug) if tenant_slug else None
+            ),
         )
         log_repo = ProcessingLogRepository(db)
 
         result = await use_case.execute(FileWrapper(file_path))
 
-        _extract_files_to_processed(file_path, processed_dir, result["data"])
+        pdf_bytes, xml_bytes = _extract_files_to_processed(file_path, processed_dir, result["data"])
+
+        # Almacena el PDF y el XML oficiales de la DIAN (venían dentro del ZIP) ligados al
+        # documento, para poder visualizarlos luego sin volver a la DIAN. Best-effort: si
+        # falla, no rompe el procesamiento del documento.
+        if pdf_bytes or xml_bytes:
+            try:
+                repo = DocumentRepository(db)
+                doc = repo.get_by_id(result["document_id"])
+                if doc is not None:
+                    if pdf_bytes:
+                        doc.pdf_data = pdf_bytes
+                        doc.pdf_source = "dian_official"
+                    if xml_bytes:
+                        doc.xml_data = xml_bytes
+                    db.commit()
+
+                    # RF-03: la publicación en S3 vive en su propio caso de uso, que lee los
+                    # bytes ya almacenados. Así la misma lógica sirve a esta ruta, a la carga
+                    # manual y al reintento posterior, sin duplicarse en tres sitios.
+                    publicacion = await PublishDocumentFilesUseCase(repo).execute(
+                        result["document_id"], tenant_slug=tenant_slug
+                    )
+                    logger.info(
+                        "Documento DIAN almacenado (id=%s, publicado en S3: %s)",
+                        result["document_id"],
+                        ", ".join(publicacion["uploaded"]) or "nada",
+                    )
+            except Exception as e:  # best-effort: no romper el procesamiento del XML
+                db.rollback()
+                logger.warning("No se pudo almacenar PDF/XML oficial en BD: %s", e)
 
         acc_status, acc_error = await _trigger_accounting(result["document_id"])
 
@@ -215,6 +312,32 @@ async def _process_single_file(file_path: Path, job_id: Optional[str], tenant_sl
         existing_doc = DocumentRepository(db).get_by_document_number(doc_number)
         acc_status, acc_error = None, None
         if existing_doc:
+            # Backfill: si el documento ya existía pero aún no tenía el PDF/XML oficial,
+            # los tomamos del ZIP (best-effort) y los almacenamos.
+            try:
+                changed = False
+                if not getattr(existing_doc, "pdf_data", None):
+                    pdf_bytes = _read_pdf_from_zip(file_path)
+                    if pdf_bytes:
+                        existing_doc.pdf_data = pdf_bytes
+                        existing_doc.pdf_source = "dian_official"
+                        changed = True
+                if not getattr(existing_doc, "xml_data", None):
+                    xml_bytes = _read_xml_from_zip(file_path)
+                    if xml_bytes:
+                        existing_doc.xml_data = xml_bytes
+                        changed = True
+                if changed:
+                    db.commit()
+                    # Los enlaces se publican desde los bytes recién guardados; el caso de
+                    # uso ya respeta los que existan, así que no hace falta comprobarlo aquí.
+                    await PublishDocumentFilesUseCase(DocumentRepository(db)).execute(
+                        existing_doc.id, tenant_slug=tenant_slug
+                    )
+                    logger.info("PDF/XML oficial backfill en documento existente %s", doc_number)
+            except Exception as ex:
+                db.rollback()
+                logger.warning("No se pudo hacer backfill de PDF/XML oficial: %s", ex)
             already_has_entry = await _has_accounting_entry(existing_doc.id)
             if not already_has_entry:
                 logger.info("Documento duplicado %s sin causación — generando...", doc_number)

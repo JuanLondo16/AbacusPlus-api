@@ -7,7 +7,14 @@ from app.domain.exceptions.base import DomainException
 
 logger = logging.getLogger(__name__)
 
-STATUS_MAP = {"VALIDATION_ERROR": 400, "DOMAIN_ERROR": 500}
+STATUS_MAP = {
+    "VALIDATION_ERROR": 400,
+    # RF-08: falta un prerequisito de negocio (el PUC o el catálogo de impuestos), no es un
+    # fallo del servidor: el usuario debe cargar el catálogo antes de pedir sugerencias.
+    "NO_CHART_OF_ACCOUNTS": 409,
+    "NO_TAX_CATALOG": 409,
+    "DOMAIN_ERROR": 500,
+}
 
 
 async def domain_exception_handler(request: Request, exc: DomainException) -> JSONResponse:

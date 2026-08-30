@@ -1,9 +1,7 @@
-import contextlib
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import httpx
-
 from app.domain.exceptions.base import ExternalAuthException, ExternalServiceException
 from app.infrastructure.persistence.models.integration import IntegrationCredential
 

@@ -6,13 +6,16 @@ import pytest
 from app.application.dto.chunk import IndexChunkRequest
 from app.application.use_cases.index_chunk import IndexChunkUseCase
 from app.domain.entities.chunk import ChunkEntity
+from app.infrastructure.persistence.models.chunk import EMBEDDING_DIMENSIONS
 
 
 @pytest.fixture
 def fake_embedding_service():
     svc = AsyncMock()
-    svc.embed = AsyncMock(return_value=[0.1] * 768)
-    svc.dimensions = 768
+    # Debe coincidir con `EMBEDDING_DIMENSIONS` del modelo: un doble con otra dimensión
+    # probaría un escenario que la base de datos rechazaría.
+    svc.embed = AsyncMock(return_value=[0.1] * EMBEDDING_DIMENSIONS)
+    svc.dimensions = EMBEDDING_DIMENSIONS
     return svc
 
 
@@ -63,4 +66,4 @@ class TestIndexChunkUseCase:
         await use_case.execute(request)
 
         saved_chunk = fake_chunk_repo.create.call_args[0][0]
-        assert len(saved_chunk.embedding) == 768
+        assert len(saved_chunk.embedding) == EMBEDDING_DIMENSIONS

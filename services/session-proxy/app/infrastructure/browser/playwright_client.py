@@ -311,15 +311,15 @@ class BrowserDownloadSession:
         # Args mínimos: solo lo necesario para correr en contenedor. NO se incluye
         # --disable-blink-features=AutomationControlled (patchright lo maneja; pasarlo delata).
         session_args = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-        launch_kwargs = dict(
-            headless=headless,
-            args=session_args,
-            user_agent=_BROWSER_UA,
-            viewport={"width": 1280, "height": 720},
-            locale="es-CO",
-            timezone_id="America/Bogota",
-            accept_downloads=True,
-        )
+        launch_kwargs = {
+            "headless": headless,
+            "args": session_args,
+            "user_agent": _BROWSER_UA,
+            "viewport": {"width": 1280, "height": 720},
+            "locale": "es-CO",
+            "timezone_id": "America/Bogota",
+            "accept_downloads": True,
+        }
         if channel:
             launch_kwargs["channel"] = channel
         try:
@@ -633,7 +633,7 @@ class BrowserDownloadSession:
             download = await dl_info.value
             path = await download.path()
             if path:
-                with open(path, "rb") as f:
+                with open(path, "rb") as f:  # noqa: ASYNC230 — fichero temporal local ya escrito, pocos KB
                     return f.read(), self._page.url
         except Exception as e:
             logger.debug("[Session] nav-prime sin attachment: %s", type(e).__name__)
@@ -698,7 +698,7 @@ class BrowserDownloadSession:
             download = await dl_info.value
             path = await download.path()
             if path:
-                with open(path, "rb") as f:
+                with open(path, "rb") as f:  # noqa: ASYNC230 — fichero temporal local ya escrito, pocos KB
                     data = f.read()
                 return data, (VALID_ZIP if is_valid_zip(data) else EMPTY_OR_HTML)
         except Exception as e:
@@ -719,10 +719,8 @@ class BrowserDownloadSession:
             return VALID_ZIP
 
         head_txt = ""
-        try:
+        with contextlib.suppress(Exception):
             head_txt = body_head.decode("utf-8", "ignore").lower()
-        except Exception:
-            pass
 
         if "azure waf" in head_txt or "jschallenge" in head_txt or "azwaf" in head_txt:
             return AZURE_WAF

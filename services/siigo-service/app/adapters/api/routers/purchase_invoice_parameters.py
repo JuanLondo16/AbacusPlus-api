@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, status
 
 from app.application.dto.purchase_invoice_parameter import (
@@ -8,12 +10,14 @@ from app.application.use_cases.manage_purchase_invoice_parameters import (
     ManagePurchaseInvoiceParametersUseCase,
 )
 from app.dependencies import get_purchase_invoice_parameters_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/siigo/purchase-invoice-parameters",
+    dependencies=[Depends(require_write)],
     response_model=PurchaseInvoiceParameterResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear parametros para facturas de compra SIIGO",
@@ -49,7 +53,7 @@ def create_purchase_invoice_parameters(
     response_description="Listado de plantillas de parametros.",
 )
 def list_purchase_invoice_parameters(
-    account_key: str = "default",
+    account_key: Optional[str] = None,
     use_case: ManagePurchaseInvoiceParametersUseCase = Depends(
         get_purchase_invoice_parameters_use_case
     ),

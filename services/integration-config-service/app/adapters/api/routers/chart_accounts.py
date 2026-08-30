@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from app.application.dto.chart_account import ChartAccountResponse, ImportChartAccountsResponse
 from app.application.use_cases.import_chart_accounts import ImportChartAccountsUseCase
 from app.dependencies import get_import_chart_accounts_use_case
-from app.infrastructure.config.auth_dependency import get_tenant_db
+from app.infrastructure.config.auth_dependency import get_tenant_db, require_write
 from app.infrastructure.persistence.repositories.chart_account_repository import (
     ChartAccountRepository,
 )
@@ -21,12 +21,23 @@ Estructura del Excel:
 | `name` | Si | `Gastos de personal` | Nombre de la cuenta. |
 | `external_id` | No | `12345` | ID externo en el sistema de origen, si existe. |
 | `account_type` | No | `Expense` | Tipo o clase de cuenta. |
-| `level` | No | `4` | Nivel jerarquico. |
+| `level` | No | `4` | Nivel jerarquico. Si se omite, se infiere de la longitud del codigo. |
 | `parent_code` | No | `5105` | Codigo de cuenta padre. |
 | `accepts_movements` | No | `true` | Si permite movimientos contables. |
 | `active` | No | `true` | Estado. Si se omite, queda `true`. |
 
 Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`, `x`.
+
+Se aceptan tambien los encabezados en espanol de la exportacion de SIIGO, que se
+mapean a las columnas canonicas: `Codigo`/`Codigo` -> `code`, `Nombre` -> `name`,
+`Tipo de cuenta` -> `account_type`, `Nivel` -> `level`, `Cuenta padre` -> `parent_code`,
+`Activo` -> `active`. Un encabezado canonico explicito siempre tiene prioridad sobre
+su alias. Las columnas no reconocidas (p. ej. `Categoria`, `Nivel agrupacion`) se
+conservan en `raw_payload` pero no se interpretan.
+
+`accepts_movements` se recalcula tras la importacion: una cuenta acepta movimientos
+solo si es hoja del arbol importado (ninguna otra cuenta del archivo la tiene como
+prefijo).
 """
 
 
@@ -52,6 +63,7 @@ def list_chart_accounts(
 
 @router.post(
     "/integrations/chart-accounts/imports",
+    dependencies=[Depends(require_write)],
     response_model=ImportChartAccountsResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar plan de cuentas desde Excel",

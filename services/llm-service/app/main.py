@@ -9,6 +9,7 @@ from app.adapters.api.routers.analyze import router as analyze_router
 from app.adapters.api.routers.internal import router as internal_router
 from app.adapters.api.routers.query import router as query_router
 from app.domain.exceptions.base import DomainException
+from app.infrastructure.clients.http_pool import close_client
 from app.infrastructure.config.database import Base, SessionLocal, engine
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.persistence.models import chart_account as _ca_model  # noqa: F401
@@ -31,6 +32,9 @@ async def lifespan(app: FastAPI):
         db.close()
     logger.info("LLM Service listo")
     yield
+    # El pool HTTP compartido sobrevive a las peticiones, así que hay que cerrarlo aquí: sin
+    # esto, apagar el servicio dejaría conexiones abiertas contra el resto de microservicios.
+    await close_client()
 
 
 app = FastAPI(

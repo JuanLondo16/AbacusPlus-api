@@ -19,7 +19,18 @@ class DocumentRepositoryPort(ABC):
     def create(self, document: object) -> object: ...
 
     @abstractmethod
+    def get_status(self, document_id: int) -> Optional[int]: ...
+
+    @abstractmethod
     def update_status(self, document_id: int, new_status: str) -> object: ...
+
+    @abstractmethod
+    def bulk_update_status(
+        self,
+        document_ids: list[int],
+        new_status: int,
+        expected_statuses: frozenset,
+    ) -> dict: ...
 
 
 class ReceiverRepositoryPort(ABC):

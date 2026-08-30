@@ -26,3 +26,6 @@ class CatalogClient:
 
     async def get_retention_fuente_rates(self) -> list[dict]:
         return await self._get("/api/v1/catalog/retention-fuente-rates")
+
+    async def get_retention_ica_rates(self) -> list[dict]:
+        return await self._get("/api/v1/catalog/retention-ica-rates")

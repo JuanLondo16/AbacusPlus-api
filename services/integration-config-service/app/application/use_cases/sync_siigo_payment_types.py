@@ -7,7 +7,9 @@ from app.infrastructure.clients.siigo_client import SiigoApiClient, token_expira
 from app.infrastructure.persistence.repositories.integration_repository import (
     IntegrationCredentialRepository,
 )
-from app.infrastructure.persistence.repositories.payment_type_repository import PaymentTypeRepository
+from app.infrastructure.persistence.repositories.payment_type_repository import (
+    PaymentTypeRepository,
+)
 
 _SIIGO_PROVIDER = "siigo"
 _PAYMENT_TYPES_PATH = "/v1/payment-types"

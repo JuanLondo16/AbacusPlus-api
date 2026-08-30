@@ -5,7 +5,9 @@ from openpyxl import load_workbook
 
 from app.application.dto.payment_type import ImportPaymentTypesResponse
 from app.domain.exceptions.base import ValidationException
-from app.infrastructure.persistence.repositories.payment_type_repository import PaymentTypeRepository
+from app.infrastructure.persistence.repositories.payment_type_repository import (
+    PaymentTypeRepository,
+)
 
 
 class ImportPaymentTypesUseCase:

@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from app.application.dto.product import ImportProductsResponse, ProductResponse
 from app.application.use_cases.import_products import ImportProductsUseCase
 from app.application.use_cases.sync_siigo_products import SyncSiigoProductsUseCase
-from app.dependencies import get_import_products_use_case, get_product_repository, get_sync_siigo_products_use_case
+from app.dependencies import (
+    get_import_products_use_case,
+    get_product_repository,
+    get_sync_siigo_products_use_case,
+)
+from app.infrastructure.config.auth_dependency import require_write
 from app.infrastructure.persistence.repositories.product_repository import ProductRepository
 
 router = APIRouter()
@@ -51,6 +56,7 @@ def list_products(
 
 @router.post(
     "/integrations/products/imports",
+    dependencies=[Depends(require_write)],
     response_model=ImportProductsResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar productos y servicios desde Excel",
@@ -84,6 +90,7 @@ async def import_products_from_excel(
 
 @router.post(
     "/integrations/products/siigo-syncs",
+    dependencies=[Depends(require_write)],
     response_model=ImportProductsResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar productos y servicios desde SIIGO",

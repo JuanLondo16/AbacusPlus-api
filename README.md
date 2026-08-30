@@ -4,12 +4,17 @@ Plataforma de procesamiento de facturas electrónicas DIAN y causación contable
 
 ## Arquitectura
 
-7 microservicios detrás de un gateway Nginx:
+8 microservicios detrás de un gateway Nginx:
 
 ```
 Cliente
   │
   └─ :8000  ──►  gateway (Nginx)
+                   │   (enruta por prefijo; NO valida el JWT: lo hace cada servicio)
+                   │
+                   ├─ POST /api/v1/auth/login ──►  auth-service :8008
+                   │  GET|POST /api/v1/tenants      (emite JWT RS256, tenants, usuarios)
+                   │  GET  /api/v1/users
                    │
                    ├─ POST /api/v1/documents  ──►  xml-processor :8001
                    │  GET  /api/v1/documents        │  parsea ZIP/XML → PostgreSQL
@@ -24,6 +29,8 @@ Cliente
                    │                                 └─ OpenAI API (asigna PUC por ítem)
                    │
                    ├─ GET|POST /api/v1/siigo  ──►  siigo-service :8006
+                   │                                (credenciales, plan de cuentas,
+                   │                                 factura de compra → SIIGO API · RF-05)
                    │
                    ├─ GET|POST /api/v1/integrations ──►  integration-config-service :8007
                    │

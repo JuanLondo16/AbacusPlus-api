@@ -3,12 +3,14 @@ from fastapi import APIRouter, Depends, status
 from app.application.dto.integration import AuthResponse
 from app.application.use_cases.manage_credentials import ManageCredentialsUseCase
 from app.dependencies import get_credentials_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/siigo/sessions",
+    dependencies=[Depends(require_write)],
     response_model=AuthResponse,
     status_code=status.HTTP_200_OK,
     summary="Autenticar contra SIIGO",

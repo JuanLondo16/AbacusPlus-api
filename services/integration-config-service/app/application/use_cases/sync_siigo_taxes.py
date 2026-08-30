@@ -68,7 +68,12 @@ class SyncSiigoTaxesUseCase:
 
     @staticmethod
     def _map_item(item: dict[str, Any]) -> dict[str, Any]:
+        # El `id` es el dato que hace útil al resto: es el identificador con el que SIIGO
+        # reconoce el impuesto cuando se lo devolvemos en `retentions` o en `items[].taxes`.
+        # Omitirlo dejaba que la tabla generara claves propias con su secuencia, y esas
+        # claves locales viajaban a SIIGO como si fueran suyas: `The id doesn't exist`.
         return {
+            "id": item.get("id"),
             "name": str(item.get("name") or item.get("id") or ""),
             "type": str(item.get("type") or ""),
             "percentage": float(item.get("percentage") or item.get("rate") or 0),

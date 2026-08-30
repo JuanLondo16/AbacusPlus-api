@@ -10,7 +10,13 @@ class SearchChunksUseCase:
 
     async def execute(self, request: SearchRequest) -> SearchResponse:
         query_embedding = await self._embedding_service.embed(request.query)
-        results = self._chunk_repo.search_similar(query_embedding, top_k=request.top_k)
+        results = self._chunk_repo.search_similar(
+            query_embedding,
+            top_k=request.top_k,
+            only_validated=request.only_validated,
+            filters=request.filters,
+            min_similarity=request.min_similarity,
+        )
 
         return SearchResponse(
             query=request.query,

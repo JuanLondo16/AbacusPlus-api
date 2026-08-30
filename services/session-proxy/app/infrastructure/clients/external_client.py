@@ -86,8 +86,8 @@ class HttpxExternalClient(ExternalClientPort):
                 response = await client.get(login_url, params=params, follow_redirects=False)
                 if response.status_code == 403:
                     raise ExternalAuthException(
-                        f"El portal bloqueó la autenticación (403 Forbidden). "
-                        f"Verifica conectividad de red con el portal DIAN."
+                        "El portal bloqueó la autenticación (403 Forbidden). "
+                        "Verifica conectividad de red con el portal DIAN."
                     )
                 # Parsear desde Set-Cookie header — evita CookieConflict cuando el jar
                 # acumula múltiples cookies con el mismo nombre tras redirects.
@@ -166,8 +166,8 @@ class HttpxExternalClient(ExternalClientPort):
                 logger.info("[DIAN paso 2] status=%s", auth_response.status_code)
                 if auth_response.status_code == 403:
                     raise ExternalAuthException(
-                        f"El portal bloqueó la autenticación (403 Forbidden). "
-                        f"Verifica conectividad de red con el portal DIAN."
+                        "El portal bloqueó la autenticación (403 Forbidden). "
+                        "Verifica conectividad de red con el portal DIAN."
                     )
                 app_cookie = _parse_cookie_from_headers(auth_response, ".AspNet.ApplicationCookie")
                 if not app_cookie:
@@ -279,8 +279,8 @@ class HttpxExternalClient(ExternalClientPort):
                 )
                 if auth_response.status_code == 403:
                     raise ExternalAuthException(
-                        f"El portal bloqueó la autenticación (403 Forbidden). "
-                        f"Verifica conectividad de red con el portal DIAN."
+                        "El portal bloqueó la autenticación (403 Forbidden). "
+                        "Verifica conectividad de red con el portal DIAN."
                     )
                 app_cookie = _parse_cookie_from_headers(auth_response, ".AspNet.ApplicationCookie")
                 if not app_cookie:

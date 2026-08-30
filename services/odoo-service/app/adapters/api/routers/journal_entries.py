@@ -15,6 +15,7 @@ from app.application.use_cases.match_entries import MatchEntriesUseCase
 from app.application.use_cases.query_journal_entries import QueryJournalEntriesUseCase
 from app.application.use_cases.sync_journal_entries import SyncJournalEntriesUseCase
 from app.dependencies import get_match_use_case, get_query_use_case, get_sync_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ router = APIRouter()
 
 @router.post(
     "/odoo/syncs",
+    dependencies=[Depends(require_write)],
     response_model=SyncResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar facturas de compra desde Odoo",
@@ -78,6 +80,7 @@ def list_journal_entries(
 
 @router.post(
     "/odoo/entry-matches",
+    dependencies=[Depends(require_write)],
     response_model=MatchEntriesResponse,
     status_code=status.HTTP_200_OK,
     summary="Vincular asientos in_invoice sin documento a su factura DIAN",

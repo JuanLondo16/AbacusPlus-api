@@ -10,6 +10,7 @@ from app.dependencies import (
     get_sync_siigo_taxes_use_case,
     get_tax_repository,
 )
+from app.infrastructure.config.auth_dependency import require_write
 from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
 
 router = APIRouter()
@@ -51,6 +52,7 @@ def list_taxes(
 
 @router.post(
     "/integrations/taxes/imports",
+    dependencies=[Depends(require_write)],
     response_model=ImportTaxesResponse,
     status_code=status.HTTP_200_OK,
     summary="Importar impuestos desde Excel",
@@ -79,6 +81,7 @@ async def import_taxes_from_excel(
 
 @router.post(
     "/integrations/taxes/siigo-syncs",
+    dependencies=[Depends(require_write)],
     response_model=ImportTaxesResponse,
     status_code=status.HTTP_200_OK,
     summary="Sincronizar impuestos desde SIIGO",

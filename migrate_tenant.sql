@@ -45,3 +45,32 @@ BEGIN
             ADD CONSTRAINT uq_chart_account_code UNIQUE (code);
     END IF;
 END $$;
+
+-- ── Índices de rendimiento ────────────────────────────────────────────────────
+-- Las tablas ya creadas no reciben los índices que se añaden al modelo:
+-- `create_all(checkfirst=True)` solo mira si la tabla existe, no sus índices. Estas
+-- sentencias los ponen al día en las bases que ya están en producción.
+--
+-- `CONCURRENTLY` no se usa a propósito: no funciona dentro de un bloque de transacción y este
+-- archivo se ejecuta como un guion completo. Las tablas de un cliente son pequeñas y el
+-- bloqueo dura poco; si alguna base fuera muy grande, conviene crear estos índices a mano y
+-- con `CONCURRENTLY`.
+
+-- Filtro principal de la aplicación: rango de fechas + estado, del más reciente al más antiguo.
+CREATE INDEX IF NOT EXISTS ix_documents_date_status ON documents (date, status);
+
+-- Índice suelto por fecha: cubre las consultas que no filtran por estado.
+CREATE INDEX IF NOT EXISTS ix_documents_date ON documents (date);
+
+-- Comprobación de duplicados al importar cada XML del ZIP.
+CREATE INDEX IF NOT EXISTS ix_documents_document_number ON documents (document_number);
+
+-- RF-05: búsqueda de documentos con el cerrojo de contabilización puesto. Parcial porque
+-- casi todas las filas valen `false`.
+CREATE INDEX IF NOT EXISTS ix_documents_accounting_locked
+    ON documents (accounting_locked) WHERE accounting_locked;
+
+-- Clave foránea sin índice: PostgreSQL no lo crea solo. Se recorre cada vez que se abre el
+-- detalle de un documento.
+CREATE INDEX IF NOT EXISTS ix_document_details_document_id
+    ON document_details (document_id);

@@ -11,6 +11,7 @@ from app.adapters.api.routers.journal_entries import router as journal_entries_r
 from app.adapters.api.routers.purchase_invoice_parameters import (
     router as purchase_invoice_parameters_router,
 )
+from app.adapters.api.routers.purchase_invoices import router as purchase_invoices_router
 from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.config.logging import setup_logging
@@ -51,6 +52,7 @@ app.include_router(credentials_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(chart_accounts_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(purchase_invoice_parameters_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(journal_entries_router, prefix="/api/v1", tags=["siigo"])
+app.include_router(purchase_invoices_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 
 logger.info("SIIGO Service started on port 8006")

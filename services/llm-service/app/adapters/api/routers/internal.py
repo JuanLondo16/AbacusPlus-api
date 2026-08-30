@@ -1,3 +1,4 @@
+import hmac
 import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -8,7 +9,7 @@ router = APIRouter()
 
 def _verify_internal_secret(x_internal_secret: str = Header(...)):
     expected = os.environ.get("INTERNAL_SECRET", "")
-    if not expected or x_internal_secret != expected:
+    if not expected or not hmac.compare_digest(x_internal_secret, expected):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 

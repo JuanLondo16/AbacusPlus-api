@@ -1,8 +1,11 @@
 import io
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: S405 # nosemgrep: use-defused-xml — solo el tipo ParseError, el parseo usa defusedxml
 import zipfile
 from pathlib import Path
 from typing import Optional
+
+from defusedxml.common import DefusedXmlException
+from defusedxml.ElementTree import fromstring as parse_xml_string
 
 
 async def extract_zip_file(
@@ -47,13 +50,16 @@ async def extract_zip_file(
                 content = xml_file.read().decode("utf-8")
 
                 try:
-                    ET.fromstring(content)
-                except ET.ParseError:
-                    raise ValueError("File does not contain valid XML")
+                    parse_xml_string(content)
+                except ET.ParseError as exc:
+                    raise ValueError("File does not contain valid XML") from exc
+                except DefusedXmlException as exc:
+                    # DTD o entidades: se descarta antes de seguir procesando el ZIP.
+                    raise ValueError(f"XML rechazado por seguridad: {exc}") from exc
 
                 return content, xml_filename
 
-    except zipfile.BadZipFile:
-        raise ValueError("File is not a valid ZIP")
-    except UnicodeDecodeError:
-        raise ValueError("XML file does not have valid UTF-8 encoding")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("File is not a valid ZIP") from exc
+    except UnicodeDecodeError as exc:
+        raise ValueError("XML file does not have valid UTF-8 encoding") from exc

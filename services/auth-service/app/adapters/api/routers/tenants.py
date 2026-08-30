@@ -1,8 +1,15 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.application.dto.tenant import RegisterTenantRequest, TenantResponse
 from app.application.use_cases.register_tenant import RegisterTenantUseCase
+from app.infrastructure.config.auth_dependency import (
+    TokenData,
+    get_token_data,
+    require_bootstrap_secret,
+)
 from app.infrastructure.config.database import get_db
 from app.infrastructure.persistence.repositories.tenant_repository import TenantRepository
 
@@ -21,12 +28,16 @@ router = APIRouter()
         "3. Llama a cada microservicio para crear sus tablas en la nueva DB.\n"
         "4. Crea el usuario administrador inicial dentro de la DB del tenant.\n"
         "5. Registra el tenant en `abacus_meta`.\n\n"
-        "**Nota:** Este endpoint no requiere autenticacion para permitir el registro inicial. "
-        "En produccion se recomienda protegerlo con una API key de bootstrap."
+        "**Autorizacion:** requiere el header `X-Internal-Secret` con el valor de "
+        "`INTERNAL_SECRET`. No puede exigir un usuario autenticado porque el primer "
+        "administrador del tenant nace de esta misma llamada; el secreto compartido es la "
+        "barrera que impide que un tercero provoque la creacion ilimitada de bases de datos."
     ),
     response_description="Datos del tenant creado.",
+    dependencies=[Depends(require_bootstrap_secret)],
     responses={
         400: {"description": "Slug invalido o tenant ya existe."},
+        403: {"description": "Falta el secreto de bootstrap o no coincide."},
         500: {"description": "Error al provisionar la DB o los servicios."},
     },
 )
@@ -44,12 +55,22 @@ def register_tenant(request: RegisterTenantRequest, db: Session = Depends(get_db
     "/api/v1/tenants",
     response_model=list[TenantResponse],
     summary="Listar tenants",
-    description="Retorna todos los tenants activos. Endpoint administrativo.",
-    response_description="Lista de tenants activos.",
+    description=(
+        "Retorna los datos del tenant al que pertenece el token. Endpoint administrativo.\n\n"
+        "Antes devolvia la lista completa de clientes sin pedir token, lo que exponia la "
+        "cartera de empresas de la plataforma a cualquiera. Cada usuario ve unicamente el "
+        "suyo, que es el unico dato que la aplicacion necesita de aqui."
+    ),
+    response_description="Tenant del usuario autenticado.",
+    responses={401: {"description": "Falta el token o no es valido."}},
 )
-def list_tenants(db: Session = Depends(get_db)):
+def list_tenants(
+    token: Annotated[TokenData, Depends(get_token_data)],
+    db: Session = Depends(get_db),
+):
     repo = TenantRepository(db)
-    tenants = repo.list_all()
+    tenant = repo.get_by_slug(token.tenant_slug)
+    tenants = [tenant] if tenant is not None else []
     return [
         TenantResponse(
             id=str(t.id),
