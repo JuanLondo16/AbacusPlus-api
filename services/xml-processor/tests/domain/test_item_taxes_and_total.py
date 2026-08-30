@@ -20,8 +20,8 @@ from app.application.use_cases.account_document import AccountDocumentUseCase
 #: El catálogo real, ya reidentificado con los ids de SIIGO.
 _CATALOGO = [
     (10594, "IVA", 19.0),
-    (20880, "IVA", 19.0),      # «Iva servicios 19%», id mayor: no debe ganar
-    (20921, "IVA", 19.0),      # «IVA 19%.», id mayor: no debe ganar
+    (20880, "IVA", 19.0),  # «Iva servicios 19%», id mayor: no debe ganar
+    (20921, "IVA", 19.0),  # «IVA 19%.», id mayor: no debe ganar
     (10595, "IVA", 5.0),
     (14165, "IVA", 0.0),
     (10609, "Impoconsumo", 8.0),
@@ -89,9 +89,10 @@ class TestImpuestoDeLaLinea:
         caso = _caso()
         catalogo = caso._catalogo_de_impuestos_por_porcentaje()
 
-        assert caso._impuesto_de_la_linea(
-            _linea(1000, "19.00", tax_id=20880), catalogo
-        ) == (20880, 19.0)
+        assert caso._impuesto_de_la_linea(_linea(1000, "19.00", tax_id=20880), catalogo) == (
+            20880,
+            19.0,
+        )
 
     def test_un_cero_no_lleva_impuesto(self):
         """Un «IVA 0%» explícito no cambia el total y añade una referencia que puede fallar."""

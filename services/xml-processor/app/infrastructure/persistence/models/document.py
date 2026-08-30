@@ -177,6 +177,7 @@ class Document(Base):
         anticipada o pagará una consulta por documento. `get_by_date_range` lo hace.
         """
         return round(sum(d.consumption_tax for d in self.details or []), 2)
+
     # Relación con DocumentTax
     taxes = relationship("DocumentTax", back_populates="document")
 
@@ -287,6 +288,7 @@ class DocumentDetail(Base):
     def consumption_tax(self) -> float:
         """Alias de `inc_value`. Lo consume `Document.total_consumption_tax`."""
         return self.inc_value
+
     code = Column(String(50), nullable=True)
     type = Column(String(20), nullable=False, default="Account")
     tax_id = Column(Integer, nullable=True)

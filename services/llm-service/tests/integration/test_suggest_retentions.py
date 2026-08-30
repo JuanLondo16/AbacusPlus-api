@@ -170,20 +170,24 @@ class TestPercentageAlwaysComesFromTheCatalog:
     @pytest.mark.asyncio
     async def test_uses_the_catalog_percentage_not_the_model_one(self):
         # El modelo devuelve un porcentaje disparatado; debe ignorarse por completo.
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10, "percentage": 99.9}]}))
+        # ReteICA (11) y no ReteFuente (10): esta última nunca llega a ser sugerencia
+        # accionable —SIIGO la practica por su cuenta— así que no sirve para probar mecánica
+        # genérica del caso de uso.
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11, "percentage": 99.9}]}))
 
         result = await uc.execute(1)
 
-        assert result["suggestions"][0]["percentage"] == 2.5
+        assert result["suggestions"][0]["percentage"] == 6.9
 
     @pytest.mark.asyncio
     async def test_computes_value_from_catalog_rate_and_document_subtotal(self):
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}))
 
         suggestion = (await uc.execute(1))["suggestions"][0]
 
         assert suggestion["taxable_base"] == 100000.0
-        assert suggestion["value"] == 2500.0  # 100000 × 2.5 / 100
+        # ReteICA divide por mil, no por cien (`_UNIDAD_POR_TIPO`): se publica por mil.
+        assert suggestion["value"] == 690.0  # 100000 × 6.9 / 1000
 
 
 class TestOnlyCatalogRetentionsAreSuggested:
@@ -213,7 +217,7 @@ class TestOnlyCatalogRetentionsAreSuggested:
 
     @pytest.mark.asyncio
     async def test_duplicated_ids_are_collapsed(self):
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}, {"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}, {"tax_id": 11}]}))
 
         assert len((await uc.execute(1))["suggestions"]) == 1
 
@@ -281,21 +285,23 @@ class TestOverwriteManual:
 
     @pytest.mark.asyncio
     async def test_when_overwriting_the_model_may_propose_the_full_set(self):
-        """Si se van a reemplazar, el modelo debe poder proponer el conjunto completo."""
-        doc = {**_DOCUMENTO, "taxes": [{"tax_id": 10}]}
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}, {"tax_id": 11}]}), document=doc)
+        """Si se van a reemplazar, el modelo debe poder proponer el conjunto completo.
+
+        ReteICA (11) y ReteIVA (14): dos clases que sí llegan a ser sugerencia accionable.
+        ReteFuente no sirve aquí porque nunca sobrevive a `_exclude_unsendable`.
+        """
+        doc = {**_DOCUMENTO, "taxes": [{"tax_id": 11}]}
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}, {"tax_id": 14}]}), document=doc)
 
         result = await uc.execute(1, overwrite_manual=True)
 
-        assert sorted(s["tax_id"] for s in result["suggestions"]) == [10, 11]
+        assert sorted(s["tax_id"] for s in result["suggestions"]) == [11, 14]
 
     @pytest.mark.asyncio
     async def test_overwriting_still_excludes_iva_and_inactive(self):
         """Sobrescribir amplía las candidatas, no relaja las reglas del catálogo."""
         doc = {**_DOCUMENTO, "taxes": [{"tax_id": 10}]}
-        uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 12}, {"tax_id": 13}]}), document=doc
-        )
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 12}, {"tax_id": 13}]}), document=doc)
 
         result = await uc.execute(1, overwrite_manual=True)
 
@@ -345,17 +351,17 @@ class TestMalformedModelResponses:
 
     @pytest.mark.asyncio
     async def test_accepts_json_wrapped_in_a_markdown_fence(self):
-        uc = _use_case('```json\n{"retentions": [{"tax_id": 10}]}\n```')
+        uc = _use_case('```json\n{"retentions": [{"tax_id": 11}]}\n```')
 
         assert len((await uc.execute(1))["suggestions"]) == 1
 
     @pytest.mark.asyncio
     async def test_skips_entries_without_a_usable_id(self):
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": "abc"}, {"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": "abc"}, {"tax_id": 11}]}))
 
         result = await uc.execute(1)
 
-        assert [s["tax_id"] for s in result["suggestions"]] == [10]
+        assert [s["tax_id"] for s in result["suggestions"]] == [11]
         assert result["warnings"]
 
 
@@ -419,7 +425,7 @@ class TestSuggestionsAreNotPersisted:
     @pytest.mark.asyncio
     async def test_the_use_case_never_writes_to_the_document(self):
         """Desde la interfaz el criterio de aceptación exige confirmación humana."""
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}))
 
         result = await uc.execute(1)
 
@@ -496,6 +502,12 @@ class TestItAbstainsWithoutOfficialRates:
 
     @pytest.mark.asyncio
     async def test_with_the_rate_table_loaded_it_does_propose(self):
+        """Con la tabla cargada, la abstención por «sin tarifas oficiales» desaparece.
+
+        La ReteFuente sigue sin llegar a `suggestions` —nunca lo hace, la practica SIIGO por
+        su cuenta—, pero el motivo cambia: ya no es que falte la tarifa, es que no hay dónde
+        enviarla. Eso demuestra que la tarifa SÍ se validó antes de excluirla.
+        """
         uc = _use_case(
             json.dumps({"retentions": [{"tax_id": 10}]}),
             rates=[{"retention_concept": "Servicios", "rate_percentage": 2.5}],
@@ -503,7 +515,9 @@ class TestItAbstainsWithoutOfficialRates:
 
         result = await uc.execute(1)
 
-        assert [s["tax_id"] for s in result["suggestions"]] == [10]
+        assert result["suggestions"] == []
+        assert not any("tarifas oficiales" in w for w in result["warnings"])
+        assert any("no se propone" in w and "SIIGO" in w for w in result["warnings"])
 
     @pytest.mark.asyncio
     async def test_nothing_is_persisted_when_it_abstains(self):
@@ -519,12 +533,16 @@ class TestTaxableBasePerConcept:
     completo a cada retención retendría de más.
     """
 
+    # Estos tests usan ReteICA (11) y no ReteFuente (10): la ReteFuente nunca llega a
+    # `suggestions` —la practica SIIGO por su cuenta—, así que no sirve para probar el
+    # acotamiento de la base por renglón, que es mecánica genérica ajena a esa regla. Los
+    # `ica_rates` del cliente falso por defecto ya traen 6.9% para «servicios», así que no
+    # hace falta declarar una tabla propia.
     @pytest.mark.asyncio
     async def test_the_base_is_limited_to_the_indicated_lines(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10, "detail_ids": [59]}]}),
+            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [59]}]}),
             document=_FACTURA_MIXTA,
-            rates=[{"retention_concept": "Transporte", "rate_percentage": 2.5}],
         )
 
         result = await uc.execute(1)
@@ -534,9 +552,8 @@ class TestTaxableBasePerConcept:
     @pytest.mark.asyncio
     async def test_several_lines_are_added_up(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10, "detail_ids": [58, 59]}]}),
+            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [58, 59]}]}),
             document=_FACTURA_MIXTA,
-            rates=[{"retention_concept": "Servicios", "rate_percentage": 2.5}],
         )
 
         result = await uc.execute(1)
@@ -546,22 +563,20 @@ class TestTaxableBasePerConcept:
     @pytest.mark.asyncio
     async def test_the_value_follows_the_narrowed_base(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10, "detail_ids": [59]}]}),
+            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [59]}]}),
             document=_FACTURA_MIXTA,
-            rates=[{"retention_concept": "Transporte", "rate_percentage": 2.5}],
         )
 
         result = await uc.execute(1)
 
-        # 40.000 × 2,5% = 1.000, no 148.600 × 2,5% = 3.715
-        assert result["suggestions"][0]["value"] == 1000.0
+        # 40.000 × 6,9 / 1000 = 276, no 148.600 × 6,9 / 1000 = 1.025,34
+        assert result["suggestions"][0]["value"] == 276.0
 
     @pytest.mark.asyncio
     async def test_without_detail_ids_it_falls_back_to_the_document_subtotal(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10}]}),
+            json.dumps({"retentions": [{"tax_id": 11}]}),
             document=_FACTURA_MIXTA,
-            rates=[{"retention_concept": "Servicios", "rate_percentage": 2.5}],
         )
 
         result = await uc.execute(1)
@@ -572,9 +587,8 @@ class TestTaxableBasePerConcept:
     async def test_line_ids_that_do_not_exist_are_ignored(self):
         """Los identificadores llegan del modelo: solo valen los del documento real."""
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10, "detail_ids": [9999]}]}),
+            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [9999]}]}),
             document=_FACTURA_MIXTA,
-            rates=[{"retention_concept": "Servicios", "rate_percentage": 2.5}],
         )
 
         result = await uc.execute(1)
@@ -584,9 +598,8 @@ class TestTaxableBasePerConcept:
     @pytest.mark.asyncio
     async def test_a_malformed_detail_ids_does_not_break_the_suggestion(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10, "detail_ids": "59"}]}),
+            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": "59"}]}),
             document=_FACTURA_MIXTA,
-            rates=[{"retention_concept": "Servicios", "rate_percentage": 2.5}],
         )
 
         result = await uc.execute(1)
@@ -632,9 +645,13 @@ class TestReteIvaBase:
         assert result["suggestions"][0]["taxable_base"] == 28234.0
 
     @pytest.mark.asyncio
-    async def test_retefuente_still_uses_the_operation_value(self):
-        """El cambio no puede alterar la base de los demás tipos."""
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}]}))
+    async def test_other_types_still_use_the_operation_value(self):
+        """El cambio de base para ReteIVA no puede alterar la base de los demás tipos.
+
+        ReteICA (11) y no ReteFuente (10): esta última nunca llega a `suggestions`, así que
+        no sirve para probar qué base usan los tipos que NO son ReteIVA.
+        """
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}))
 
         result = await uc.execute(1)
 
@@ -649,9 +666,12 @@ class TestAutomaticDetermination:
     documento para que el contador la encuentre en la sección de RF-02.
     """
 
+    # ReteICA (11) y no ReteFuente (10) en los cuatro tests de este bloque: la ReteFuente
+    # nunca se persiste —no llega a `suggestions`—, así que no sirve para probar la
+    # persistencia automática, que es mecánica genérica ajena a esa regla.
     @pytest.mark.asyncio
     async def test_persists_when_running_automatically(self):
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}))
 
         result = await uc.execute(1, persist=True)
 
@@ -661,7 +681,7 @@ class TestAutomaticDetermination:
     @pytest.mark.asyncio
     async def test_what_is_persisted_is_marked_as_coming_from_the_model(self):
         """El origen es lo que permite a la interfaz distinguirlo del trabajo manual."""
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}))
 
         await uc.execute(1, persist=True)
 
@@ -670,20 +690,18 @@ class TestAutomaticDetermination:
     @pytest.mark.asyncio
     async def test_persisted_values_come_from_the_catalog_not_from_the_model(self):
         """La garantía central del RF también rige en el modo automático."""
-        uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10, "percentage": 99.9, "value": 1}]})
-        )
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11, "percentage": 99.9, "value": 1}]}))
 
         await uc.execute(1, persist=True)
 
         guardada = uc._document_client.persisted[0][0]
-        assert guardada["percentage"] == 2.5           # del catálogo
-        assert guardada["taxable_base"] == 100000.0    # subtotal del documento
+        assert guardada["percentage"] == 6.9  # del catálogo
+        assert guardada["taxable_base"] == 100000.0  # subtotal del documento
 
     @pytest.mark.asyncio
     async def test_persisting_never_overwrites_registered_retentions(self):
         """La persistencia automática es conservadora, y lo dice en vez de callarlo."""
-        uc = _use_case(json.dumps({"retentions": [{"tax_id": 10}]}))
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}))
 
         result = await uc.execute(1, overwrite_manual=True, persist=True)
 
@@ -799,12 +817,36 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
 
     # Calcado del catálogo real del tenant, incluidas las filas gemelas del Excel.
     _CATALOGO_REAL = [
-        {"id": 23, "name": "autorretencion", "type": "Autorretencion", "percentage": 0.4, "active": True},
-        {"id": 29, "name": "autorretención.", "type": "Autorretencion", "percentage": 0.4, "active": True},
-        {"id": 16, "name": "Impoconsumo 8%", "type": "Impoconsumo", "percentage": 8.0, "active": True},
+        {
+            "id": 23,
+            "name": "autorretencion",
+            "type": "Autorretencion",
+            "percentage": 0.4,
+            "active": True,
+        },
+        {
+            "id": 29,
+            "name": "autorretención.",
+            "type": "Autorretencion",
+            "percentage": 0.4,
+            "active": True,
+        },
+        {
+            "id": 16,
+            "name": "Impoconsumo 8%",
+            "type": "Impoconsumo",
+            "percentage": 8.0,
+            "active": True,
+        },
         {"id": 1, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": True},
         {"id": 28, "name": "IVA 19%.", "type": "IVA", "percentage": 19.0, "active": True},
-        {"id": 10, "name": "Retefuente 2.5%", "type": "Retefuente", "percentage": 2.5, "active": True},
+        {
+            "id": 10,
+            "name": "Retefuente 2.5%",
+            "type": "Retefuente",
+            "percentage": 2.5,
+            "active": True,
+        },
         {"id": 14, "name": "ReteIVA 15%", "type": "ReteIVA", "percentage": 15.0, "active": True},
     ]
 
@@ -813,10 +855,20 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
         **_DOCUMENTO,
         "total_taxes": 27_000.0,
         "details": [
-            {"id": 1, "description": "Servicio de transporte", "subtotal": 100_000.0,
-             "tax_id": 1, "tax_value": 19_000.0},
-            {"id": 2, "description": "Bebida azucarada", "subtotal": 100_000.0,
-             "tax_id": 16, "tax_value": 8_000.0},
+            {
+                "id": 1,
+                "description": "Servicio de transporte",
+                "subtotal": 100_000.0,
+                "tax_id": 1,
+                "tax_value": 19_000.0,
+            },
+            {
+                "id": 2,
+                "description": "Bebida azucarada",
+                "subtotal": 100_000.0,
+                "tax_id": 16,
+                "tax_value": 8_000.0,
+            },
         ],
     }
 
@@ -889,8 +941,13 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
             **_DOCUMENTO,
             "total_taxes": 0.0,
             "details": [
-                {"id": 1, "description": "Compra exenta", "subtotal": 100_000.0,
-                 "tax_id": None, "tax_value": 0.0}
+                {
+                    "id": 1,
+                    "description": "Compra exenta",
+                    "subtotal": 100_000.0,
+                    "tax_id": None,
+                    "tax_value": 0.0,
+                }
             ],
         }
         uc = _use_case(
@@ -906,12 +963,21 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
 
     @pytest.mark.asyncio
     async def test_las_filas_gemelas_del_catalogo_se_colapsan_sin_molestar(self):
+        # ReteICA (14 más una gemela) y no ReteFuente: la ReteFuente nunca llega a
+        # `suggestions`, y este test verifica precisamente lo contrario —que la
+        # sugerencia SÍ sobrevive, sin aviso, tras colapsar la fila gemela del catálogo—.
         catalogo = self._CATALOGO_REAL + [
-            {"id": 40, "name": "Retefuente 2.5%.", "type": "Retefuente", "percentage": 2.5,
-             "active": True}
+            {
+                "id": 40,
+                "name": "ReteICA 6.9.",
+                "type": "ReteICA",
+                "percentage": 6.9,
+                "active": True,
+            },
+            {"id": 11, "name": "ReteICA 6.9", "type": "ReteICA", "percentage": 6.9, "active": True},
         ]
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 10}]}),
+            json.dumps({"retentions": [{"tax_id": 11}]}),
             taxes=catalogo,
             document=self._CON_IMPOCONSUMO,
         )
@@ -919,5 +985,5 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
         result = await uc.execute(1)
 
         # Se elige una, siempre la misma, y no se avisa: las dos dan el mismo cálculo.
-        assert [s["tax_id"] for s in result["suggestions"]] == [10]
+        assert [s["tax_id"] for s in result["suggestions"]] == [11]
         assert result["warnings"] == []

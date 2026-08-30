@@ -20,9 +20,7 @@ def _normalizar(valor: str) -> str:
     Emparejar literalmente dejaría fuera justo a las filas heredadas que hay que corregir.
     """
     sin_tildes = "".join(
-        c
-        for c in unicodedata.normalize("NFD", valor or "")
-        if unicodedata.category(c) != "Mn"
+        c for c in unicodedata.normalize("NFD", valor or "") if unicodedata.category(c) != "Mn"
     )
     return re.sub(r"\s+", " ", sin_tildes).strip().strip(".").strip().lower()
 
@@ -158,9 +156,7 @@ class TaxRepository:
         se deja como está: se le añade un sufijo que la delata en el catálogo, para que quien
         lo revise vea que quedó fuera de la sincronización.
         """
-        nombres_de_siigo = {
-            _normalizar(str(item.get("name") or "")) for item in items
-        }
+        nombres_de_siigo = {_normalizar(str(item.get("name") or "")) for item in items}
         sobrantes = [
             fila
             for fila in self.db.query(Tax).all()
@@ -183,9 +179,7 @@ class TaxRepository:
         """Da un nombre provisional a las filas que están a punto de reidentificarse."""
         for id_local in ids_locales:
             self.db.execute(
-                text(
-                    "UPDATE integration_taxes SET name = :provisional WHERE id = :id"
-                ),
+                text("UPDATE integration_taxes SET name = :provisional WHERE id = :id"),
                 {"provisional": f"__pend__{id_local}", "id": id_local},
             )
         self.db.flush()
@@ -271,6 +265,7 @@ class TaxRepository:
 
         for tabla, columna in self._referencias():
             self.db.execute(
+                # nosemgrep: avoid-sqlalchemy-text
                 text(
                     # noqa justificado: `tabla`/`columna` salen de `_referencias()`, que los
                     # lee del catálogo de PostgreSQL — nunca de entrada de usuario. Los valores
@@ -367,9 +362,7 @@ class TaxRepository:
         """
         if not ids_de_siigo:
             return
-        sobrantes = [
-            fila for fila in self.db.query(Tax).all() if fila.id not in ids_de_siigo
-        ]
+        sobrantes = [fila for fila in self.db.query(Tax).all() if fila.id not in ids_de_siigo]
         if sobrantes:
             logger.warning(
                 "Impuestos sin correspondencia en SIIGO (%s): %s. Un documento que los use "

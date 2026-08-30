@@ -203,9 +203,7 @@ class AccountDocumentUseCase:
                     "se está contabilizando. Actualice la vista para ver su estado real."
                 ),
                 error_class=ErrorClass.UNCERTAIN if bloqueado else None,
-                recommended_action=(
-                    RecommendedAction.RECONCILE if bloqueado else None
-                ),
+                recommended_action=(RecommendedAction.RECONCILE if bloqueado else None),
                 needs_reconciliation=bloqueado,
             )
 
@@ -237,9 +235,7 @@ class AccountDocumentUseCase:
             # Falta información obligatoria y SIIGO no se llegó a llamar. Es la única certeza
             # absoluta de que no se creó nada, porque la petición no salió de aquí: el
             # documento queda en ERROR, con el cerrojo abierto y marcado como corregible.
-            clasificacion = self.classifier.classify(
-                message=str(exc), local_validation=True
-            )
+            clasificacion = self.classifier.classify(message=str(exc), local_validation=True)
             self._registrar_intento(
                 document_id=document_id,
                 job_id=job_id,
@@ -713,9 +709,7 @@ class AccountDocumentUseCase:
         # Solo a las líneas del documento. La línea de ajuste del impuesto al consumo queda
         # fuera: es un impuesto, no una base gravable, y aplicarle retención cambiaría el
         # importe que el contador registró.
-        self._aplicar_retenciones_a_los_items(
-            items[:indices_de_lineas_reales], retenciones_de_item
-        )
+        self._aplicar_retenciones_a_los_items(items[:indices_de_lineas_reales], retenciones_de_item)
 
         total_retenido = self._retencion_que_aplicara_siigo(
             retention_ids, subtotal_bases, iva_facturado
@@ -1316,9 +1310,7 @@ class AccountDocumentUseCase:
             return {}
         try:
             filas = db.execute(
-                text(
-                    "SELECT id, type, percentage FROM integration_taxes WHERE id = ANY(:ids)"
-                ),
+                text("SELECT id, type, percentage FROM integration_taxes WHERE id = ANY(:ids)"),
                 {"ids": list(tax_ids)},
             ).fetchall()
         except Exception:  # noqa: BLE001
@@ -1376,6 +1368,4 @@ def build_siigo_service_client(
     workers de la cola: no tienen token de usuario y no deben depender de uno.
     """
     url = os.getenv("SIIGO_SERVICE_URL", "http://siigo-service:8006")
-    return SiigoServiceClient(
-        base_url=url, bearer_token=bearer_token, tenant_slug=tenant_slug
-    )
+    return SiigoServiceClient(base_url=url, bearer_token=bearer_token, tenant_slug=tenant_slug)

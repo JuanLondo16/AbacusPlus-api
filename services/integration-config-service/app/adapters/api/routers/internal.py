@@ -63,7 +63,9 @@ def _autoseed_retention_criteria(tenant_slug: str) -> int:
     except Exception as exc:  # noqa: BLE001
         # Un fallo aquí no puede impedir que el cliente quede aprovisionado: los criterios
         # son una fuente orientativa, no un requisito para operar.
-        logger.warning("RF-08: no se pudieron sembrar los criterios (tenant=%s): %s", tenant_slug, exc)
+        logger.warning(
+            "RF-08: no se pudieron sembrar los criterios (tenant=%s): %s", tenant_slug, exc
+        )
         return 0
     finally:
         db.close()
@@ -140,6 +142,7 @@ def get_taxes_internal(
         return TaxRepository(db).list(active=active)
     finally:
         db.close()
+
 
 def _migrate_tenant_db(engine) -> None:
     """Idempotent schema migrations. Safe to run on new or existing tenant DBs."""

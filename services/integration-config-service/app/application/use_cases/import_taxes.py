@@ -69,9 +69,7 @@ class ImportTaxesUseCase:
             try:
                 percentage_value = float(str(percentage).strip())
             except ValueError as exc:
-                raise ValidationException(
-                    f"Row {row_number}: percentage must be a number"
-                ) from exc
+                raise ValidationException(f"Row {row_number}: percentage must be a number") from exc
 
             normalized_name = str(name).strip()
             if normalized_name in seen_names:

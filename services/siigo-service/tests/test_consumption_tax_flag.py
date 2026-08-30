@@ -44,9 +44,7 @@ class TestLecturaDeLaBandera:
 
     def test_una_bandera_ilegible_se_trata_como_desconocida(self):
         assert (
-            SendPurchaseInvoiceUseCase.admite_impuesto_al_consumo(
-                {"consumption_tax": "quizá"}
-            )
+            SendPurchaseInvoiceUseCase.admite_impuesto_al_consumo({"consumption_tax": "quizá"})
             is None
         )
 

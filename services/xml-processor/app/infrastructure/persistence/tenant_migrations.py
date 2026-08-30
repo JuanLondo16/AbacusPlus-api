@@ -416,7 +416,7 @@ def apply_tenant_migrations(engine, *, create_tables: bool = True, strict: bool 
                 type(exc).__name__,
                 exc,
                 resumen,
-)
+            )
             if strict:
                 raise
 

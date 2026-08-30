@@ -48,11 +48,7 @@ class DocumentRepository(DocumentRepositoryPort):
         Devuelve `None` si el documento no existe, que quien llama distingue de un estado
         válido porque ningún estado es `None`.
         """
-        row = (
-            self.db.query(Document.status)
-            .filter(Document.id == document_id)
-            .first()
-        )
+        row = self.db.query(Document.status).filter(Document.id == document_id).first()
         return row[0] if row else None
 
     def get_by_date_range(
@@ -159,22 +155,16 @@ class DocumentRepository(DocumentRepositoryPort):
         # explicar por qué un documento no se movió. Es una lectura de diagnóstico: la
         # garantía de corrección la da la condición del UPDATE, no esta consulta.
         current = dict(
-            self.db.query(Document.id, Document.status)
-            .filter(Document.id.in_(document_ids))
-            .all()
+            self.db.query(Document.id, Document.status).filter(Document.id.in_(document_ids)).all()
         )
         not_found = [doc_id for doc_id in document_ids if doc_id not in current]
-        unchanged = [
-            doc_id for doc_id, st in current.items() if st == new_status
-        ]
+        unchanged = [doc_id for doc_id, st in current.items() if st == new_status]
         rejected = [
             doc_id
             for doc_id, st in current.items()
             if st != new_status and st not in expected_statuses
         ]
-        elegibles = [
-            doc_id for doc_id, st in current.items() if st in expected_statuses
-        ]
+        elegibles = [doc_id for doc_id, st in current.items() if st in expected_statuses]
 
         updated: list[int] = []
         if elegibles:
@@ -264,12 +254,7 @@ class DocumentRepository(DocumentRepositoryPort):
         cambia es que queda bloqueado. Esa separación es lo que permite conservar los cinco
         estados sin perder un ápice de la protección.
         """
-        doc = (
-            self.db.query(Document)
-            .filter(Document.id == document_id)
-            .with_for_update()
-            .first()
-        )
+        doc = self.db.query(Document).filter(Document.id == document_id).with_for_update().first()
         if doc is None:
             return None
         if not self._can_be_accounted(doc, force=force):
@@ -380,7 +365,11 @@ class DocumentRepository(DocumentRepositoryPort):
         return doc
 
     def release_accounting_lock(
-        self, document_id: int, *, reason: str, error_class: Optional[str] = None,
+        self,
+        document_id: int,
+        *,
+        reason: str,
+        error_class: Optional[str] = None,
         recommended_action: Optional[str] = None,
     ) -> Optional[Document]:
         """Abre el cerrojo tras una reconciliación que confirmó que SIIGO no tiene la factura.
@@ -417,7 +406,9 @@ class DocumentRepository(DocumentRepositoryPort):
             .all()
         )
 
-    def update_detail_codes(self, assignments: list[dict], code_source: Optional[str] = None) -> int:
+    def update_detail_codes(
+        self, assignments: list[dict], code_source: Optional[str] = None
+    ) -> int:
         """Actualiza campos de document_details. Solo modifica los campos presentes.
 
         Campos soportados: code, type, cost_center_id, tax_id.
@@ -438,7 +429,9 @@ class DocumentRepository(DocumentRepositoryPort):
         """
         updated = 0
         for item in assignments:
-            row = self.db.query(DocumentDetail).filter(DocumentDetail.id == item["detail_id"]).first()
+            row = (
+                self.db.query(DocumentDetail).filter(DocumentDetail.id == item["detail_id"]).first()
+            )
             if row is None:
                 continue
             if "code" in item:
@@ -523,9 +516,7 @@ class DocumentRepository(DocumentRepositoryPort):
             is not None
         )
 
-    def find_most_frequent_cost_center(
-        self, issuer_nit: str, description: str
-    ) -> Optional[int]:
+    def find_most_frequent_cost_center(self, issuer_nit: str, description: str) -> Optional[int]:
         """Busca el cost_center_id más usado históricamente para descripciones
         similares del mismo emisor. Retorna None si no hay historial."""
         words = [w for w in description.strip().split() if len(w) > 3]

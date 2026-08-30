@@ -25,8 +25,8 @@ from app.application.dto.document_tax import (
 from app.domain.services.account_assignment import validate_assignments
 from app.domain.services.rag_content import (
     build_accounted_knowledge_content,
-    build_accounted_knowledge_signature,
     build_accounted_knowledge_metadata,
+    build_accounted_knowledge_signature,
 )
 from app.domain.value_objects.document_status import DocumentStatus
 from app.infrastructure.config.tenant_connection_manager import get_session_for_tenant
@@ -199,8 +199,8 @@ async def reindex_documents(tenant_slug: str):
         async with httpx.AsyncClient(timeout=30.0) as client:
             for doc in documents:
                 try:
-                    es_conocimiento = (
-                        doc.status == DocumentStatus.CONTABILIZADA and bool(doc.siigo_id)
+                    es_conocimiento = doc.status == DocumentStatus.CONTABILIZADA and bool(
+                        doc.siigo_id
                     )
                     if not es_conocimiento:
                         resp = await client.post(

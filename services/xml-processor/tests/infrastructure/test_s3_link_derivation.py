@@ -96,7 +96,9 @@ class TestAnExplicitLinkStillWins:
     def test_a_configured_field_name_is_honoured(self, monkeypatch):
         monkeypatch.setenv("S3_UPLOAD_LINK_FIELD", "enlace")
 
-        assert _extract_link({"enlace": "https://cdn.ikbo.com/f.pdf"}) == "https://cdn.ikbo.com/f.pdf"
+        assert (
+            _extract_link({"enlace": "https://cdn.ikbo.com/f.pdf"}) == "https://cdn.ikbo.com/f.pdf"
+        )
 
 
 class TestLambdaFilename:

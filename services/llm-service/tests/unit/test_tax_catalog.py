@@ -12,8 +12,20 @@ from app.domain.services.tax_catalog import (
 )
 
 _CATALOGO_REAL = [
-    {"id": 23, "name": "autorretencion", "type": "Autorretencion", "percentage": 0.4, "active": True},
-    {"id": 29, "name": "autorretención.", "type": "Autorretencion", "percentage": 0.4, "active": True},
+    {
+        "id": 23,
+        "name": "autorretencion",
+        "type": "Autorretencion",
+        "percentage": 0.4,
+        "active": True,
+    },
+    {
+        "id": 29,
+        "name": "autorretención.",
+        "type": "Autorretencion",
+        "percentage": 0.4,
+        "active": True,
+    },
     {"id": 16, "name": "Impoconsumo 8%", "type": "Impoconsumo", "percentage": 8.0, "active": True},
     {"id": 1, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": True},
     {"id": 28, "name": "IVA 19%.", "type": "IVA", "percentage": 19.0, "active": True},
@@ -98,7 +110,9 @@ class TestCandidatasDelCatalogo:
         assert avisos == []
 
     def test_descarta_una_fila_sin_porcentaje_y_lo_dice(self):
-        catalogo = [{"id": 5, "name": "Retefuente sin tarifa", "type": "Retefuente", "percentage": 0}]
+        catalogo = [
+            {"id": 5, "name": "Retefuente sin tarifa", "type": "Retefuente", "percentage": 0}
+        ]
 
         candidatas, avisos = retention_candidates(catalogo)
 
@@ -107,7 +121,13 @@ class TestCandidatasDelCatalogo:
 
     def test_excluye_las_filas_inactivas(self):
         catalogo = [
-            {"id": 7, "name": "Retefuente 4%", "type": "Retefuente", "percentage": 4.0, "active": False}
+            {
+                "id": 7,
+                "name": "Retefuente 4%",
+                "type": "Retefuente",
+                "percentage": 4.0,
+                "active": False,
+            }
         ]
 
         assert retention_candidates(catalogo)[0] == []
@@ -182,8 +202,13 @@ class TestNadaSeDescartaEnSilencio:
 
     def test_una_fila_con_tributo_no_reconocido_se_avisa(self):
         catalogo = [
-            {"id": 50, "name": "Retencion municipal industria", "type": "Territorial",
-             "percentage": 0.7, "active": True}
+            {
+                "id": 50,
+                "name": "Retencion municipal industria",
+                "type": "Territorial",
+                "percentage": 0.7,
+                "active": True,
+            }
         ]
 
         candidatas, avisos = retention_candidates(catalogo)
@@ -205,8 +230,7 @@ class TestElDesgloseNoCreceSinLimite:
         documento = {
             "total_taxes": 100 * 190.0,
             "details": [
-                {"id": i, "subtotal": 1000.0, "tax_id": 1, "tax_value": 190.0}
-                for i in range(100)
+                {"id": i, "subtotal": 1000.0, "tax_id": 1, "tax_value": 190.0} for i in range(100)
             ],
         }
 

@@ -88,7 +88,9 @@ class ProcessXmlUseCase:
         issuer = self._ensure_issuer(xml_data)
         self._ensure_receiver(xml_data)
         self._ensure_tax(xml_data)
-        document = self._build_document(xml_data, filename, payment_type_id=issuer.payment_id if issuer else None)
+        document = self._build_document(
+            xml_data, filename, payment_type_id=issuer.payment_id if issuer else None
+        )
         self._build_details(document, xml_data, taxes=taxes)
 
         created = self.document_repo.create(document)
@@ -202,7 +204,9 @@ class ProcessXmlUseCase:
                 )
             )
 
-    def _build_document(self, xml_data: dict, filename: str, payment_type_id: Optional[int] = None) -> Document:
+    def _build_document(
+        self, xml_data: dict, filename: str, payment_type_id: Optional[int] = None
+    ) -> Document:
         emisor = xml_data.get("emisor", {})
         receptor = xml_data.get("receptor", {})
         totales = xml_data.get("totales", {})
@@ -224,9 +228,7 @@ class ProcessXmlUseCase:
         # Antes se sumaban solo los esquemas 06 y 07 en dos columnas que nadie leía, y el 08
         # (ReteIVA) se descartaba entero.
         retenciones_xml = extraer_retenciones_del_xml(xml_data.get("retenciones", []))
-        retefuente = total_retenido(
-            [r for r in retenciones_xml if r["tipo"] == "retefuente"]
-        )
+        retefuente = total_retenido([r for r in retenciones_xml if r["tipo"] == "retefuente"])
         reteica = total_retenido([r for r in retenciones_xml if r["tipo"] == "reteica"])
 
         return Document(
@@ -260,7 +262,9 @@ class ProcessXmlUseCase:
             payment_type_id=payment_type_id,
         )
 
-    def _build_details(self, document: Document, xml_data: dict, taxes: Optional[list] = None) -> None:
+    def _build_details(
+        self, document: Document, xml_data: dict, taxes: Optional[list] = None
+    ) -> None:
         """Construye las líneas de detalle enriquecidas y las adjunta al documento.
 
         Enriquecimiento por línea:
@@ -358,4 +362,3 @@ class ProcessXmlUseCase:
             "Sin coincidencia de impuesto para tax_type=%r — se deja tax_id=None", tax_type_str
         )
         return None
-

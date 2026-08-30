@@ -108,12 +108,16 @@ class TestCompatibilidad:
         assert (ids, importe) == ([], 0.0)
 
     def test_factura_solo_con_iva(self):
-        linea = _Linea(taxes=[{"esquema": "01", "porcentaje": 19.0, "valor": 190.0, "tax_id": 20921}])
+        linea = _Linea(
+            taxes=[{"esquema": "01", "porcentaje": 19.0, "valor": 190.0, "tax_id": 20921}]
+        )
         ids, importe, _ = impuestos_de_la_linea(linea, CATALOGO_COMPLETO, TIPOS_COMPLETO)
         assert (ids, importe) == ([20921], 190.0)
 
     def test_factura_solo_con_inc(self):
-        linea = _Linea(taxes=[{"esquema": "04", "porcentaje": 8.0, "valor": 2518.52, "tax_id": 10615}])
+        linea = _Linea(
+            taxes=[{"esquema": "04", "porcentaje": 8.0, "valor": 2518.52, "tax_id": 10615}]
+        )
         ids, importe, _ = impuestos_de_la_linea(linea, CATALOGO_COMPLETO, TIPOS_COMPLETO)
         assert (ids, importe) == ([10615], 2518.52)
 
@@ -130,7 +134,9 @@ class TestCompatibilidad:
         catalogo = {4.0: 10615, 8.0: 10609}
         tipos = {10615: "Impoconsumo", 10609: "Impoconsumo"}
         for pct, tax_id, valor in ((4.0, 10615, 499.0), (8.0, 10609, 2518.52)):
-            linea = _Linea(taxes=[{"esquema": "04", "porcentaje": pct, "valor": valor, "tax_id": tax_id}])
+            linea = _Linea(
+                taxes=[{"esquema": "04", "porcentaje": pct, "valor": valor, "tax_id": tax_id}]
+            )
             ids, importe, _ = impuestos_de_la_linea(linea, catalogo, tipos)
             assert (ids, importe) == ([tax_id], valor)
 

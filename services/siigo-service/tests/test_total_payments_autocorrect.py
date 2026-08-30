@@ -59,16 +59,12 @@ class TestExtraccionDelTotal:
 
     def test_un_timeout_nunca_autoriza_un_reenvio(self):
         """El caso peligroso: la factura pudo crearse y la respuesta perderse."""
-        exc = SiigoApiException(
-            "SIIGO no respondió dentro del tiempo de espera.", status_code=None
-        )
+        exc = SiigoApiException("SIIGO no respondió dentro del tiempo de espera.", status_code=None)
 
         assert SendPurchaseInvoiceUseCase._total_que_espera_siigo(exc) is None
 
     def test_un_error_de_retenciones_no_autoriza_un_reenvio(self):
-        exc = SiigoApiException(
-            'invalid_array: The array id has invalid values', status_code=400
-        )
+        exc = SiigoApiException("invalid_array: The array id has invalid values", status_code=400)
 
         assert SendPurchaseInvoiceUseCase._total_que_espera_siigo(exc) is None
 

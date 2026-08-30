@@ -192,9 +192,7 @@ class AccountingAttempt(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
-    __table_args__ = (
-        Index("ix_accounting_attempts_doc_created", "document_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_accounting_attempts_doc_created", "document_id", "created_at"),)
 
 
 class DocumentFieldChange(Base):
@@ -230,6 +228,4 @@ class DocumentFieldChange(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
-    __table_args__ = (
-        Index("ix_document_field_changes_doc_created", "document_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_document_field_changes_doc_created", "document_id", "created_at"),)

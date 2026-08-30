@@ -13,9 +13,7 @@ class FiscalProfileResponse(BaseModel):
     agente_retencion_iva: bool = Field(
         ..., description="La empresa es agente de retención de IVA (ReteIVA)."
     )
-    autorretenedor_renta: bool = Field(
-        ..., description="La empresa es autorretenedora de renta."
-    )
+    autorretenedor_renta: bool = Field(..., description="La empresa es autorretenedora de renta.")
     gran_contribuyente: bool = Field(..., description="La empresa es Gran Contribuyente.")
     responsable_iva: bool = Field(..., description="La empresa es responsable de IVA.")
     regimen: str = Field(..., description="Régimen tributario: 'ordinario' o 'simple' (RST).")

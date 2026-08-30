@@ -15,7 +15,6 @@ La corrección es la misma que ya usan el siigo-service y el rag-service: cuando
 `tenant_slug` se habla por la ruta interna, con `X-Internal-Secret`.
 """
 
-
 import pytest
 from app.infrastructure.clients.integration_config_client import IntegrationConfigClient
 

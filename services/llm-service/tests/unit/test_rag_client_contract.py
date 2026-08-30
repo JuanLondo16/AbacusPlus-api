@@ -67,7 +67,9 @@ class TestBusquedaHibrida:
     async def test_el_cliente_real_envia_los_filtros_al_rag_service(self, http):
         client = RagClient(base_url="http://rag-service:8002")
 
-        await client.search("consulta", top_k=3, only_validated=True, filters={"issuer_nit": "900123456"})
+        await client.search(
+            "consulta", top_k=3, only_validated=True, filters={"issuer_nit": "900123456"}
+        )
 
         cuerpo = http.peticiones[0]["json"]
         assert cuerpo["filters"] == {"issuer_nit": "900123456"}
@@ -100,7 +102,9 @@ class TestBusquedaHibrida:
             tarifas_reteica=[],
         )
 
-        assert bundle.casos_historicos, "el precedente debe llegar al prompt, no perderse en un warning"
+        assert (
+            bundle.casos_historicos
+        ), "el precedente debe llegar al prompt, no perderse en un warning"
         assert bundle.traza_recuperacion["estrategia"] == "mismo_proveedor"
         # El NIT viaja normalizado: si una parte guarda '900123456' y la otra busca
         # '900123456-7', el historial del proveedor no se encuentra nunca.

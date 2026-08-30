@@ -95,8 +95,20 @@ def _sembrar_catalogo_heredado(session) -> None:
 
 _CATALOGO_SIIGO = [
     {"id": 10608, "name": "ReteIVA 15%", "type": "ReteIVA", "percentage": 15.0, "active": True},
-    {"id": 10771, "name": "Impoconsumo 8%", "type": "Impoconsumo", "percentage": 8.0, "active": True},
-    {"id": 10402, "name": "Retefuente 10%", "type": "Retefuente", "percentage": 10.0, "active": True},
+    {
+        "id": 10771,
+        "name": "Impoconsumo 8%",
+        "type": "Impoconsumo",
+        "percentage": 8.0,
+        "active": True,
+    },
+    {
+        "id": 10402,
+        "name": "Retefuente 10%",
+        "type": "Retefuente",
+        "percentage": 10.0,
+        "active": True,
+    },
 ]
 
 
@@ -108,9 +120,7 @@ class TestReidentificacion:
 
         ids = {
             fila[0]: fila[1]
-            for fila in session.execute(
-                text("SELECT name, id FROM integration_taxes")
-            ).fetchall()
+            for fila in session.execute(text("SELECT name, id FROM integration_taxes")).fetchall()
         }
         assert ids["ReteIVA 15%"] == 10608
         assert ids["Impoconsumo 8%"] == 10771
@@ -132,12 +142,18 @@ class TestReidentificacion:
 
         TaxRepository(session).upsert_many(_CATALOGO_SIIGO)
 
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 27")
-        ).scalar() == 10608
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 28")
-        ).scalar() == 10771
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 27")
+            ).scalar()
+            == 10608
+        )
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 28")
+            ).scalar()
+            == 10771
+        )
 
     def test_tambien_se_reapuntan_los_detalles(self, session):
         """`document_details.tax_id` cita la misma tabla y se descubre por catálogo."""
@@ -145,9 +161,12 @@ class TestReidentificacion:
 
         TaxRepository(session).upsert_many(_CATALOGO_SIIGO)
 
-        assert session.execute(
-            text("SELECT tax_id FROM document_details WHERE document_id = 27")
-        ).scalar() == 10608
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_details WHERE document_id = 27")
+            ).scalar()
+            == 10608
+        )
 
     def test_no_se_pierde_ninguna_referencia(self, session):
         _sembrar_catalogo_heredado(session)
@@ -171,13 +190,14 @@ class TestReidentificacion:
         repositorio.upsert_many(_CATALOGO_SIIGO)
         repositorio.upsert_many(_CATALOGO_SIIGO)
 
-        filas = session.execute(
-            text("SELECT id FROM integration_taxes ORDER BY id")
-        ).fetchall()
+        filas = session.execute(text("SELECT id FROM integration_taxes ORDER BY id")).fetchall()
         assert [fila[0] for fila in filas] == [10402, 10608, 10771]
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 27")
-        ).scalar() == 10608
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 27")
+            ).scalar()
+            == 10608
+        )
 
     def test_el_nombre_reescrito_por_una_importacion_previa_tambien_empareja(self, session):
         """«ReteIVA 15%.» y «ReteIVA 15%» son la misma fila importada dos veces."""
@@ -194,9 +214,12 @@ class TestReidentificacion:
 
         TaxRepository(session).upsert_many([_CATALOGO_SIIGO[0]])
 
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 40")
-        ).scalar() == 10608
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 40")
+            ).scalar()
+            == 10608
+        )
 
     def test_una_fila_que_ya_tiene_id_de_siigo_no_se_toca(self, session):
         """Reidentificar una fila correcta reapuntaría documentos a otro impuesto."""
@@ -214,9 +237,12 @@ class TestReidentificacion:
 
         TaxRepository(session).upsert_many(_CATALOGO_SIIGO)
 
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 50")
-        ).scalar() == 10608
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 50")
+            ).scalar()
+            == 10608
+        )
 
     def test_la_secuencia_queda_por_encima_del_mayor_id(self, session):
         """Si no, la siguiente fila local nacería con un id que SIIGO ya usa."""
@@ -318,9 +344,7 @@ class TestReferenciasSinClaveAjena:
             )
         )
         session_sin_fk.execute(
-            text(
-                "INSERT INTO document_taxes (document_id, tax_id, value) VALUES (27, 15, 641.11)"
-            )
+            text("INSERT INTO document_taxes (document_id, tax_id, value) VALUES (27, 15, 641.11)")
         )
         session_sin_fk.execute(
             text("INSERT INTO document_details (document_id, tax_id) VALUES (27, 15)")
@@ -329,12 +353,18 @@ class TestReferenciasSinClaveAjena:
 
         TaxRepository(session_sin_fk).upsert_many([_CATALOGO_SIIGO[0]])
 
-        assert session_sin_fk.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 27")
-        ).scalar() == 10608
-        assert session_sin_fk.execute(
-            text("SELECT tax_id FROM document_details WHERE document_id = 27")
-        ).scalar() == 10608
+        assert (
+            session_sin_fk.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 27")
+            ).scalar()
+            == 10608
+        )
+        assert (
+            session_sin_fk.execute(
+                text("SELECT tax_id FROM document_details WHERE document_id = 27")
+            ).scalar()
+            == 10608
+        )
 
     def test_no_queda_ninguna_referencia_apuntando_a_la_clave_local(self, session_sin_fk):
         """Sin clave ajena nadie avisa: hay que comprobarlo explícitamente."""
@@ -345,9 +375,7 @@ class TestReferenciasSinClaveAjena:
             )
         )
         session_sin_fk.execute(
-            text(
-                "INSERT INTO document_taxes (document_id, tax_id, value) VALUES (27, 15, 641.11)"
-            )
+            text("INSERT INTO document_taxes (document_id, tax_id, value) VALUES (27, 15, 641.11)")
         )
         session_sin_fk.commit()
 
@@ -397,8 +425,20 @@ class TestVariosImpuestosConElMismoPorcentaje:
 
     _CINCO_EN_SIIGO = [
         {"id": 10594, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": False},
-        {"id": 10595, "name": "Iva servicios 19%", "type": "IVA", "percentage": 19.0, "active": True},
-        {"id": 10596, "name": "Iva Exterior 19%", "type": "IVA", "percentage": 19.0, "active": True},
+        {
+            "id": 10595,
+            "name": "Iva servicios 19%",
+            "type": "IVA",
+            "percentage": 19.0,
+            "active": True,
+        },
+        {
+            "id": 10596,
+            "name": "Iva Exterior 19%",
+            "type": "IVA",
+            "percentage": 19.0,
+            "active": True,
+        },
     ]
 
     def test_la_sincronizacion_no_revienta_por_nombre_duplicado(self, session):
@@ -406,9 +446,12 @@ class TestVariosImpuestosConElMismoPorcentaje:
 
         TaxRepository(session).upsert_many(self._CINCO_EN_SIIGO)
 
-        assert session.execute(
-            text("SELECT count(*) FROM integration_taxes WHERE id IN (10594, 10595, 10596)")
-        ).scalar() == 3
+        assert (
+            session.execute(
+                text("SELECT count(*) FROM integration_taxes WHERE id IN (10594, 10595, 10596)")
+            ).scalar()
+            == 3
+        )
 
     def test_cada_impuesto_toma_la_fila_de_su_nombre(self, session):
         """«IVA 19%» debe adoptar 10594, no la fila de «Iva Exterior 19%»."""
@@ -416,12 +459,18 @@ class TestVariosImpuestosConElMismoPorcentaje:
 
         TaxRepository(session).upsert_many(self._CINCO_EN_SIIGO)
 
-        assert session.execute(
-            text("SELECT tax_id FROM document_details WHERE document_id = 60")
-        ).scalar() == 10594
-        assert session.execute(
-            text("SELECT tax_id FROM document_details WHERE document_id = 61")
-        ).scalar() == 10596
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_details WHERE document_id = 60")
+            ).scalar()
+            == 10594
+        )
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_details WHERE document_id = 61")
+            ).scalar()
+            == 10596
+        )
 
     def test_la_fila_local_sobrante_se_aparta_pero_no_se_borra(self, session):
         """Puede tener documentos apuntando a ella: se delata, no se elimina."""
@@ -452,7 +501,13 @@ class TestNombresQueSoloSeDiferencianEnLaPuntuacion:
         {"id": 10594, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": True},
         {"id": 20921, "name": "IVA 19%.", "type": "IVA", "percentage": 19.0, "active": True},
         {"id": 10608, "name": "ReteIVA 15%", "type": "ReteIVA", "percentage": 15.0, "active": True},
-        {"id": 20923, "name": "ReteIVA 15%.", "type": "ReteIVA", "percentage": 15.0, "active": True},
+        {
+            "id": 20923,
+            "name": "ReteIVA 15%.",
+            "type": "ReteIVA",
+            "percentage": 15.0,
+            "active": True,
+        },
     ]
 
     def _sembrar(self, session):
@@ -484,9 +539,7 @@ class TestNombresQueSoloSeDiferencianEnLaPuntuacion:
 
         TaxRepository(session).upsert_many(self._PAREJAS_EN_SIIGO)
 
-        ids = dict(
-            session.execute(text("SELECT name, id FROM integration_taxes")).fetchall()
-        )
+        ids = dict(session.execute(text("SELECT name, id FROM integration_taxes")).fetchall())
         assert ids["IVA 19%"] == 10594
         assert ids["IVA 19%."] == 20921
         assert ids["ReteIVA 15%"] == 10608
@@ -497,9 +550,15 @@ class TestNombresQueSoloSeDiferencianEnLaPuntuacion:
 
         TaxRepository(session).upsert_many(self._PAREJAS_EN_SIIGO)
 
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 70")
-        ).scalar() == 10608
-        assert session.execute(
-            text("SELECT tax_id FROM document_taxes WHERE document_id = 71")
-        ).scalar() == 20923
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 70")
+            ).scalar()
+            == 10608
+        )
+        assert (
+            session.execute(
+                text("SELECT tax_id FROM document_taxes WHERE document_id = 71")
+            ).scalar()
+            == 20923
+        )

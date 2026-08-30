@@ -5,9 +5,7 @@ from app.infrastructure.config.database import Base
 
 class CostCenter(Base):
     __tablename__ = "integration_cost_centers"
-    __table_args__ = (
-        UniqueConstraint("code", name="uq_cost_center_code"),
-    )
+    __table_args__ = (UniqueConstraint("code", name="uq_cost_center_code"),)
 
     id = Column(Integer, primary_key=True, index=True)
     external_id = Column(String(120), nullable=True, index=True)

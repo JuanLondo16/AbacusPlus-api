@@ -86,9 +86,7 @@ class RagKnowledgeClient:
                 response.raise_for_status()
                 return response.json()
         except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "rag-service no respondió a %s (source_id=%s): %s", path, source_id, exc
-            )
+            logger.warning("rag-service no respondió a %s (source_id=%s): %s", path, source_id, exc)
             return {}
 
 

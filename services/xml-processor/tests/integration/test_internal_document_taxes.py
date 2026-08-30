@@ -88,18 +88,14 @@ class TestPersistence:
 
 
 class TestOriginIsImposedByTheServer:
-    def test_everything_saved_here_is_marked_as_coming_from_the_model(
-        self, document, db_session
-    ):
+    def test_everything_saved_here_is_marked_as_coming_from_the_model(self, document, db_session):
         """Es lo que permite a la interfaz distinguirlo del trabajo del contador."""
         create_document_taxes_internal(document.id, [_retention(10)], db=db_session)
 
         row = DocumentTaxRepository(db_session).list_by_document(document.id)[0]
         assert row.source == "llm"
 
-    def test_a_client_cannot_disguise_a_suggestion_as_manual_work(
-        self, document, db_session
-    ):
+    def test_a_client_cannot_disguise_a_suggestion_as_manual_work(self, document, db_session):
         """Si el origen lo decidiera el cliente, una sugerencia podría hacerse pasar por
         trabajo manual y la interfaz dejaría de advertir antes de regenerarla."""
         create_document_taxes_internal(
@@ -179,7 +175,5 @@ class TestTheRouteIsNotPublic:
         """No debe aparecer en Swagger: no es parte del contrato público."""
         from app.adapters.api.routers.internal import router
 
-        ruta = next(
-            r for r in router.routes if r.path == "/internal/documents/{document_id}/taxes"
-        )
+        ruta = next(r for r in router.routes if r.path == "/internal/documents/{document_id}/taxes")
         assert ruta.include_in_schema is False

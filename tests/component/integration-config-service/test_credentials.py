@@ -35,7 +35,9 @@ def test_list_credentials_returns_created_entry(client: TestClient):
 
 def test_upsert_is_idempotent(client: TestClient):
     r1 = client.put("/api/v1/integrations/credentials", json=PAYLOAD)
-    r2 = client.put("/api/v1/integrations/credentials", json={**PAYLOAD, "username": "nuevo@test.com"})
+    r2 = client.put(
+        "/api/v1/integrations/credentials", json={**PAYLOAD, "username": "nuevo@test.com"}
+    )
     assert r1.status_code == 200
     assert r2.status_code == 200
     assert r2.json()["username"] == "nuevo@test.com"

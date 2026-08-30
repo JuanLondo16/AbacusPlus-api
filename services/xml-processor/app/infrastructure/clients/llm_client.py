@@ -51,9 +51,7 @@ class LlmClient:
         url = f"{self.base_url}/api/v1/accounting/retention-suggestions/{document_id}"
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(
-                    url, headers=self._headers, params={"persist": "true"}
-                )
+                response = await client.post(url, headers=self._headers, params={"persist": "true"})
                 if response.status_code == 200:
                     persisted = response.json().get("persisted") or {}
                     logger.info(

@@ -61,9 +61,7 @@ class FindPurchaseInvoiceUseCase:
         if not numero:
             # Sin número no hay forma de identificar la factura, y devolver «no encontrada»
             # sería peligroso: invitaría a reenviar un documento que quizá sí existe.
-            raise ValueError(
-                "No se puede buscar en SIIGO sin el número de factura del proveedor."
-            )
+            raise ValueError("No se puede buscar en SIIGO sin el número de factura del proveedor.")
 
         desde, hasta = self._rango(document_date)
 
@@ -75,9 +73,7 @@ class FindPurchaseInvoiceUseCase:
             params["created_end"] = hasta.isoformat()
 
         crudas = self._consultar(client, params)
-        coincidencias = [
-            self._to_match(f) for f in crudas if self._coincide(f, numero)
-        ]
+        coincidencias = [self._to_match(f) for f in crudas if self._coincide(f, numero)]
 
         logger.info(
             "Reconciliación SIIGO: %s comprobantes revisados, %s coinciden con '%s'",
@@ -134,7 +130,9 @@ class FindPurchaseInvoiceUseCase:
         return resultados
 
     @staticmethod
-    def _rango(document_date: Optional[date_type]) -> tuple[Optional[date_type], Optional[date_type]]:
+    def _rango(
+        document_date: Optional[date_type],
+    ) -> tuple[Optional[date_type], Optional[date_type]]:
         if document_date is None:
             return None, None
         return (

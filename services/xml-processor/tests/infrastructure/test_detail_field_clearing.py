@@ -92,9 +92,7 @@ class TestClearing:
         assert detail.code is None
         assert detail.code_source == "manual"
 
-    def test_clearing_the_cost_center_leaves_the_account_untouched(
-        self, repo, detail, db_session
-    ):
+    def test_clearing_the_cost_center_leaves_the_account_untouched(self, repo, detail, db_session):
         repo.update_detail_codes(
             [{"detail_id": detail.id, "cost_center_id": None}], code_source="manual"
         )
@@ -113,9 +111,7 @@ class TestClearing:
     def test_clearing_the_account_keeps_the_llm_suggestion_on_record(
         self, repo, detail, db_session
     ):
-        repo.update_detail_codes(
-            [{"detail_id": detail.id, "code": "613505"}], code_source="llm"
-        )
+        repo.update_detail_codes([{"detail_id": detail.id, "code": "613505"}], code_source="llm")
         repo.update_detail_codes([{"detail_id": detail.id, "code": None}], code_source="manual")
         db_session.refresh(detail)
 

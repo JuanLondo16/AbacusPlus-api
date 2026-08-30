@@ -58,6 +58,16 @@ Cliente
 # Copiar y configurar variables de entorno
 cp .env.example .env   # editar al menos OPENAI_API_KEY
 
+# Generar el par de claves JWT (obligatorio: .env.example trae un placeholder, no una clave
+# real, y sin esto el login falla con un error de la librería de criptografía). Pegar cada
+# salida en JWT_PRIVATE_KEY / JWT_PUBLIC_KEY dentro de .env, en una sola línea, sin comillas
+# y con \n literal entre renglones — es el mismo formato en el que ya está el placeholder.
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' private.pem   # copiar en JWT_PRIVATE_KEY
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' public.pem    # copiar en JWT_PUBLIC_KEY
+rm private.pem public.pem
+
 # Levantar todos los servicios
 docker-compose up --build
 

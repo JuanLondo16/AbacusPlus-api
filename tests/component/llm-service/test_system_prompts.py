@@ -8,8 +8,7 @@ from fastapi.testclient import TestClient
 PROMPT_PAYLOAD = {
     "name": "PUC Colombia Test",
     "content": (
-        "Eres un experto en contabilidad colombiana. "
-        "Responde con JSON: {\"entries\": [...]}"
+        "Eres un experto en contabilidad colombiana. " 'Responde con JSON: {"entries": [...]}'
     ),
 }
 

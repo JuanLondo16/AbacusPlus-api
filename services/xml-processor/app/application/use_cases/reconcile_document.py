@@ -176,9 +176,7 @@ class ReconcileDocumentUseCase:
             # lo consultó para que el contador pudiera decidir — y hasta ahora se descartaba
             # al cerrar. Sin él, un documento cerrado por esta vía quedaba sin total en su
             # ficha de confirmación: era el caso de 2 de los 9 documentos del cliente.
-            verificacion = verificar_total_contabilizado(
-                siigo_total, getattr(doc, "total", None)
-            )
+            verificacion = verificar_total_contabilizado(siigo_total, getattr(doc, "total", None))
             actualizado = self.document_repo.mark_accounted(
                 document_id,
                 siigo_id,

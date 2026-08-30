@@ -461,9 +461,7 @@ class SuggestRetentionsUseCase:
         if overwrite_manual:
             available = candidates
         else:
-            available = self._excluding_registered_types(
-                candidates, document, catalog, warnings
-            )
+            available = self._excluding_registered_types(candidates, document, catalog, warnings)
         if not available:
             return {
                 "suggestions": [],
@@ -539,6 +537,12 @@ class SuggestRetentionsUseCase:
         # que iba a caer de todos modos.
         suggestions = self._single_per_class(suggestions, warnings)
 
+        # Ninguna ReteFuente sale como sugerencia accionable: SIIGO la practica por su cuenta
+        # desde la ficha del proveedor y `POST /v1/purchases` no tiene dónde recibirla. Corre
+        # después de `_single_per_class` para que un conflicto entre dos ReteFuente siga
+        # explicándose como tal, no como esto.
+        suggestions = self._exclude_unsendable(suggestions, warnings)
+
         # RF-08: en la determinación automática nadie está escuchando la respuesta, así que
         # la propuesta se guarda en el documento. Desde la interfaz (`persist=False`) se
         # devuelve sin persistir, porque allí es el contador quien decide confirmarla.
@@ -580,8 +584,7 @@ class SuggestRetentionsUseCase:
                 # pasajes y no su texto: lo que hay que poder auditar es cuál se recuperó, y
                 # el corpus está en el repositorio.
                 "conocimiento_conceptual": [
-                    p.get("id")
-                    for p in (evidence.conocimiento_conceptual or {}).get("pasajes", [])
+                    p.get("id") for p in (evidence.conocimiento_conceptual or {}).get("pasajes", [])
                 ],
             },
         }
@@ -689,9 +692,7 @@ class SuggestRetentionsUseCase:
         for clase in sorted(conflictivas):
             # El aviso nombra las tarifas entre las que se dudaba: el contador tiene que
             # registrar una a mano, y para eso necesita saber cuáles estaban en juego.
-            nombres = ", ".join(
-                f"«{s.get('name') or s.get('tax_id')}»" for s in por_clase[clase]
-            )
+            nombres = ", ".join(f"«{s.get('name') or s.get('tax_id')}»" for s in por_clase[clase])
             warnings.append(
                 f"El modelo propuso {len(por_clase[clase])} retenciones de {clase} sobre la "
                 f"misma factura ({nombres}), y solo corresponde una. Cuál de ellas aplica "
@@ -699,6 +700,37 @@ class SuggestRetentionsUseCase:
                 "ninguna: regístrela manualmente."
             )
         return [s for s in suggestions if _tipo_de(s) not in conflictivas]
+
+    @staticmethod
+    def _exclude_unsendable(suggestions: list[dict], warnings: list[str]) -> list[dict]:
+        """Retira la ReteFuente que ya pasó toda la validación: no llega a SIIGO.
+
+        Tributariamente es correcta —el comprador sí le practica retención en la fuente a su
+        proveedor—, y por eso corre por la misma tabla de tarifas, base mínima y comprobación
+        de autorretenedor que las demás (`is_practicable_on_purchase` la deja pasar a
+        propósito; ver el comentario en `tax_catalog.PRACTICABLE_ON_PURCHASE`). Pero `POST
+        /v1/purchases` no tiene dónde recibirla: su campo `retentions` solo admite ReteICA y
+        ReteIVA, y SIIGO la resuelve por su cuenta a partir de la ficha del proveedor, no de
+        la factura de compra. Ofrecerle al contador un botón para «confirmarla» sería
+        prometer algo que el sistema no puede cumplir, así que se retira aquí —ya validada,
+        con la misma seriedad que cualquier otra— y se explica por qué en vez de mostrarse
+        como una propuesta accionable.
+
+        Va después de `_single_per_class`: si el modelo propuso dos ReteFuente en conflicto,
+        el aviso correcto es ese («dos tarifas, ninguna se propone»), no este.
+        """
+        retefuente = [s for s in suggestions if _tipo_de(s) == "retefuente"]
+        if not retefuente:
+            return suggestions
+
+        for s in retefuente:
+            nombre = s.get("name") or s.get("tax_id")
+            warnings.append(
+                f"«{nombre}» no se propone: SIIGO la practica por su cuenta a partir de la "
+                "ficha del proveedor, y su API no tiene dónde recibirla en una factura de "
+                "compra."
+            )
+        return [s for s in suggestions if _tipo_de(s) != "retefuente"]
 
     @staticmethod
     def _only_anchored_types(
@@ -1083,7 +1115,11 @@ class SuggestRetentionsUseCase:
         try:
             data = json.loads(self._strip_code_fence(raw))
         except (ValueError, TypeError):
-            return [], ["La respuesta del modelo no es un JSON válido; no se sugirió ninguna retención."], []
+            return (
+                [],
+                ["La respuesta del modelo no es un JSON válido; no se sugirió ninguna retención."],
+                [],
+            )
 
         items = data.get("retentions") if isinstance(data, dict) else None
         if not isinstance(items, list):

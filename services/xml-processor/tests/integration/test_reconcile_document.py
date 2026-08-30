@@ -29,8 +29,13 @@ class RepoFalso:
         return self.doc
 
     def mark_accounted(
-        self, document_id, siigo_id, siigo_name=None, *,
-        siigo_total=None, total_matches_dian=None,
+        self,
+        document_id,
+        siigo_id,
+        siigo_name=None,
+        *,
+        siigo_total=None,
+        total_matches_dian=None,
     ):
         self.accounted.append((document_id, siigo_id, siigo_name))
         self.doc.status = DocumentStatus.CONTABILIZADA
@@ -140,9 +145,7 @@ def test_si_siigo_no_tiene_nada_se_propone_liberar():
 
 def test_si_no_se_pudo_consultar_no_se_propone_nada():
     """«No se sabe» nunca puede presentarse como «no existe»: eso invitaría a duplicar."""
-    uc, _, _ = _uc(
-        _documento(), PurchaseInvoiceLookup(consulted=False, error="SIIGO no respondió")
-    )
+    uc, _, _ = _uc(_documento(), PurchaseInvoiceLookup(consulted=False, error="SIIGO no respondió"))
 
     vista = uc.lookup(1)
 
@@ -164,9 +167,7 @@ def test_un_documento_sin_numero_no_se_busca_en_siigo():
 def test_un_documento_que_no_esta_bloqueado_no_tiene_nada_que_reconciliar():
     # Lo que decide si hay algo que reconciliar es el CERROJO, no el estado: un documento en
     # Error sin cerrojo es un fallo normal y corregible, no un desenlace desconocido.
-    uc, _, cliente = _uc(
-        _documento(status=DocumentStatus.CONTABILIZADA, accounting_locked=False)
-    )
+    uc, _, cliente = _uc(_documento(status=DocumentStatus.CONTABILIZADA, accounting_locked=False))
 
     vista = uc.lookup(1)
 

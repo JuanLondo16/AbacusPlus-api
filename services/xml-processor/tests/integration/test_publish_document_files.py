@@ -31,7 +31,9 @@ XML = b"<Invoice><ID>FBC98359</ID></Invoice>"
 class _FakeS3Client:
     """Doble de la API de subida: registra las llamadas en lugar de emitirlas."""
 
-    def __init__(self, enabled=True, pdf_link="https://s3.example/pdf", xml_link="https://s3.example/xml"):
+    def __init__(
+        self, enabled=True, pdf_link="https://s3.example/pdf", xml_link="https://s3.example/xml"
+    ):
         self.enabled = enabled
         self._pdf_link = pdf_link
         self._xml_link = xml_link

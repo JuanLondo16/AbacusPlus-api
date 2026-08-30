@@ -37,6 +37,12 @@ from typing import Any, Optional
 #: Son exactamente las tres que nombra RF-08 («Retención en la fuente, RETEICA y RETEIVA»).
 #: Todo lo demás que viva en el catálogo —IVA, impoconsumo, autorretención— es un impuesto del
 #: documento o un cálculo sobre las ventas propias, y no una retención de esta operación.
+#:
+#: La ReteFuente es tributariamente practicable pero no llega a SIIGO —`POST /v1/purchases`
+#: no tiene dónde recibirla—, así que sigue siendo candidata AQUÍ (la valida toda la misma
+#: tabla de tarifas, base mínima y autorretenedor que las demás) y se retira después, ya
+#: validada, en `SuggestRetentionsUseCase._exclude_unsendable`. Excluirla en esta puerta en
+#: vez de en esa habría significado que ninguna de esas reglas se ejerciera nunca sobre ella.
 PRACTICABLE_ON_PURCHASE = frozenset({"retefuente", "reteica", "reteiva"})
 
 #: Clase de las filas que representan el IVA facturado. Es la base de la ReteIVA, así que se
@@ -128,7 +134,6 @@ def is_practicable_on_purchase(clase: str) -> bool:
     return clase in PRACTICABLE_ON_PURCHASE
 
 
-
 def retention_candidates(catalog: list[dict]) -> tuple[list[dict], list[str]]:
     """Retenciones que un comprador puede practicar, tomadas del catálogo de Impuestos.
 
@@ -205,9 +210,7 @@ def retention_candidates(catalog: list[dict]) -> tuple[list[dict], list[str]]:
 
     for motivo, nombres in sorted(descartadas_por_clase.items()):
         avisos.append(
-            "No se proponen "
-            + ", ".join(f"«{n}»" for n in sorted(nombres))
-            + f": {motivo}."
+            "No se proponen " + ", ".join(f"«{n}»" for n in sorted(nombres)) + f": {motivo}."
         )
 
     candidatas, avisos_duplicados = _collapse_duplicates(candidatas)
@@ -318,11 +321,7 @@ def document_tax_breakdown(document: dict, catalog: list[dict]) -> dict[str, Any
         "por_clase": por_clase,
         "total_declarado": total_declarado,
         "renglones": renglones[:_MAX_RENGLONES_PROMPT],
-        **(
-            {"renglones_omitidos": recortados}
-            if recortados
-            else {}
-        ),
+        **({"renglones_omitidos": recortados} if recortados else {}),
     }
 
 

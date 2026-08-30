@@ -27,6 +27,7 @@ THRESHOLD_DROP = 10.0
 
 def read_baseline() -> dict[str, float]:
     import json
+
     if not BASELINE_FILE.exists():
         print("No se encontró .coverage-baseline.json — saltando gate de cobertura")
         sys.exit(0)
@@ -57,7 +58,9 @@ def main() -> None:
             continue
         drop = base_pct - current
         status = "OK" if drop <= THRESHOLD_DROP else "FALLO"
-        print(f"  {service}: baseline={base_pct}%  actual={current}%  caída={drop:.1f}pp  [{status}]")
+        print(
+            f"  {service}: baseline={base_pct}%  actual={current}%  caída={drop:.1f}pp  [{status}]"
+        )
         if drop > THRESHOLD_DROP:
             failures.append(f"{service}: bajó {drop:.1f}pp (límite {THRESHOLD_DROP}pp)")
 

@@ -14,9 +14,9 @@ class ProductRepository:
         incoming_codes = [str(item["code"]) for item in items if item.get("code")]
 
         if deactivate_missing and incoming_codes:
-            self.db.query(Product).filter(
-                Product.code.notin_(incoming_codes)
-            ).delete(synchronize_session=False)
+            self.db.query(Product).filter(Product.code.notin_(incoming_codes)).delete(
+                synchronize_session=False
+            )
 
         synced = 0
         for product in items:

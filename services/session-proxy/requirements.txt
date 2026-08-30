@@ -2,7 +2,7 @@ fastapi==0.141.1
 PyJWT==2.13.0
 cryptography==50.0.0
 uvicorn==0.22.0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 pydantic==2.13.4
 httpx==0.28.1
 patchright==1.62.1

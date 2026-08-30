@@ -372,7 +372,7 @@ class SendPurchaseInvoiceUseCase:
         if prefijo:
             # Con prefijo explícito, se retira del consecutivo si viene repetido en él.
             if crudo.upper().startswith(prefijo.upper()):
-                crudo = crudo[len(prefijo):]
+                crudo = crudo[len(prefijo) :]
             # Y aun así hay que anclarse a los dígitos finales: el prefijo configurado es el
             # de la empresa, no el del proveedor, así que retirarlo puede no quitar nada y
             # dejar letras dentro de `number`.

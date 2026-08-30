@@ -51,9 +51,7 @@ class TestLaTarifaDebeExistirEnLaTablaOficial:
     def test_descarta_una_tarifa_que_no_esta_en_la_tabla(self):
         validator = RetentionValidator(tarifas_retefuente=_TARIFAS_FUENTE)
 
-        motivo = validator.rechazo(
-            _sugerencia(name="Retefuente 10%", percentage=10.0)
-        )
+        motivo = validator.rechazo(_sugerencia(name="Retefuente 10%", percentage=10.0))
 
         assert motivo is not None
         assert "10%" in motivo and "tabla" in motivo
@@ -193,7 +191,6 @@ class TestSoloLasTresRetencionesDeUnaCompra:
 
 
 class TestNoCorrigeNiInventa:
-
     @pytest.mark.parametrize("base", [0, -1])
     def test_una_base_no_positiva_no_produce_retencion(self, base):
         validator = RetentionValidator(tarifas_retefuente=_TARIFAS_FUENTE)

@@ -47,6 +47,7 @@ def _max_concurrency() -> int:
     # sin síntoma. Se corrige al mínimo operativo —secuencial— en vez de fallar al arrancar.
     return max(1, valor)
 
+
 # Clases PUC que pueden recibir la contrapartida de un ítem en un documento de compra:
 # 5 Gastos · 6 Costos de venta · 7 Costos de producción o de operación.
 # Se excluyen 2 (Pasivo) y 3 (Patrimonio) —propias de la cuenta por pagar y las
@@ -258,9 +259,7 @@ class AssignAccountCodesUseCase:
         # `history` (best-effort) ya viene resuelto del `gather` de arriba: son decisiones
         # confirmadas en documentos anteriores del mismo emisor, que el modelo usa como
         # precedente.
-        user_prompt = self._build_prompt(
-            document, details, candidates, cost_centers_by_id, history
-        )
+        user_prompt = self._build_prompt(document, details, candidates, cost_centers_by_id, history)
 
         ai_response = await self._ai.complete(
             prompt=user_prompt,
@@ -506,9 +505,7 @@ class AssignAccountCodesUseCase:
         lineas = []
         for account in candidate_accounts:
             nombre = re.sub(r"[\s|]+", " ", str(account.get("name") or "")).strip()
-            naturaleza = re.sub(
-                r"[\s|]+", " ", str(account.get("naturaleza") or "")
-            ).strip()
+            naturaleza = re.sub(r"[\s|]+", " ", str(account.get("naturaleza") or "")).strip()
             lineas.append(f"{account['code']}|{nombre}|{naturaleza}")
         return "\n".join(lineas)
 
@@ -564,7 +561,8 @@ class AssignAccountCodesUseCase:
         except json.JSONDecodeError:
             # Intentar extraer JSON del texto
             import re
-            match = re.search(r'\{.*\}', raw, re.DOTALL)
+
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
             if not match:
                 warnings.append("El LLM no retornó JSON válido")
                 return [], warnings

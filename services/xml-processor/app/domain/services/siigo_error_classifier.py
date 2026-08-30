@@ -410,7 +410,9 @@ class SiigoErrorClassifier:
         """
         partes = [regla.hint]
 
-        pista = self._pista_de_texto(message) if regla.error_class == ErrorClass.CORRECTABLE else None
+        pista = (
+            self._pista_de_texto(message) if regla.error_class == ErrorClass.CORRECTABLE else None
+        )
         if pista:
             partes.append(pista)
 

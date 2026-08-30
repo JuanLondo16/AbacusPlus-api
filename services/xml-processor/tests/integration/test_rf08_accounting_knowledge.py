@@ -87,8 +87,13 @@ class RepoFalso:
         return self.doc
 
     def mark_accounted(
-        self, document_id, siigo_id, siigo_name=None, *,
-        siigo_total=None, total_matches_dian=None,
+        self,
+        document_id,
+        siigo_id,
+        siigo_name=None,
+        *,
+        siigo_total=None,
+        total_matches_dian=None,
     ):
         self.doc.status = DocumentStatus.CONTABILIZADA
         self.doc.siigo_id = siigo_id
@@ -154,9 +159,7 @@ def _publicador(doc, rag, taxes=None):
         tenant_slug="ikbo",
         document_repo=RepoFalso(doc),
         tax_repo=TaxRepoFalso(taxes if taxes is not None else [_retencion()]),
-        integration_tax_repo=CatalogoFalso(
-            [SimpleNamespace(id=1136, name="ReteFuente servicios")]
-        ),
+        integration_tax_repo=CatalogoFalso([SimpleNamespace(id=1136, name="ReteFuente servicios")]),
         cost_center_repo=CatalogoFalso([SimpleNamespace(id=1235, name="Administración")]),
     )
 
@@ -239,9 +242,7 @@ def test_error_de_validacion_previo_al_envio_no_alimenta_el_rag():
     """Si ni siquiera se llamó a SIIGO, con más razón no hay conocimiento."""
     doc = _documento(details=[])
     rag = RagFalso()
-    use_case, siigo = _caso_de_uso(
-        doc, rag, PurchaseInvoiceResult(ok=True, siigo_id="SI-1")
-    )
+    use_case, siigo = _caso_de_uso(doc, rag, PurchaseInvoiceResult(ok=True, siigo_id="SI-1"))
 
     outcome = use_case.execute(1)
 
@@ -259,9 +260,7 @@ def test_contabilizacion_exitosa_genera_conocimiento_validado():
     use_case, siigo = _caso_de_uso(
         doc,
         rag,
-        PurchaseInvoiceResult(
-            ok=True, siigo_id="a1b2c3", siigo_name="FC-1-101"
-        ),
+        PurchaseInvoiceResult(ok=True, siigo_id="a1b2c3", siigo_name="FC-1-101"),
     )
 
     outcome = use_case.execute(1)
@@ -285,9 +284,7 @@ def test_el_conocimiento_es_la_causacion_final_enviada_a_siigo():
     doc = _documento()
     doc.details[0].code = "51101501"  # la cuenta que el contador dejó tras revisar
     rag = RagFalso()
-    use_case, siigo = _caso_de_uso(
-        doc, rag, PurchaseInvoiceResult(ok=True, siigo_id="a1b2c3")
-    )
+    use_case, siigo = _caso_de_uso(doc, rag, PurchaseInvoiceResult(ok=True, siigo_id="a1b2c3"))
 
     use_case.execute(1)
 
@@ -333,9 +330,7 @@ def test_el_conocimiento_incluye_todo_lo_que_exige_el_rf():
 def test_sin_retenciones_tambien_es_conocimiento_util():
     """Que a un tercero no se le practique retención es información, no ausencia de ella."""
     doc = _documento(status=DocumentStatus.CONTABILIZADA, siigo_id="a1b2c3")
-    contenido = build_accounted_knowledge_content(
-        document=doc, taxes=[], siigo_id="a1b2c3"
-    )
+    contenido = build_accounted_knowledge_content(document=doc, taxes=[], siigo_id="a1b2c3")
 
     assert "Retenciones practicadas: ninguna." in contenido
 
@@ -348,9 +343,7 @@ def test_revocar_retira_el_conocimiento_del_documento():
     rag = RagFalso()
 
     assert _publicador(doc, rag).revoke(1, motivo="reversión") is True
-    assert rag.revoked == [
-        {"tenant_slug": "ikbo", "source_type": "invoice", "source_id": 1}
-    ]
+    assert rag.revoked == [{"tenant_slug": "ikbo", "source_type": "invoice", "source_id": 1}]
 
 
 # ── El aprendizaje no puede romper la contabilización ─────────────────────────
@@ -367,9 +360,7 @@ def test_un_fallo_del_rag_no_afecta_a_la_contabilizacion():
     use_case = AccountDocumentUseCase(
         document_repo=RepoFalso(doc),
         parameters_provider=lambda: PARAMETROS,
-        siigo_client=SiigoFalso(
-            PurchaseInvoiceResult(ok=True, siigo_id="a1b2c3")
-        ),
+        siigo_client=SiigoFalso(PurchaseInvoiceResult(ok=True, siigo_id="a1b2c3")),
         knowledge_publisher=_publicador(doc, RagRoto()),
     )
 

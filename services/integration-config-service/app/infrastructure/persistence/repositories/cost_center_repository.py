@@ -14,18 +14,14 @@ class CostCenterRepository:
         incoming_codes = [str(item["code"]) for item in items if item.get("code")]
 
         if deactivate_missing and incoming_codes:
-            self.db.query(CostCenter).filter(
-                CostCenter.code.notin_(incoming_codes)
-            ).delete(synchronize_session=False)
+            self.db.query(CostCenter).filter(CostCenter.code.notin_(incoming_codes)).delete(
+                synchronize_session=False
+            )
 
         synced = 0
         for cost_center in items:
             code = str(cost_center["code"])
-            model = (
-                self.db.query(CostCenter)
-                .filter(CostCenter.code == code)
-                .one_or_none()
-            )
+            model = self.db.query(CostCenter).filter(CostCenter.code == code).one_or_none()
             if model is None:
                 model = CostCenter(code=code)
                 self.db.add(model)

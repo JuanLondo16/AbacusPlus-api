@@ -67,10 +67,12 @@ class RetentionIcaRateResponse(BaseModel):
 
 class ImportRetentionRatesResponse(BaseModel):
     fuente_loaded: int = Field(
-        0, description="Cantidad de tarifas de ReteFuente cargadas (0 si el archivo no traía esa hoja)."
+        0,
+        description="Cantidad de tarifas de ReteFuente cargadas (0 si el archivo no traía esa hoja).",
     )
     ica_loaded: int = Field(
-        0, description="Cantidad de tarifas de ReteICA cargadas/actualizadas (0 si no traía esa hoja)."
+        0,
+        description="Cantidad de tarifas de ReteICA cargadas/actualizadas (0 si no traía esa hoja).",
     )
 
 

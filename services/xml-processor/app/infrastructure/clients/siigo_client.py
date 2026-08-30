@@ -137,9 +137,7 @@ class SiigoServiceClient:
                 "X-Tenant-Slug": tenant_slug,
             }
         else:
-            self._headers = (
-                {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
-            )
+            self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
         # El timeout sale de la configuración y no de una constante del módulo. Debe superar
         # al que siigo-service usa contra SIIGO, para que sea SIIGO —y no este salto interno—
         # quien decida el desenlace: cortar antes es exactamente lo que fabrica la duda que
@@ -209,9 +207,7 @@ class SiigoServiceClient:
             # plantilla lleva su propio `account_key`, y ese decide contra qué empresa de
             # SIIGO se crea la factura. Con varias activas no hay forma de saber cuál quiso
             # el contador, así que se detiene el envío y se le pide que lo precise.
-            nombres = ", ".join(
-                f"{p.get('name')} ({p.get('account_key')})" for p in activas[:5]
-            )
+            nombres = ", ".join(f"{p.get('name')} ({p.get('account_key')})" for p in activas[:5])
             raise ParametersUnavailableError(
                 "Hay varias plantillas de parámetros de factura de compra activas y no se "
                 f"puede determinar cuál usar: {nombres}. Deje activa solo la que "
@@ -267,9 +263,7 @@ class SiigoServiceClient:
                 consulted=False, error="La respuesta de la consulta a SIIGO no pudo leerse."
             )
 
-        return PurchaseInvoiceLookup(
-            consulted=True, matches=list(cuerpo.get("matches") or [])
-        )
+        return PurchaseInvoiceLookup(consulted=True, matches=list(cuerpo.get("matches") or []))
 
     def create_purchase_invoice(self, payload: dict[str, Any]) -> PurchaseInvoiceResult:
         """Crea la factura de compra en SIIGO a través de siigo-service.
@@ -285,9 +279,7 @@ class SiigoServiceClient:
         """
         url = self._url("purchase-invoices")
         try:
-            response = httpx.post(
-                url, json=payload, headers=self._headers, timeout=self._timeout
-            )
+            response = httpx.post(url, json=payload, headers=self._headers, timeout=self._timeout)
         except httpx.TimeoutException:
             # La petición pudo llegar a SIIGO y crear la factura sin que veamos la respuesta.
             logger.error("Timeout al contabilizar en SIIGO; el documento queda bloqueado")

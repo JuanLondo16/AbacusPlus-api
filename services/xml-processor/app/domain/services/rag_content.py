@@ -110,8 +110,7 @@ def build_accounted_knowledge_content(
         lines.append(f"Contabilizada en SIIGO con el comprobante {siigo_id}{etiqueta}")
 
     lines += [
-        "Tercero (proveedor): "
-        f"{document.issuer_name} NIT {document.issuer_nit}",
+        "Tercero (proveedor): " f"{document.issuer_name} NIT {document.issuer_nit}",
         f"Empresa: {document.receiver_name} NIT {document.receiver_nit}",
         f"Moneda: {document.currency} | Subtotal: {document.subtotal} | "
         f"Impuestos: {document.total_taxes} | Total: {document.total}",
@@ -160,8 +159,9 @@ def build_accounted_knowledge_content(
         lines.append("Retenciones practicadas: ninguna.")
 
     # Rasgos con los que emparejar documentos posteriores parecidos.
-    cuentas = sorted({(i.get("code") or "") for i in items} or
-                     {(d.code or "") for d in document.details})
+    cuentas = sorted(
+        {(i.get("code") or "") for i in items} or {(d.code or "") for d in document.details}
+    )
     lines.append(
         "Rasgos para identificar documentos similares: "
         f"proveedor {document.issuer_name} (NIT {document.issuer_nit}); "
@@ -330,4 +330,3 @@ def _retention_type(tax_name: str) -> str:
     if "retefuente" in nombre or "retefte" in nombre:
         return "retefuente"
     return ""
-

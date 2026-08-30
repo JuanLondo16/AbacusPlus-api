@@ -42,9 +42,7 @@ def _clases(items):
 
 def test_dos_retefuente_se_descartan_las_dos():
     warnings: list[str] = []
-    result = SuggestRetentionsUseCase._single_per_class(
-        [_RETEFUENTE_11, _RETEFUENTE_35], warnings
-    )
+    result = SuggestRetentionsUseCase._single_per_class([_RETEFUENTE_11, _RETEFUENTE_35], warnings)
     assert result == []
     assert len(warnings) == 1
     # El aviso nombra las dos tarifas en conflicto: el contador tiene que poder registrar a

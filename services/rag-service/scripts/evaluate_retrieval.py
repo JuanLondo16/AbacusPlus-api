@@ -50,10 +50,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.application.dto.chunk import DEFAULT_MIN_SIMILARITY  # noqa: E402
 from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
-
-from app.application.dto.chunk import DEFAULT_MIN_SIMILARITY  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("eval")
@@ -74,6 +73,7 @@ def _database_url() -> str:
 def _corpus(session: Session, solo_validados: bool) -> list[dict]:
     condicion = "embedding IS NOT NULL" + (" AND is_validated IS TRUE" if solo_validados else "")
     filas = session.execute(
+        # nosemgrep: avoid-sqlalchemy-text
         text(f"SELECT id, source_id, metadata FROM document_chunks WHERE {condicion} ORDER BY id")  # noqa: S608
     ).mappings()
     return [dict(f) for f in filas]
@@ -85,8 +85,11 @@ def _vecinos(session: Session, chunk_id: int, top_k: int, solo_validados: bool) 
     La consulta se hace con el embedding ya almacenado y no volviendo a llamar al proveedor:
     evalúa el índice y la métrica, que es lo que aquí se mide, y no cuesta ni una petición.
     """
-    condicion = "c.embedding IS NOT NULL" + (" AND c.is_validated IS TRUE" if solo_validados else "")
+    condicion = "c.embedding IS NOT NULL" + (
+        " AND c.is_validated IS TRUE" if solo_validados else ""
+    )
     filas = session.execute(
+        # nosemgrep: avoid-sqlalchemy-text
         text(
             f"""
             SELECT c.id, c.source_id,
@@ -160,8 +163,13 @@ def main() -> int:
                     separaciones.append(propio - max(ajenos))
 
         recall = encontrados / len(corpus)
-        logger.info("Auto-recuperación (recall@%d): %.0f %% (%d/%d)",
-                    args.top_k, recall * 100, encontrados, len(corpus))
+        logger.info(
+            "Auto-recuperación (recall@%d): %.0f %% (%d/%d)",
+            args.top_k,
+            recall * 100,
+            encontrados,
+            len(corpus),
+        )
         if fallos:
             logger.warning("  ⚠ chunks que no se encuentran ni a sí mismos: %s", fallos)
             logger.warning("    Revise el índice HNSW (`vector_cosine_ops`) y los embeddings.")
@@ -170,17 +178,23 @@ def main() -> int:
             sobre_umbral = sum(1 for s in mejores_vecinos if s >= args.min_similarity)
             logger.info("")
             logger.info("Mejor vecino distinto — similitud:")
-            logger.info("  mediana %.3f · mín %.3f · máx %.3f",
-                        statistics.median(mejores_vecinos),
-                        min(mejores_vecinos), max(mejores_vecinos))
+            logger.info(
+                "  mediana %.3f · mín %.3f · máx %.3f",
+                statistics.median(mejores_vecinos),
+                min(mejores_vecinos),
+                max(mejores_vecinos),
+            )
             logger.info(
                 "  superan el umbral %.2f: %d de %d (%.0f %%)",
-                args.min_similarity, sobre_umbral, len(mejores_vecinos),
+                args.min_similarity,
+                sobre_umbral,
+                len(mejores_vecinos),
                 100 * sobre_umbral / len(mejores_vecinos),
             )
             if separaciones:
-                logger.info("  separación mediana respecto al propio: %.3f",
-                            statistics.median(separaciones))
+                logger.info(
+                    "  separación mediana respecto al propio: %.3f", statistics.median(separaciones)
+                )
 
             if sobre_umbral == len(mejores_vecinos):
                 logger.warning(

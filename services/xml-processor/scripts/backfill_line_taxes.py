@@ -46,12 +46,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import create_engine, text  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
-
 from app.domain.services.line_taxes import extraer_impuestos_de_linea  # noqa: E402
 from app.domain.services.tax_resolution import resolver_impuesto  # noqa: E402
 from app.utils.xml_parser import parse_xml  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("backfill")
@@ -131,7 +130,9 @@ def procesar(session: Session, catalogo: list[dict], aplicar: bool) -> tuple[int
         try:
             datos = parse_xml(_xml(session, doc["id"]))
         except Exception as exc:  # el XML es de un tercero: puede estar corrupto
-            logger.warning("· %s — no se pudo leer el XML (%s): se salta", doc["document_number"], exc)
+            logger.warning(
+                "· %s — no se pudo leer el XML (%s): se salta", doc["document_number"], exc
+            )
             saltados += 1
             continue
 

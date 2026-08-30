@@ -14,9 +14,9 @@ class PaymentTypeRepository:
         incoming_ids = [item["id"] for item in items if item.get("id") is not None]
 
         if deactivate_missing and incoming_ids:
-            self.db.query(PaymentType).filter(
-                PaymentType.id.notin_(incoming_ids)
-            ).delete(synchronize_session=False)
+            self.db.query(PaymentType).filter(PaymentType.id.notin_(incoming_ids)).delete(
+                synchronize_session=False
+            )
 
         synced = 0
         for item in items:

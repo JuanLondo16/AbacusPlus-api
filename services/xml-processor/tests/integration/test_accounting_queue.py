@@ -196,9 +196,7 @@ def test_un_desenlace_desconocido_nunca_se_reintenta_solo(clase):
 def test_un_fallo_temporal_se_reintenta_con_espera(clase):
     ahora = datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)
 
-    decision = _manager().decide(
-        error_class=clase, attempt=1, max_attempts=5, now=ahora
-    )
+    decision = _manager().decide(error_class=clase, attempt=1, max_attempts=5, now=ahora)
 
     assert decision.should_retry is True
     assert decision.backoff_seconds > 0
@@ -214,9 +212,7 @@ def test_el_backoff_crece_y_tiene_techo():
     manager = _manager(backoff_base_seconds=2.0, backoff_max_seconds=10.0)
 
     esperas = [
-        manager.decide(
-            error_class=ErrorClass.TRANSIENT, attempt=i, max_attempts=99
-        ).backoff_seconds
+        manager.decide(error_class=ErrorClass.TRANSIENT, attempt=i, max_attempts=99).backoff_seconds
         for i in (1, 2, 3, 10)
     ]
 
@@ -226,18 +222,14 @@ def test_el_backoff_crece_y_tiene_techo():
 
 def test_un_error_corregible_no_se_reintenta_solo():
     """Repetir la misma petición con los mismos datos fallaría igual y gastaría cupo."""
-    decision = _manager().decide(
-        error_class=ErrorClass.CORRECTABLE, attempt=1, max_attempts=5
-    )
+    decision = _manager().decide(error_class=ErrorClass.CORRECTABLE, attempt=1, max_attempts=5)
 
     assert decision.should_retry is False
     assert decision.needs_reconciliation is False
 
 
 def test_los_intentos_se_agotan():
-    decision = _manager().decide(
-        error_class=ErrorClass.TRANSIENT, attempt=5, max_attempts=5
-    )
+    decision = _manager().decide(error_class=ErrorClass.TRANSIENT, attempt=5, max_attempts=5)
 
     assert decision.should_retry is False
     assert "agotaron" in decision.reason
@@ -372,8 +364,13 @@ def test_un_fallo_inesperado_cierra_el_trabajo_en_vez_de_escapar():
     class JobRepoFalso:
         def claim_next(self, worker_id, *, stale_after_seconds):
             return SimpleNamespace(
-                id=1, document_id=23, attempt=0, max_attempts=5,
-                enqueued_by="u", next_attempt_at=None, created_at=datetime.now(timezone.utc),
+                id=1,
+                document_id=23,
+                attempt=0,
+                max_attempts=5,
+                enqueued_by="u",
+                next_attempt_at=None,
+                created_at=datetime.now(timezone.utc),
             )
 
         def mark_failed(self, job_id, **kw):

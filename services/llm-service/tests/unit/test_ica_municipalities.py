@@ -126,10 +126,18 @@ class TestBaseMinimaPorMunicipio:
     """
 
     _RATES = [
-        {"municipality_code": "11001", "retention_concept": "servicios",
-         "percentage": 0.966, "minimum_base_uvt": 4},
-        {"municipality_code": "68001", "retention_concept": "servicios",
-         "percentage": 0.7, "minimum_base_uvt": 25},
+        {
+            "municipality_code": "11001",
+            "retention_concept": "servicios",
+            "percentage": 0.966,
+            "minimum_base_uvt": 4,
+        },
+        {
+            "municipality_code": "68001",
+            "retention_concept": "servicios",
+            "percentage": 0.7,
+            "minimum_base_uvt": 25,
+        },
     ]
 
     def test_la_base_se_convierte_a_pesos_con_la_uvt_del_anio(self):

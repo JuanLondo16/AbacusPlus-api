@@ -43,9 +43,7 @@ class _Repo:
             raise RuntimeError("catálogo no disponible")
         ids = (parametros or {}).get("ids", [])
         filas = [
-            (i, self._catalogo[i][0], self._catalogo[i][1])
-            for i in ids
-            if i in self._catalogo
+            (i, self._catalogo[i][0], self._catalogo[i][1]) for i in ids if i in self._catalogo
         ]
         return SimpleNamespace(fetchall=lambda: filas)
 
@@ -79,9 +77,7 @@ class TestConRetenciones:
         """«ReteIVA: se aplica sobre el valor del IVA facturado» (doc. de SIIGO)."""
         caso = _caso()
 
-        assert caso._retencion_que_aplicara_siigo([10608], _SUBTOTAL, _IVA) == round(
-            _IVA * 0.15, 2
-        )
+        assert caso._retencion_que_aplicara_siigo([10608], _SUBTOTAL, _IVA) == round(_IVA * 0.15, 2)
 
     def test_varias_retenciones_se_suman(self):
         caso = _caso()

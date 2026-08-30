@@ -34,7 +34,9 @@ class DocumentDetailResponse(BaseModel):
     # contabilización y el RAG— y estos cuatro campos se añaden al lado para que cada
     # impuesto se pueda leer con su nombre correcto.
     iva_percentage: Optional[float] = Field(
-        None, description="Tarifa del IVA de la línea. Null si la línea no lleva IVA.", examples=[19.0]
+        None,
+        description="Tarifa del IVA de la línea. Null si la línea no lleva IVA.",
+        examples=[19.0],
     )
     iva_value: float = Field(0.0, description="Importe del IVA de la línea.", examples=[2370.25])
     inc_percentage: Optional[float] = Field(
@@ -49,10 +51,13 @@ class DocumentDetailResponse(BaseModel):
     )
     inc_value: float = Field(0.0, description="Importe del impuesto al consumo.", examples=[499.0])
     concept_account_number: Optional[str] = Field(
-        None, description="Cuenta PUC del catálogo de conceptos. Null si no tiene concepto asignado."
+        None,
+        description="Cuenta PUC del catálogo de conceptos. Null si no tiene concepto asignado.",
     )
     code: Optional[str] = Field(
-        None, description="Código PUC asignado por el LLM. Null si aún no se ha procesado.", examples=["511500"]
+        None,
+        description="Código PUC asignado por el LLM. Null si aún no se ha procesado.",
+        examples=["511500"],
     )
     type: str = Field(
         "Account",
@@ -138,7 +143,8 @@ class DocumentResponse(BaseModel):
         description="RF-03: enlace del XML oficial en Amazon S3 (si ya se subió). La interfaz lo renderiza.",
     )
     payment_type_id: Optional[int] = Field(
-        None, description="ID del medio de pago en integration_payment_types. Null si el emisor no tiene uno configurado."
+        None,
+        description="ID del medio de pago en integration_payment_types. Null si el emisor no tiene uno configurado.",
     )
     cost_center_id: Optional[int] = Field(
         None,
@@ -395,7 +401,9 @@ class DocumentSummaryResponse(BaseModel):
 
 
 class DocumentDetailCodeUpdateItem(BaseModel):
-    detail_id: int = Field(..., description="ID de la línea de detalle a actualizar.", examples=[42])
+    detail_id: int = Field(
+        ..., description="ID de la línea de detalle a actualizar.", examples=[42]
+    )
     code: Optional[str] = Field(
         None, description="Código PUC. Omitir para no modificar.", examples=["511500"]
     )
@@ -412,7 +420,13 @@ class DocumentDetailCodeUpdateItem(BaseModel):
     )
     model_config = {
         "json_schema_extra": {
-            "example": {"detail_id": 42, "code": "511500", "type": "Account", "cost_center_id": 1, "tax_id": 2}
+            "example": {
+                "detail_id": 42,
+                "code": "511500",
+                "type": "Account",
+                "cost_center_id": 1,
+                "tax_id": 2,
+            }
         }
     }
 
@@ -495,9 +509,7 @@ class DocumentBulkStatusUpdateRequest(BaseModel):
         ),
         examples=[200],
     )
-    model_config = {
-        "json_schema_extra": {"example": {"document_ids": [24, 25, 26], "status": 200}}
-    }
+    model_config = {"json_schema_extra": {"example": {"document_ids": [24, 25, 26], "status": 200}}}
 
 
 class DocumentBulkStatusUpdateResponse(BaseModel):
@@ -543,7 +555,9 @@ class DocumentFileLinksResponse(BaseModel):
     pdf_url: Optional[str] = Field(
         None,
         description="Enlace del PDF en S3 una vez publicado.",
-        examples=["https://mi-bucket.s3.us-west-2.amazonaws.com/abacusplus/documentos/ikbo/FBC98359_pdf_2026-08-01.pdf"],
+        examples=[
+            "https://mi-bucket.s3.us-west-2.amazonaws.com/abacusplus/documentos/ikbo/FBC98359_pdf_2026-08-01.pdf"
+        ],
     )
     xml_url: Optional[str] = Field(
         None, description="Enlace del XML en S3, si el documento lo tiene almacenado."

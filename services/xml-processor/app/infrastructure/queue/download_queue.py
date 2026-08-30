@@ -208,7 +208,6 @@ async def process_queue_worker() -> None:
             _queue.task_done()
 
 
-
 def build_integration_config_client(tenant_slug: str) -> IntegrationConfigClient:
     """Cliente del catálogo para el procesamiento en segundo plano.
 
@@ -220,7 +219,10 @@ def build_integration_config_client(tenant_slug: str) -> IntegrationConfigClient
     url = os.getenv("INTEGRATION_CONFIG_URL", "http://integration-config-service:8007")
     return IntegrationConfigClient(base_url=url, tenant_slug=tenant_slug)
 
-async def _process_single_file(file_path: Path, job_id: Optional[str], tenant_slug: str = "") -> None:
+
+async def _process_single_file(
+    file_path: Path, job_id: Optional[str], tenant_slug: str = ""
+) -> None:
     downloads_dir = file_path.parent
     processed_dir = downloads_dir / "processed"
     errors_dir = downloads_dir / "errors"

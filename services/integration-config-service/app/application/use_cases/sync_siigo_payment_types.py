@@ -35,9 +35,9 @@ class SyncSiigoPaymentTypesUseCase:
         client = SiigoApiClient(credential)
         self._ensure_token(client, account_key)
 
-        document_type = (
-            (credential.extra_config or {}).get("default_document_type") or _DEFAULT_DOCUMENT_TYPE
-        )
+        document_type = (credential.extra_config or {}).get(
+            "default_document_type"
+        ) or _DEFAULT_DOCUMENT_TYPE
 
         payload = client.get(_PAYMENT_TYPES_PATH, params={"document_type": document_type})
         raw_items = SiigoApiClient._extract_results(payload)

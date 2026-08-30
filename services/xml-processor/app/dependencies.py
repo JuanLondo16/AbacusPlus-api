@@ -79,7 +79,6 @@ def get_llm_client(token: Annotated[TokenData, Depends(get_token_data)]) -> LlmC
     return LlmClient(base_url=url, bearer_token=token.raw_token)
 
 
-
 def get_process_xml_use_case(
     db: Session = Depends(get_tenant_db),
     integration_config_client: IntegrationConfigClient = Depends(get_integration_config_client),
@@ -167,7 +166,6 @@ def get_processing_log_repo(db: Session = Depends(get_tenant_db)) -> ProcessingL
     return ProcessingLogRepository(db)
 
 
-
 def get_approve_document_use_case(
     db: Session = Depends(get_tenant_db),
 ) -> ApproveDocumentUseCase:
@@ -228,9 +226,7 @@ def build_account_document_use_case(
     """
     # Sin token de usuario la llamada va por la ruta interna de siigo-service, autenticada
     # con `X-Internal-Secret`. Es el caso del worker, que se despierta sin sesión de nadie.
-    client = build_siigo_service_client(
-        raw_token, tenant_slug=None if raw_token else tenant_slug
-    )
+    client = build_siigo_service_client(raw_token, tenant_slug=None if raw_token else tenant_slug)
     return AccountDocumentUseCase(
         document_repo=DocumentRepository(db),
         # Se pasa como función y no como valor para no consultar la plantilla en cada

@@ -1,6 +1,4 @@
-d
-
-image.pngel"""Pool de conexiones HTTP compartido para las llamadas entre servicios.
+"""Pool de conexiones HTTP compartido para las llamadas entre servicios.
 
 Cada cliente de este servicio abría un `httpx.AsyncClient` nuevo por llamada, dentro de un
 `async with`. Eso significa montar y tirar la conexión TCP en cada petición: al asignar

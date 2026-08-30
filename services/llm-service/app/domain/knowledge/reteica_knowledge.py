@@ -84,8 +84,16 @@ _PASAJES: tuple[dict[str, Any], ...] = (
         "id": "quien_retiene",
         "tema": "agente retenedor y sujeto pasivo",
         "claves": (
-            "agente", "retenedor", "sujeto", "pasivo", "comprador", "pagador",
-            "proveedor", "tercero", "entidad", "publica",
+            "agente",
+            "retenedor",
+            "sujeto",
+            "pasivo",
+            "comprador",
+            "pagador",
+            "proveedor",
+            "tercero",
+            "entidad",
+            "publica",
         ),
         "texto": (
             "Retiene el COMPRADOR o PAGADOR, y solo si el municipio lo designó agente "
@@ -102,8 +110,17 @@ _PASAJES: tuple[dict[str, Any], ...] = (
         "id": "territorialidad",
         "tema": "jurisdicción municipal",
         "claves": (
-            "municipio", "municipal", "jurisdiccion", "territorial", "ciudad", "bogota",
-            "medellin", "cali", "bucaramanga", "barranquilla", "donde",
+            "municipio",
+            "municipal",
+            "jurisdiccion",
+            "territorial",
+            "ciudad",
+            "bogota",
+            "medellin",
+            "cali",
+            "bucaramanga",
+            "barranquilla",
+            "donde",
         ),
         "texto": (
             "El ICA es un tributo TERRITORIAL: no existe una tarifa nacional. Cada municipio "
@@ -118,8 +135,18 @@ _PASAJES: tuple[dict[str, Any], ...] = (
         "id": "actividad_economica",
         "tema": "actividad económica / CIIU",
         "claves": (
-            "actividad", "economica", "ciiu", "codigo", "concepto", "servicios", "compras",
-            "honorarios", "comisiones", "industrial", "comercial", "tarifa",
+            "actividad",
+            "economica",
+            "ciiu",
+            "codigo",
+            "concepto",
+            "servicios",
+            "compras",
+            "honorarios",
+            "comisiones",
+            "industrial",
+            "comercial",
+            "tarifa",
         ),
         "texto": (
             "Dentro de un mismo municipio la tarifa depende de la ACTIVIDAD ECONÓMICA del "
@@ -201,7 +228,15 @@ _PASAJES: tuple[dict[str, Any], ...] = (
     {
         "id": "declaracion",
         "tema": "declaración y periodicidad",
-        "claves": ("declaracion", "declarar", "pago", "periodicidad", "bimestral", "calendario", "sancion"),
+        "claves": (
+            "declaracion",
+            "declarar",
+            "pago",
+            "periodicidad",
+            "bimestral",
+            "calendario",
+            "sancion",
+        ),
         "texto": (
             "La declaración y el pago del ReteICA retenido siguen el calendario tributario de "
             "cada municipio (en varias ciudades, bimestral). Declarar o pagar fuera de plazo "
@@ -267,7 +302,11 @@ def recuperar(consulta: str = "", limite: int = _MAX_PASAJES) -> list[dict]:
             "id": p["id"],
             "tema": p["tema"],
             "concepto": p["texto"],
-            **({"ejemplo_ilustrativo": p["ejemplo_ilustrativo"]} if p.get("ejemplo_ilustrativo") else {}),
+            **(
+                {"ejemplo_ilustrativo": p["ejemplo_ilustrativo"]}
+                if p.get("ejemplo_ilustrativo")
+                else {}
+            ),
         }
         for p in seleccion
     ]

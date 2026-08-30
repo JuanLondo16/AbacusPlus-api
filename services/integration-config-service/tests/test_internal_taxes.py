@@ -16,7 +16,6 @@ Se sigue el mismo patrón que ya usan `/internal/retention-criteria` y `/interna
 para el llm-service: `X-Internal-Secret` para autenticar y `X-Tenant-Slug` para elegir la base.
 """
 
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -38,9 +37,7 @@ class TestInternalTaxesEndpoint:
         El catálogo describe la configuración tributaria de una empresa: no puede quedar
         abierto por ser «interno», porque el servicio es alcanzable desde la red del clúster.
         """
-        respuesta = client.get(
-            "/internal/taxes", headers={"X-Tenant-Slug": "ikbo"}
-        )
+        respuesta = client.get("/internal/taxes", headers={"X-Tenant-Slug": "ikbo"})
         assert respuesta.status_code in (401, 403, 422)
 
     def test_rechaza_secreto_interno_incorrecto(self, client):

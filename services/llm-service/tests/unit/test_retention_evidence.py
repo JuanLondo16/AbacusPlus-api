@@ -6,7 +6,6 @@ que el historial se busca por lo que hace comparables dos facturas —el tercero
 concepto— y no por un parecido textual cualquiera.
 """
 
-
 from app.application.services.retention_evidence import (
     EvidenceBundle,
     RetentionEvidenceRetriever,

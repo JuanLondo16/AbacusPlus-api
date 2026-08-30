@@ -104,9 +104,7 @@ def anotar_creado(siigo_id: str, prueba: str) -> None:
     if os.path.exists(RASTRO):
         with open(RASTRO) as f:
             registro = json.load(f)
-    registro.append(
-        {"siigo_id": siigo_id, "prueba": prueba, "creado_en": _ahora()}
-    )
+    registro.append({"siigo_id": siigo_id, "prueba": prueba, "creado_en": _ahora()})
     with open(RASTRO, "w") as f:
         json.dump(registro, f, indent=2)
 
@@ -146,9 +144,7 @@ def payload_valido(parametros: dict, sufijo: str = "") -> dict:
                 "price": parametros.get("price", 1000),
             }
         ],
-        "payments": [
-            {"id": parametros["payment_id"], "value": parametros.get("price", 1000)}
-        ],
+        "payments": [{"id": parametros["payment_id"], "value": parametros.get("price", 1000)}],
     }
 
 
@@ -160,9 +156,7 @@ def enviar(headers: dict, cuerpo: dict, extra_headers=None, timeout=130) -> dict
 
     inicio = time.monotonic()
     try:
-        r = httpx.post(
-            f"{BASE_URL}/v1/purchases", json=cuerpo, headers=h, timeout=timeout
-        )
+        r = httpx.post(f"{BASE_URL}/v1/purchases", json=cuerpo, headers=h, timeout=timeout)
         duracion = time.monotonic() - inicio
         try:
             respuesta = r.json()
@@ -175,7 +169,8 @@ def enviar(headers: dict, cuerpo: dict, extra_headers=None, timeout=130) -> dict
             "siigo_id": respuesta.get("id") if isinstance(respuesta, dict) else None,
             "codigos": _codigos(respuesta),
             "headers_respuesta": {
-                k: v for k, v in r.headers.items()
+                k: v
+                for k, v in r.headers.items()
                 # Interesan las cabeceras que puedan revelar política de cupo: si SIIGO
                 # publica un Retry-After o un contador de peticiones restantes, el limitador
                 # de Abacus podría respetarlo en vez de estimarlo.
@@ -316,9 +311,7 @@ def t5_consulta(headers, cfg):
         "por_nombre": {"name": cfg.get("numero_base", "PROBE")},
     }.items():
         try:
-            r = httpx.get(
-                f"{BASE_URL}/v1/purchases", params=params, headers=headers, timeout=60
-            )
+            r = httpx.get(f"{BASE_URL}/v1/purchases", params=params, headers=headers, timeout=60)
             cuerpo = r.json() if r.status_code == 200 else {"_texto": r.text[:400]}
             pruebas[nombre] = {
                 "http": r.status_code,
@@ -346,7 +339,11 @@ def t6_indexacion(headers, cfg):
     numero = f"IDX{uuid.uuid4().hex[:8]}"
     creado = enviar(headers, payload_valido(cfg, sufijo=numero))
     if not creado.get("siigo_id"):
-        return {"prueba": "T6 · latencia de indexación", "error": "No se pudo crear", "detalle": creado}
+        return {
+            "prueba": "T6 · latencia de indexación",
+            "error": "No se pudo crear",
+            "detalle": creado,
+        }
 
     anotar_creado(creado["siigo_id"], "t6")
     hoy = date.today().isoformat()
@@ -363,9 +360,7 @@ def t6_indexacion(headers, cfg):
         encontrada = False
         if r.status_code == 200:
             cuerpo = r.json()
-            encontrada = any(
-                x.get("id") == creado["siigo_id"] for x in cuerpo.get("results", [])
-            )
+            encontrada = any(x.get("id") == creado["siigo_id"] for x in cuerpo.get("results", []))
         observaciones.append({"t_s": espera, "visible": encontrada, "http": r.status_code})
         print(f"    t+{espera}s → {'visible' if encontrada else 'todavía no'}")
         if encontrada:
@@ -636,12 +631,16 @@ PRUEBAS = {
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--list", action="store_true", help="lista las pruebas disponibles")
     p.add_argument("--test", help="ejecuta una prueba concreta (t1, t3, …)")
     p.add_argument("--safe", action="store_true", help="solo las pruebas que NO crean nada")
     p.add_argument("--n", type=int, default=5, help="nº de peticiones para t3 y t4")
-    p.add_argument("--config", default="siigo_probe_config.json", help="identificadores de catálogo")
+    p.add_argument(
+        "--config", default="siigo_probe_config.json", help="identificadores de catálogo"
+    )
     p.add_argument("--out", default="siigo_probe_resultados.json", help="fichero de salida")
     p.add_argument("--cleanup", help="borra lo creado, según el fichero de rastro")
     args = p.parse_args()
@@ -710,7 +709,9 @@ def main():
         except Exception as exc:  # noqa: BLE001
             r = {"prueba": clave, "error_del_script": str(exc)}
         resultados["pruebas"].append(r)
-        print(f"   {json.dumps({k: v for k, v in r.items() if k not in ('resultados', 'casos')}, ensure_ascii=False)[:300]}")
+        print(
+            f"   {json.dumps({k: v for k, v in r.items() if k not in ('resultados', 'casos')}, ensure_ascii=False)[:300]}"
+        )
 
     resultados["fin"] = _ahora()
     with open(args.out, "w") as f:

@@ -76,9 +76,7 @@ class TestConocimientoValidado:
         assert guardado.siigo_id == "a1b2c3"
         assert guardado.validated_at is not None
 
-    async def test_un_chunk_sin_validar_no_se_fecha(
-        self, fake_chunk_repo, fake_embedding_service
-    ):
+    async def test_un_chunk_sin_validar_no_se_fecha(self, fake_chunk_repo, fake_embedding_service):
         use_case = IndexChunkUseCase(
             chunk_repo=fake_chunk_repo, embedding_service=fake_embedding_service
         )
@@ -104,9 +102,7 @@ class TestRecuperacionDeConocimiento:
 
         assert fake_chunk_repo.search_similar.call_args.kwargs["only_validated"] is True
 
-    async def test_por_defecto_la_busqueda_no_filtra(
-        self, fake_chunk_repo, fake_embedding_service
-    ):
+    async def test_por_defecto_la_busqueda_no_filtra(self, fake_chunk_repo, fake_embedding_service):
         """La consulta documental general sigue viendo todo lo indexado.
 
         El filtro de RF-08 aplica a las sugerencias contables, no a la búsqueda libre sobre

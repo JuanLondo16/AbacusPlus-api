@@ -199,7 +199,9 @@ class TestElConocimientoDeSiigoEntraComoContextoYNoComoTarifa:
     async def test_explica_jurisdiccion_actividad_y_base_minima(self):
         payload, _ = await _prompt()
 
-        temas = {p["id"] for p in payload["evidencia"]["5_conocimiento_conceptual_reteica"]["pasajes"]}
+        temas = {
+            p["id"] for p in payload["evidencia"]["5_conocimiento_conceptual_reteica"]["pasajes"]
+        }
         assert {"territorialidad", "actividad_economica", "base_minima"} <= temas
 
     @pytest.mark.asyncio
@@ -211,7 +213,10 @@ class TestElConocimientoDeSiigoEntraComoContextoYNoComoTarifa:
         for pasaje in bloque["pasajes"]:
             assert "%" not in pasaje["concepto"]
             if "ejemplo_ilustrativo" in pasaje:
-                assert "NO" in pasaje["ejemplo_ilustrativo"] or "Ilustra" in pasaje["ejemplo_ilustrativo"]
+                assert (
+                    "NO" in pasaje["ejemplo_ilustrativo"]
+                    or "Ilustra" in pasaje["ejemplo_ilustrativo"]
+                )
         assert "Ninguna cifra de este bloque es aplicable" in bloque["advertencia"]
 
     @pytest.mark.asyncio
@@ -287,9 +292,11 @@ class TestNoSeInventanTarifas:
         determinística la descarta. Aquí el 9,66 sí está en la tabla: la sugerencia procede y
         el valor se calcula por mil, que es como el municipio publica el ICA.
         """
-        uc, _ = _use_case(ai_content=json.dumps(
-            {"retentions": [{"tax_id": 11, "percentage": 0.772, "reason": "Servicios de aseo"}]}
-        ))
+        uc, _ = _use_case(
+            ai_content=json.dumps(
+                {"retentions": [{"tax_id": 11, "percentage": 0.772, "reason": "Servicios de aseo"}]}
+            )
+        )
 
         suggestion = (await uc.execute(5))["suggestions"][0]
 

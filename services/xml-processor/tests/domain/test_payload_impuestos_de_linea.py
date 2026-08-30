@@ -202,9 +202,7 @@ class TestElImporteAnticipaLoQueSiigoCalculara:
         retención no puede colarse: el tipo lo delata."""
         catalogo = {19.0: 20921, 4.0: 10615}
         tipos = {20921: "IVA", 10615: "Impoconsumo", 10599: "Retefuente"}
-        ids, impuesto, _ = impuestos_de_la_linea(
-            self._linea_del_documento(), catalogo, tipos
-        )
+        ids, impuesto, _ = impuestos_de_la_linea(self._linea_del_documento(), catalogo, tipos)
         assert ids == [20921]
         assert impuesto == 2370.25
 
@@ -250,9 +248,7 @@ class TestElImpuestoFijadoNoExcluyeALosDemas:
         assert importe == 2869.25
 
     def test_el_fijado_va_primero(self):
-        ids, _, _ = impuestos_de_la_linea(
-            self._linea(777), self.CATALOGO_MULTI, self.TIPOS_MULTI
-        )
+        ids, _, _ = impuestos_de_la_linea(self._linea(777), self.CATALOGO_MULTI, self.TIPOS_MULTI)
         assert ids[0] == 777
 
     def test_ante_un_descarte_se_conserva_el_fijado(self):

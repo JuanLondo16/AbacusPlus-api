@@ -130,15 +130,11 @@ class AccountingSettings:
             max_attempts=_int_env("ACCOUNTING_MAX_ATTEMPTS", 5, minimo=1),
             backoff_base_seconds=_float_env("ACCOUNTING_BACKOFF_BASE_SECONDS", 2.0, minimo=1.0),
             backoff_max_seconds=_float_env("ACCOUNTING_BACKOFF_MAX_SECONDS", 300.0, minimo=1.0),
-            siigo_timeout_seconds=_float_env(
-                "ACCOUNTING_SIIGO_TIMEOUT_SECONDS", 120.0, minimo=1.0
-            ),
+            siigo_timeout_seconds=_float_env("ACCOUNTING_SIIGO_TIMEOUT_SECONDS", 120.0, minimo=1.0),
             internal_timeout_margin_seconds=_float_env(
                 "ACCOUNTING_INTERNAL_TIMEOUT_MARGIN_SECONDS", 30.0, minimo=0.0
             ),
-            poll_interval_seconds=_float_env(
-                "ACCOUNTING_POLL_INTERVAL_SECONDS", 5.0, minimo=0.5
-            ),
+            poll_interval_seconds=_float_env("ACCOUNTING_POLL_INTERVAL_SECONDS", 5.0, minimo=0.5),
             reconcile_delay_seconds=_float_env(
                 "ACCOUNTING_RECONCILE_DELAY_SECONDS", 10.0, minimo=0.0
             ),
@@ -160,7 +156,7 @@ class AccountingSettings:
         """
         if attempt <= 0:
             return 0.0
-        espera = self.backoff_base_seconds ** attempt
+        espera = self.backoff_base_seconds**attempt
         return min(espera, self.backoff_max_seconds)
 
 

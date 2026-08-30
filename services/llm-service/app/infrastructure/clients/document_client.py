@@ -13,7 +13,13 @@ logger = logging.getLogger(__name__)
 class DocumentClient:
     """Cliente HTTP para obtener documentos desde xml-processor."""
 
-    def __init__(self, base_url: str, bearer_token: str = "", internal_secret: str = "", tenant_slug: str = ""):
+    def __init__(
+        self,
+        base_url: str,
+        bearer_token: str = "",
+        internal_secret: str = "",
+        tenant_slug: str = "",
+    ):
         self._base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
         if internal_secret:

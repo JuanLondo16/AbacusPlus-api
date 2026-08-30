@@ -37,9 +37,7 @@ def _caso(tipos: dict, revienta: bool = False) -> AccountDocumentUseCase:
 
 
 def _documento(*pares) -> SimpleNamespace:
-    return SimpleNamespace(
-        taxes=[SimpleNamespace(tax_id=tid, value=valor) for tid, valor in pares]
-    )
+    return SimpleNamespace(taxes=[SimpleNamespace(tax_id=tid, value=valor) for tid, valor in pares])
 
 
 class TestFiltroPorTipo:

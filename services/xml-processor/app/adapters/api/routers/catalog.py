@@ -103,9 +103,7 @@ def get_taxes(
         criterio = es_retencion_practicable
 
     return [
-        TaxCatalogResponse.model_validate(t)
-        for t in activos
-        if criterio(getattr(t, "type", None))
+        TaxCatalogResponse.model_validate(t) for t in activos if criterio(getattr(t, "type", None))
     ]
 
 
@@ -208,10 +206,14 @@ def get_retention_ica_rates(
         "personas_naturales."
     ),
     response_description="Cantidad de tarifas cargadas por tipo.",
-    responses={400: {"description": "Archivo inválido, hojas/columnas faltantes o datos incorrectos."}},
+    responses={
+        400: {"description": "Archivo inválido, hojas/columnas faltantes o datos incorrectos."}
+    },
 )
 async def import_retention_rates(
-    file: UploadFile = File(..., description="Archivo Excel .xlsx con hojas ReteFuente y/o ReteICA."),
+    file: UploadFile = File(
+        ..., description="Archivo Excel .xlsx con hojas ReteFuente y/o ReteICA."
+    ),
     replace: bool = Form(
         False,
         description=(
@@ -320,7 +322,9 @@ def _hoja_instrucciones(wb, sheet) -> None:
     escribir("Tarifas de retención · cómo llenar esta plantilla", titulo)
     escribir()
     escribir("Al importar puede elegir entre dos modos:")
-    escribir("  · Actualizar (por defecto): cada fila corrige o agrega; lo que no venga se conserva.")
+    escribir(
+        "  · Actualizar (por defecto): cada fila corrige o agrega; lo que no venga se conserva."
+    )
     escribir("  · Reemplazar: el archivo pasa a ser la verdad completa y se borra lo anterior.")
     escribir("Esta hoja de instrucciones se ignora al importar.")
     escribir()

@@ -199,9 +199,7 @@ class AccountingJobRepository:
 
         self._finalizar(
             job_id,
-            state=(
-                JobState.NEEDS_RECONCILIATION if needs_reconciliation else JobState.FAILED
-            ),
+            state=(JobState.NEEDS_RECONCILIATION if needs_reconciliation else JobState.FAILED),
             **campos,
         )
 

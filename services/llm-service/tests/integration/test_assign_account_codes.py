@@ -17,7 +17,11 @@ from app.application.use_cases.assign_account_codes import AssignAccountCodesUse
 from app.domain.exceptions.base import NoChartOfAccountsError
 
 _PUC = [
-    {"code": "613505", "name": "Comercio al por mayor y al por menor", "account_type": "Costos de venta"},
+    {
+        "code": "613505",
+        "name": "Comercio al por mayor y al por menor",
+        "account_type": "Costos de venta",
+    },
     {"code": "618001", "name": "Servicios", "account_type": "Costos de venta"},
 ]
 
@@ -226,7 +230,10 @@ class TestPromptContext:
             }
         ]
         raw = use_case._build_prompt(
-            document, details, [{"code": "519560", "name": "Casino y restaurante"}], {3: "2-3 — Administracion"}
+            document,
+            details,
+            [{"code": "519560", "name": "Casino y restaurante"}],
+            {3: "2-3 — Administracion"},
         )
         payload, _ = AssignAccountCodesUseCase.split_prompt(raw)
         return payload

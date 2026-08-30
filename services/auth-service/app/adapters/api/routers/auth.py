@@ -60,8 +60,7 @@ def login(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                "Demasiados intentos fallidos. Espere unos minutos antes de volver a "
-                "intentarlo."
+                "Demasiados intentos fallidos. Espere unos minutos antes de volver a " "intentarlo."
             ),
         )
 

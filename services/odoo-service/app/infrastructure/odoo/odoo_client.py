@@ -1,6 +1,6 @@
 import logging
 import socket
-import xmlrpc.client  # nosemgrep: use-defused-xmlrpc — protegido por defusedxml.monkey_patch() abajo
+import xmlrpc.client  # nosec B411  # nosemgrep: use-defused-xmlrpc — protegido por defusedxml.monkey_patch() abajo
 
 # defusedxml endurece el cliente XML-RPC contra respuestas maliciosas (expansión de
 # entidades, «XML bombs»). `monkey_patch()` sustituye el parser de la librería estándar por

@@ -88,7 +88,9 @@ def test_la_comparacion_ignora_mayusculas_y_espacios(monkeypatch):
 
 def test_una_factura_sin_provider_invoice_no_coincide(monkeypatch):
     """Nunca debe darse por buena una factura que no identifica al documento."""
-    uc = _caso_de_uso(ClienteFalso([[{"id": "abc", "name": "FC-1-1", "date": "2026-08-11"}]]), monkeypatch)
+    uc = _caso_de_uso(
+        ClienteFalso([[{"id": "abc", "name": "FC-1-1", "date": "2026-08-11"}]]), monkeypatch
+    )
 
     assert uc.execute(None, "FE1234", date(2026, 8, 11)).matches == []
 

@@ -232,9 +232,7 @@ class S3UploadClient:
                     resp = await client.post(self._api_url, json=body, headers=headers)
 
                 if resp.status_code >= 500:
-                    raise httpx.HTTPStatusError(
-                        "server error", request=resp.request, response=resp
-                    )
+                    raise httpx.HTTPStatusError("server error", request=resp.request, response=resp)
                 resp.raise_for_status()
 
                 if len(resp.content) > self._max_resp_bytes:

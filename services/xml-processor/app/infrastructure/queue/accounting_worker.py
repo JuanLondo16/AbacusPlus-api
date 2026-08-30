@@ -205,9 +205,7 @@ class AccountingWorkerPool:
         )
 
         if decision.should_retry and decision.next_attempt_at is not None:
-            logger.info(
-                "RF-05: documento %s reprogramado — %s", job.document_id, decision.reason
-            )
+            logger.info("RF-05: documento %s reprogramado — %s", job.document_id, decision.reason)
             job_repo.reschedule(
                 job.id,
                 next_attempt_at=decision.next_attempt_at,

@@ -147,8 +147,10 @@ class ImportRetentionRatesUseCase:
 
         if fuente_rows is None and ica_rows is None:
             esperada = (
-                self.FUENTE_SHEET if sheet == "fuente"
-                else self.ICA_SHEET if sheet == "ica"
+                self.FUENTE_SHEET
+                if sheet == "fuente"
+                else self.ICA_SHEET
+                if sheet == "ica"
                 else f"'{self.FUENTE_SHEET}' o '{self.ICA_SHEET}'"
             )
             nombre = esperada if sheet is None else f"'{esperada}'"
@@ -162,7 +164,9 @@ class ImportRetentionRatesUseCase:
 
     # ── Parseo por hoja ────────────────────────────────────────────────────────
     def _parse_fuente(self, sheet) -> list[dict[str, Any]]:
-        header_map = self._header_map(sheet, _FUENTE_HEADERS, {"retention_concept", "taxpayer_type", "rate_percentage"})
+        header_map = self._header_map(
+            sheet, _FUENTE_HEADERS, {"retention_concept", "taxpayer_type", "rate_percentage"}
+        )
         rows: list[dict[str, Any]] = []
         # (concepto, tipo_contribuyente) es la clave única de la tabla. Dos filas iguales en el
         # archivo son un error del usuario y hay que decírselo: en reemplazo la inserción
@@ -173,7 +177,9 @@ class ImportRetentionRatesUseCase:
             concepto = self._text(raw, header_map.get("retention_concept"))
             if not concepto or self._es_comentario(concepto):
                 continue  # fila vacía o anotación de la plantilla → se ignora
-            taxpayer = (self._text(raw, header_map.get("taxpayer_type")) or "").lower().replace(" ", "_")
+            taxpayer = (
+                (self._text(raw, header_map.get("taxpayer_type")) or "").lower().replace(" ", "_")
+            )
             if taxpayer not in _VALID_TAXPAYER_TYPES:
                 raise ValidationException(
                     f"ReteFuente fila {line}: tipo_contribuyente inválido '{taxpayer}'. "
@@ -190,9 +196,19 @@ class ImportRetentionRatesUseCase:
                 {
                     "retention_concept": concepto,
                     "taxpayer_type": taxpayer,
-                    "minimum_base_uvt": self._num(raw, header_map.get("minimum_base_uvt"), line, "base_uvt", required=False),
-                    "minimum_base_pesos": self._num(raw, header_map.get("minimum_base_pesos"), line, "base_pesos", required=False),
-                    "rate_percentage": self._num(raw, header_map.get("rate_percentage"), line, "tarifa", required=True),
+                    "minimum_base_uvt": self._num(
+                        raw, header_map.get("minimum_base_uvt"), line, "base_uvt", required=False
+                    ),
+                    "minimum_base_pesos": self._num(
+                        raw,
+                        header_map.get("minimum_base_pesos"),
+                        line,
+                        "base_pesos",
+                        required=False,
+                    ),
+                    "rate_percentage": self._num(
+                        raw, header_map.get("rate_percentage"), line, "tarifa", required=True
+                    ),
                 }
             )
         return rows
@@ -217,8 +233,10 @@ class ImportRetentionRatesUseCase:
             if not code or self._es_comentario(code):
                 continue
             concepto = (
-                self._text(raw, header_map.get("retention_concept")) or CONCEPTO_GENERAL
-            ).strip().lower()
+                (self._text(raw, header_map.get("retention_concept")) or CONCEPTO_GENERAL)
+                .strip()
+                .lower()
+            )
             clave = (code, concepto)
             if clave in seen:
                 raise ValidationException(
@@ -232,7 +250,9 @@ class ImportRetentionRatesUseCase:
                     "municipality_code": code,
                     "municipality_name": self._text(raw, header_map.get("municipality_name")),
                     "retention_concept": concepto,
-                    "percentage": self._num(raw, header_map.get("percentage"), line, "tarifa", required=True),
+                    "percentage": self._num(
+                        raw, header_map.get("percentage"), line, "tarifa", required=True
+                    ),
                     # Opcional: sin base, el municipio no fija tope para ese concepto.
                     "minimum_base_uvt": self._num(
                         raw, header_map.get("minimum_base_uvt"), line, "base_uvt", required=False
@@ -258,7 +278,9 @@ class ImportRetentionRatesUseCase:
         missing = required - set(mapping)
         if missing:
             human = ", ".join(sorted(missing))
-            raise ValidationException(f"La hoja '{sheet.title}' no tiene las columnas requeridas: {human}")
+            raise ValidationException(
+                f"La hoja '{sheet.title}' no tiene las columnas requeridas: {human}"
+            )
         return mapping
 
     @staticmethod
@@ -313,8 +335,15 @@ class ImportRetentionRatesUseCase:
         return text or None
 
     @staticmethod
-    def _num(row, index: Optional[int], line: int, field: str, *, required: bool) -> Optional[float]:
-        if index is None or index >= len(row) or row[index] is None or str(row[index]).strip() == "":
+    def _num(
+        row, index: Optional[int], line: int, field: str, *, required: bool
+    ) -> Optional[float]:
+        if (
+            index is None
+            or index >= len(row)
+            or row[index] is None
+            or str(row[index]).strip() == ""
+        ):
             if required:
                 raise ValidationException(f"Fila {line}: la columna '{field}' es obligatoria")
             return None
@@ -322,4 +351,6 @@ class ImportRetentionRatesUseCase:
         try:
             return float(raw)
         except ValueError as exc:
-            raise ValidationException(f"Fila {line}: '{field}' debe ser numérico, se recibió '{row[index]}'") from exc
+            raise ValidationException(
+                f"Fila {line}: '{field}' debe ser numérico, se recibió '{row[index]}'"
+            ) from exc

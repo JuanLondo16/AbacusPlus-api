@@ -23,8 +23,8 @@ from typing import Any, Mapping, Optional
 
 from app.domain.services.rag_content import (
     build_accounted_knowledge_content,
-    build_accounted_knowledge_signature,
     build_accounted_knowledge_metadata,
+    build_accounted_knowledge_signature,
 )
 from app.domain.value_objects.document_status import DocumentStatus
 

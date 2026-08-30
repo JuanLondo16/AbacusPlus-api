@@ -95,16 +95,12 @@ class TestNumeroDeFacturaDelProveedor:
 
     def test_el_prefijo_explicito_manda_sobre_el_deducido(self):
         """Quien lo configuró conoce la nomenclatura de ese proveedor."""
-        payload = _payload(
-            provider_invoice_prefix="FE", provider_invoice_number="98359"
-        )
+        payload = _payload(provider_invoice_prefix="FE", provider_invoice_number="98359")
 
         assert payload["provider_invoice"] == {"prefix": "FE", "number": "98359"}
 
     def test_el_prefijo_explicito_no_se_duplica_en_el_numero(self):
-        payload = _payload(
-            provider_invoice_prefix="FBC", provider_invoice_number="FBC98359"
-        )
+        payload = _payload(provider_invoice_prefix="FBC", provider_invoice_number="FBC98359")
 
         assert payload["provider_invoice"] == {"prefix": "FBC", "number": "98359"}
 
@@ -129,26 +125,20 @@ class TestNumeroDeFacturaDelProveedor:
         quita nada, y antes el resto viajaba con letras dentro de `number`. SIIGO respondía
         `invalid_type: number`, que es como fallaron los documentos 26 y 30.
         """
-        payload = _payload(
-            provider_invoice_prefix="FE", provider_invoice_number="G3Z9338669"
-        )
+        payload = _payload(provider_invoice_prefix="FE", provider_invoice_number="G3Z9338669")
 
         assert payload["provider_invoice"] == {"prefix": "FE", "number": "9338669"}
         assert payload["provider_invoice"]["number"].isdigit()
 
     def test_los_numeros_reales_que_fallaron_quedan_solo_en_digitos(self):
         for numero in ("G3Z9338669", "F78P21635", "003B54597", "B9051102032"):
-            payload = _payload(
-                provider_invoice_prefix="FE", provider_invoice_number=numero
-            )
+            payload = _payload(provider_invoice_prefix="FE", provider_invoice_number=numero)
 
             assert payload["provider_invoice"]["number"].isdigit(), numero
 
     def test_con_prefijo_explicito_un_valor_sin_digitos_tampoco_se_envia(self):
         """Hay prefijo, pero sigue sin haber consecutivo: el bloque quedaría incompleto."""
-        payload = _payload(
-            provider_invoice_prefix="FE", provider_invoice_number="SINDIGITOS"
-        )
+        payload = _payload(provider_invoice_prefix="FE", provider_invoice_number="SINDIGITOS")
 
         assert "provider_invoice" not in payload
 
@@ -189,9 +179,7 @@ class TestConsecutivoDelComprobante:
 
     def test_el_prefijo_se_recorta_a_seis_caracteres(self):
         """«alfanumérico de máximo 6 caracteres»."""
-        payload = _payload(
-            provider_invoice_prefix="PREFIJOLARGO", provider_invoice_number="123"
-        )
+        payload = _payload(provider_invoice_prefix="PREFIJOLARGO", provider_invoice_number="123")
 
         assert payload["provider_invoice"]["prefix"] == "PREFIJ"
 
@@ -223,8 +211,6 @@ class TestConsecutivoDelComprobante:
         assert payload["provider_invoice"]["prefix"] == "FBC"
 
     def test_el_prefijo_configurado_manda_sobre_el_por_defecto(self):
-        payload = _payload(
-            provider_invoice_prefix="SP", provider_invoice_number="941457814"
-        )
+        payload = _payload(provider_invoice_prefix="SP", provider_invoice_number="941457814")
 
         assert payload["provider_invoice"]["prefix"] == "SP"

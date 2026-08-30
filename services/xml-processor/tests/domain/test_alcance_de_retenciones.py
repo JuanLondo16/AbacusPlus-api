@@ -40,19 +40,13 @@ class TestLoPracticable:
 class TestUnaSolaFuenteDeVerdad:
     def test_el_envio_usa_la_lista_del_dominio(self):
         """Si divergen, vuelve la diferencia entre lo que se ve y lo que se contabiliza."""
-        assert (
-            AccountDocumentUseCase.TIPOS_DE_RETENCION_ACEPTADOS
-            is TIPOS_DE_RETENCION_EN_COMPRAS
-        )
+        assert AccountDocumentUseCase.TIPOS_DE_RETENCION_ACEPTADOS is TIPOS_DE_RETENCION_EN_COMPRAS
 
     def test_lo_que_el_selector_ofrece_es_lo_que_el_envio_manda(self):
         """El invariante que cierra el descuadre, comprobado tipo por tipo."""
         for tipo in ("ReteICA", "ReteIVA", "Retefuente", "Autorretencion", "Impoconsumo"):
             ofrecido = es_retencion_practicable(tipo)
-            enviado = (
-                tipo.strip().lower()
-                in AccountDocumentUseCase.TIPOS_DE_RETENCION_ACEPTADOS
-            )
+            enviado = tipo.strip().lower() in AccountDocumentUseCase.TIPOS_DE_RETENCION_ACEPTADOS
             assert ofrecido == enviado, tipo
 
 
@@ -76,8 +70,13 @@ class TestImpuestosDeLinea:
     def test_ningun_tipo_cae_en_los_dos_ambitos(self):
         """El invariante que impide que un tipo se ofrezca en el selector equivocado."""
         for tipo in (
-            "IVA", "Impoconsumo", "AdValorem",
-            "ReteIVA", "ReteICA", "Retefuente", "Autorretencion",
+            "IVA",
+            "Impoconsumo",
+            "AdValorem",
+            "ReteIVA",
+            "ReteICA",
+            "Retefuente",
+            "Autorretencion",
         ):
             assert not (es_impuesto_de_linea(tipo) and es_retencion_practicable(tipo)), tipo
 

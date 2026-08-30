@@ -97,9 +97,7 @@ class TestItNeverBreaksTheDocumentProcessing:
     @pytest.mark.asyncio
     async def test_a_missing_chart_of_accounts_is_an_expected_outcome(self, client, fake_http):
         """El 409 del RF-08 es una condición de negocio, no una falla del sistema."""
-        fake_http.response = _FakeResponse(
-            409, {"detail": "No tienes un plan único de cuenta"}
-        )
+        fake_http.response = _FakeResponse(409, {"detail": "No tienes un plan único de cuenta"})
 
         await client.trigger_retention_suggestion(42)
 

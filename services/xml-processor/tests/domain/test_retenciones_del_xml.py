@@ -30,8 +30,15 @@ from app.domain.services.xml_withholdings import (
 class TestSeRecuperanLosTresEsquemas:
     def test_reconoce_retencion_en_la_fuente(self):
         r = extraer_retenciones_del_xml(
-            [{"codigo": "06", "nombre": "ReteRenta", "porcentaje": "3.500",
-              "base_imponible": "2488970.00", "valor": "87113.95"}]
+            [
+                {
+                    "codigo": "06",
+                    "nombre": "ReteRenta",
+                    "porcentaje": "3.500",
+                    "base_imponible": "2488970.00",
+                    "valor": "87113.95",
+                }
+            ]
         )
         assert len(r) == 1
         assert r[0]["tipo"] == "retefuente"
@@ -41,8 +48,15 @@ class TestSeRecuperanLosTresEsquemas:
 
     def test_reconoce_reteica(self):
         r = extraer_retenciones_del_xml(
-            [{"codigo": "07", "nombre": "ReteICA", "porcentaje": "0.966",
-              "base_imponible": "2488970.00", "valor": "24043.45"}]
+            [
+                {
+                    "codigo": "07",
+                    "nombre": "ReteICA",
+                    "porcentaje": "0.966",
+                    "base_imponible": "2488970.00",
+                    "valor": "24043.45",
+                }
+            ]
         )
         assert r[0]["tipo"] == "reteica"
         assert r[0]["porcentaje"] == 0.966
@@ -50,8 +64,15 @@ class TestSeRecuperanLosTresEsquemas:
     def test_reconoce_reteiva_que_antes_se_descartaba(self):
         """El esquema 08 se filtraba fuera al guardar: solo se miraban el 06 y el 07."""
         r = extraer_retenciones_del_xml(
-            [{"codigo": "08", "nombre": "ReteIVA", "porcentaje": "15.00",
-              "base_imponible": "1000.00", "valor": "150.00"}]
+            [
+                {
+                    "codigo": "08",
+                    "nombre": "ReteIVA",
+                    "porcentaje": "15.00",
+                    "base_imponible": "1000.00",
+                    "valor": "150.00",
+                }
+            ]
         )
         assert len(r) == 1
         assert r[0]["tipo"] == "reteiva"
@@ -65,10 +86,18 @@ class TestVariasRetencionesEnUnDocumento:
         """El caso real: ReteRenta y ReteICA en la misma factura."""
         r = extraer_retenciones_del_xml(
             [
-                {"codigo": "06", "porcentaje": "3.500", "valor": "87113.95",
-                 "base_imponible": "2488970.00"},
-                {"codigo": "07", "porcentaje": "0.966", "valor": "24043.45",
-                 "base_imponible": "2488970.00"},
+                {
+                    "codigo": "06",
+                    "porcentaje": "3.500",
+                    "valor": "87113.95",
+                    "base_imponible": "2488970.00",
+                },
+                {
+                    "codigo": "07",
+                    "porcentaje": "0.966",
+                    "valor": "24043.45",
+                    "base_imponible": "2488970.00",
+                },
             ]
         )
         assert len(r) == 2

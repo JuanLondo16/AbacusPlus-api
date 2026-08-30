@@ -111,7 +111,7 @@ class GetBatchStatusUseCase:
                 if xml_status == "error":
                     xml.error += 1
                     if xml_err.startswith("AUTH_FAILED:"):
-                        auth_error_messages.append(xml_err[len("AUTH_FAILED:"):].strip())
+                        auth_error_messages.append(xml_err[len("AUTH_FAILED:") :].strip())
                 else:
                     xml.done += 1
             else:

@@ -149,7 +149,9 @@ class HttpxExternalClient(ExternalClientPort):
                 # Paso 1: visitar el portal para obtener cookies de infraestructura
                 logger.info("[DIAN paso 1] GET %s", base_url)
                 pre = await client.get(base_url)
-                logger.info("[DIAN paso 1] status=%s cookies=%d", pre.status_code, len(client.cookies))
+                logger.info(
+                    "[DIAN paso 1] status=%s cookies=%d", pre.status_code, len(client.cookies)
+                )
                 if pre.status_code == 403:
                     raise ExternalAuthException(
                         f"El portal bloqueó el acceso (403 Forbidden) desde esta IP. "
@@ -181,7 +183,9 @@ class HttpxExternalClient(ExternalClientPort):
                 # válido para la sesión activa. El token del paso 1 queda obsoleto tras el login.
                 logger.info("[DIAN paso 3] GET %s (dashboard CSRF)", base_url)
                 dashboard = await client.get(base_url)
-                logger.info("[DIAN paso 3] status=%s len=%d", dashboard.status_code, len(dashboard.text))
+                logger.info(
+                    "[DIAN paso 3] status=%s len=%d", dashboard.status_code, len(dashboard.text)
+                )
                 csrf_match = re.search(
                     r'name="__RequestVerificationToken"\s+type="hidden"\s+value="([^"]+)"',
                     dashboard.text,
@@ -304,7 +308,11 @@ class HttpxExternalClient(ExternalClientPort):
                         "Accept": "application/zip,application/octet-stream,*/*",
                     },
                 )
-                logger.info("Download status: %s ct: %s", response.status_code, response.headers.get("content-type"))
+                logger.info(
+                    "Download status: %s ct: %s",
+                    response.status_code,
+                    response.headers.get("content-type"),
+                )
                 response.raise_for_status()
 
                 if len(response.content) == 0:
@@ -345,9 +353,7 @@ class HttpxExternalClient(ExternalClientPort):
                 cookies_step1 = dict(client.cookies)
 
                 # Paso 2a: auth sin seguir redirect (captura cookie del primer redirect)
-                auth_no_follow = await client.get(
-                    login_url, params=params, follow_redirects=False
-                )
+                auth_no_follow = await client.get(login_url, params=params, follow_redirects=False)
                 raw_cookies_step2a = dict(auth_no_follow.cookies)
 
                 # Paso 2b: auth siguiendo todos los redirects (ve estado final)

@@ -29,10 +29,20 @@ class TestSeConservanTodosLosImpuestos:
         """El caso real de las ocho facturas de telecomunicaciones."""
         impuestos = extraer_impuestos_de_linea(
             [
-                {"codigo": "01", "nombre": "IVA", "porcentaje": "19.00",
-                 "base_imponible": "99577.63", "valor": "18919.75"},
-                {"codigo": "04", "nombre": "INC", "porcentaje": "4.00",
-                 "base_imponible": "99577.63", "valor": "3983.11"},
+                {
+                    "codigo": "01",
+                    "nombre": "IVA",
+                    "porcentaje": "19.00",
+                    "base_imponible": "99577.63",
+                    "valor": "18919.75",
+                },
+                {
+                    "codigo": "04",
+                    "nombre": "INC",
+                    "porcentaje": "4.00",
+                    "base_imponible": "99577.63",
+                    "valor": "3983.11",
+                },
             ]
         )
         assert len(impuestos) == 2
@@ -55,8 +65,14 @@ class TestSeConservanTodosLosImpuestos:
 
     def test_una_linea_con_un_solo_impuesto_sigue_funcionando_igual(self):
         impuestos = extraer_impuestos_de_linea(
-            [{"codigo": "04", "porcentaje": "8.00", "base_imponible": "73055.56",
-              "valor": "5844.44"}]
+            [
+                {
+                    "codigo": "04",
+                    "porcentaje": "8.00",
+                    "base_imponible": "73055.56",
+                    "valor": "5844.44",
+                }
+            ]
         )
         assert len(impuestos) == 1
         assert impuestos[0]["porcentaje"] == 8.0
@@ -71,8 +87,15 @@ class TestImpuestosSinPorcentaje:
         total de la factura.
         """
         impuestos = extraer_impuestos_de_linea(
-            [{"codigo": "22", "nombre": "INC Bolsas", "porcentaje": None,
-              "valor_por_unidad": "73.00", "valor": "73.00"}]
+            [
+                {
+                    "codigo": "22",
+                    "nombre": "INC Bolsas",
+                    "porcentaje": None,
+                    "valor_por_unidad": "73.00",
+                    "valor": "73.00",
+                }
+            ]
         )
         assert len(impuestos) == 1
         assert impuestos[0]["porcentaje"] == 0.0

@@ -49,9 +49,7 @@ class SiigoApiClient:
                 f"SIIGO returned status {exc.response.status_code} for {path}"
             ) from exc
         except httpx.HTTPError as exc:
-            raise ExternalServiceException(
-                f"Could not call SIIGO endpoint {path}: {exc}"
-            ) from exc
+            raise ExternalServiceException(f"Could not call SIIGO endpoint {path}: {exc}") from exc
 
         if isinstance(data, list):
             return {"results": data}

@@ -30,6 +30,7 @@ def _credential(**overrides):
 
 # --- _extract_results -----------------------------------------------------------------
 
+
 def test_extract_results_desde_value_results():
     payload = {"value": {"results": [{"id": 1}, {"id": 2}]}}
     assert SiigoApiClient._extract_results(payload) == [{"id": 1}, {"id": 2}]
@@ -47,6 +48,7 @@ def test_extract_results_vacio(payload):
 
 # --- token_expiration_from_response ---------------------------------------------------
 
+
 def test_token_expiration_usa_expires_in():
     before = datetime.now(timezone.utc)
     exp = token_expiration_from_response({"expires_in": 3600})
@@ -63,6 +65,7 @@ def test_token_expiration_default_cuando_falta():
 
 # --- _base_headers --------------------------------------------------------------------
 
+
 def test_base_headers_sin_auth_ni_partner():
     client = SiigoApiClient(_credential())
     headers = client._base_headers(include_auth=False)
@@ -70,9 +73,7 @@ def test_base_headers_sin_auth_ni_partner():
 
 
 def test_base_headers_incluye_partner_y_token():
-    client = SiigoApiClient(
-        _credential(partner_id="abacus", access_token="tok", token_type=None)
-    )
+    client = SiigoApiClient(_credential(partner_id="abacus", access_token="tok", token_type=None))
     headers = client._base_headers()
     assert headers["Partner-Id"] == "abacus"
     assert headers["Authorization"] == "Bearer tok"  # token_type None → Bearer por defecto
@@ -89,6 +90,7 @@ def test_base_url_normaliza_trailing_slash():
 
 
 # --- get_paginated --------------------------------------------------------------------
+
 
 def test_get_paginated_recorre_todas_las_paginas():
     client = SiigoApiClient(_credential())

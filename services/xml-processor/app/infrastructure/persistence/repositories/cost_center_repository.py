@@ -23,9 +23,7 @@ class CostCenterRepository:
         Permite distinguir «no existe» de «existe pero está inactivo» sin traer todo el
         catálogo: validar la pertenencia de un solo id no debería costar N filas.
         """
-        return (
-            self._db.query(CostCenter).filter(CostCenter.id == cost_center_id).one_or_none()
-        )
+        return self._db.query(CostCenter).filter(CostCenter.id == cost_center_id).one_or_none()
 
     def upsert_many(
         self, items: list[dict[str, Any]], deactivate_missing: bool = True

@@ -125,8 +125,13 @@ class TestDestinoDeCadaRetencion:
 class TestAplicacionEnLosItems:
     def _items(self, *tax_ids_por_item):
         return [
-            {"type": "Account", "code": "51401590", "quantity": 1.0, "price": 100.0,
-             **({"tax_ids": list(ids)} if ids else {})}
+            {
+                "type": "Account",
+                "code": "51401590",
+                "quantity": 1.0,
+                "price": 100.0,
+                **({"tax_ids": list(ids)} if ids else {}),
+            }
             for ids in tax_ids_por_item
         ]
 
@@ -270,10 +275,20 @@ class TestLaLineaDelImpuestoAlConsumoNoAlteraLaBase:
         """Se le aplica solo a las líneas reales, que es lo que recorta quien llama."""
         caso = _caso()
         items = [
-            {"type": "Account", "code": "51353501", "quantity": 1.0,
-             "price": 58431.09, "tax_ids": [20921]},
-            {"type": "Account", "code": "51159509", "quantity": 1.0,
-             "price": 116.86, "description": "Impuesto al consumo"},
+            {
+                "type": "Account",
+                "code": "51353501",
+                "quantity": 1.0,
+                "price": 58431.09,
+                "tax_ids": [20921],
+            },
+            {
+                "type": "Account",
+                "code": "51159509",
+                "quantity": 1.0,
+                "price": 116.86,
+                "description": "Impuesto al consumo",
+            },
         ]
 
         caso._aplicar_retenciones_a_los_items(items[:1], [10614])

@@ -2,7 +2,6 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-
 #: Similitud mínima por defecto para que un chunk pueda considerarse precedente.
 #:
 #: `search_similar` ordena por distancia y corta en `top_k`, así que SIEMPRE devuelve algo
@@ -82,7 +81,9 @@ class InternalIndexChunkRequest(IndexChunkRequest):
     Va protegida por `X-Internal-Secret`, mismo patrón que `provision-tenant`.
     """
 
-    tenant_slug: str = Field(..., min_length=1, description="Slug del tenant destino (BD abacus_t_{slug}).")
+    tenant_slug: str = Field(
+        ..., min_length=1, description="Slug del tenant destino (BD abacus_t_{slug})."
+    )
 
 
 class InternalRevokeChunkRequest(BaseModel):

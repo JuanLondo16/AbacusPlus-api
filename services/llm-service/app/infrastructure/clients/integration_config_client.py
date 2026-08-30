@@ -44,9 +44,7 @@ class IntegrationConfigClient:
 
         async def _cargar() -> list[dict]:
             try:
-                return await self._get_json(
-                    "/api/v1/integrations/chart-accounts", params=params
-                )
+                return await self._get_json("/api/v1/integrations/chart-accounts", params=params)
             except Exception as exc:
                 logger.warning(
                     "No se pudo obtener plan de cuentas de integration-config-service: %s", exc

@@ -88,9 +88,7 @@ class CodeAssignmentResponse(BaseModel):
         description="Lista de advertencias generadas durante la asignación.",
     )
 
-    model_config = {
-        "json_schema_extra": {"example": {"assigned": 3, "skipped": 0, "warnings": []}}
-    }
+    model_config = {"json_schema_extra": {"example": {"assigned": 3, "skipped": 0, "warnings": []}}}
 
 
 #: Tope de documentos por lote de asignación. Acota el trabajo que una sola petición puede

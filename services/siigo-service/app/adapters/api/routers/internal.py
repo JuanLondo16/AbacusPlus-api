@@ -135,9 +135,7 @@ def list_purchase_invoice_parameters_internal(
 
     db = _tenant_session(x_tenant_slug)
     try:
-        use_case = ManagePurchaseInvoiceParametersUseCase(
-            PurchaseInvoiceParameterRepository(db)
-        )
+        use_case = ManagePurchaseInvoiceParametersUseCase(PurchaseInvoiceParameterRepository(db))
         return use_case.list(account_key=account_key)
     finally:
         db.close()

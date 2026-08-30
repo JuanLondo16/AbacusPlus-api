@@ -304,7 +304,9 @@ class BrowserDownloadSession:
         channel = self._channel if self._channel != "chromium" else None
         logger.info(
             "[Session] Lanzando browser patchright (channel=%s, headless=%s, profile=%s)",
-            channel, headless, self._profile_dir,
+            channel,
+            headless,
+            self._profile_dir,
         )
         # patchright recomienda perfil persistente + sin args que delaten automatización.
         self._pw = await async_playwright().start()
@@ -333,7 +335,9 @@ class BrowserDownloadSession:
             self._context = await self._pw.chromium.launch_persistent_context(
                 self._profile_dir, **launch_kwargs
             )
-        self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
+        self._page = (
+            self._context.pages[0] if self._context.pages else await self._context.new_page()
+        )
 
         # Autenticar vía httpx para evitar el Cloudflare Turnstile de /User/AuthToken.
         # La API DIAN emite .AspNet.ApplicationCookie sin challenge de WAF. La inyectamos
@@ -348,14 +352,18 @@ class BrowserDownloadSession:
                     AUTH_LOST,
                 )
             domain = urlparse(self._login_url).netloc
-            await self._context.add_cookies([{
-                "name": ".AspNet.ApplicationCookie",
-                "value": app_cookie,
-                "domain": domain,
-                "path": "/",
-                "secure": True,
-                "httpOnly": True,
-            }])
+            await self._context.add_cookies(
+                [
+                    {
+                        "name": ".AspNet.ApplicationCookie",
+                        "value": app_cookie,
+                        "domain": domain,
+                        "path": "/",
+                        "secure": True,
+                        "httpOnly": True,
+                    }
+                ]
+            )
             logger.info("[Session] Cookie de auth inyectada en browser (domain=%s)", domain)
         except DianDownloadError:
             raise
@@ -453,7 +461,9 @@ class BrowserDownloadSession:
                 last_reason = "SIN_TOKEN_TURNSTILE"
                 logger.warning(
                     "[Session] sin token Turnstile (intento %d/%d, trackId=%s)",
-                    attempt, self._max_retries, track_id,
+                    attempt,
+                    self._max_retries,
+                    track_id,
                 )
                 await asyncio.sleep(2**attempt)
                 continue
@@ -469,15 +479,11 @@ class BrowserDownloadSession:
             # valida el token Turnstile y envía el ZIP como Content-Disposition attachment.
             data, kind = await self._strategy_nav_download(download_url)
             if kind == VALID_ZIP and is_valid_zip(data):
-                logger.info(
-                    "[Session] ZIP via nav: %d bytes (trackId=%.32s…)", len(data), track_id
-                )
+                logger.info("[Session] ZIP via nav: %d bytes (trackId=%.32s…)", len(data), track_id)
                 return data
 
             if kind == AUTH_LOST:
-                raise DianDownloadError(
-                    f"Sesión perdida (AUTH_LOST) trackId={track_id}", AUTH_LOST
-                )
+                raise DianDownloadError(f"Sesión perdida (AUTH_LOST) trackId={track_id}", AUTH_LOST)
 
             # Estrategia 2: inpage fetch con token fresco.
             # La navegación anterior fijó la cookie WAF en el contexto del browser;
@@ -493,7 +499,8 @@ class BrowserDownloadSession:
                     if kind2 == VALID_ZIP and is_valid_zip(data2):
                         logger.info(
                             "[Session] ZIP via fetch (post-nav): %d bytes (trackId=%.32s…)",
-                            len(data2), track_id,
+                            len(data2),
+                            track_id,
                         )
                         return data2
                     last_reason = kind2
@@ -504,14 +511,13 @@ class BrowserDownloadSession:
                 last_reason = kind
 
             if last_reason == AUTH_LOST:
-                raise DianDownloadError(
-                    f"Sesión perdida (AUTH_LOST) trackId={track_id}", AUTH_LOST
-                )
+                raise DianDownloadError(f"Sesión perdida (AUTH_LOST) trackId={track_id}", AUTH_LOST)
 
             # Si el documento no existe en DIAN y ya agotamos reintentos → terminal.
             page_url = self._page.url
-            if ("searchinvalidqr" in page_url.lower() or "invalidqr" in page_url.lower()) \
-                    and attempt >= self._max_retries:
+            if (
+                "searchinvalidqr" in page_url.lower() or "invalidqr" in page_url.lower()
+            ) and attempt >= self._max_retries:
                 raise DianDownloadError(
                     f"Documento no disponible en DIAN (SearchInvalidQR) trackId={track_id}",
                     DIAN_INVALID,
@@ -519,7 +525,10 @@ class BrowserDownloadSession:
 
             logger.info(
                 "[Session] intento %d/%d sin ZIP (%s) trackId=%s",
-                attempt, self._max_retries, last_reason, track_id,
+                attempt,
+                self._max_retries,
+                last_reason,
+                track_id,
             )
             await asyncio.sleep(2**attempt)
 
@@ -574,9 +583,14 @@ class BrowserDownloadSession:
                 )
                 logger.info("[Session] in-browser: window.turnstile disponible")
             except Exception as te:
-                logger.warning("[Session] in-browser: window.turnstile no disponible tras 45s: %s", type(te).__name__)
+                logger.warning(
+                    "[Session] in-browser: window.turnstile no disponible tras 45s: %s",
+                    type(te).__name__,
+                )
                 return None
-            token = await self._page.evaluate(_TURNSTILE_SOLVE_JS, [TURNSTILE_SITEKEY, wait_s * 1000])
+            token = await self._page.evaluate(
+                _TURNSTILE_SOLVE_JS, [TURNSTILE_SITEKEY, wait_s * 1000]
+            )
             if token and not str(token).startswith(("ERR", "TIMEOUT", "NO_")):
                 return token
             logger.info("[Session] turnstile in-browser sin token: %s", str(token)[:40])
@@ -602,7 +616,9 @@ class BrowserDownloadSession:
                 )
                 task_id = create.json().get("taskId")
                 if not task_id:
-                    logger.warning("[Session] CapSolver createTask sin taskId: %s", create.text[:200])
+                    logger.warning(
+                        "[Session] CapSolver createTask sin taskId: %s", create.text[:200]
+                    )
                     return None
                 for _ in range(40):
                     await asyncio.sleep(3)
@@ -706,9 +722,7 @@ class BrowserDownloadSession:
         # No se disparó descarga — clasificar según la página resultante.
         return b"", self._classify(200, "", b"", self._page.url)
 
-    def _classify(
-        self, status, content_type: str, body_head: bytes, final_url: str
-    ) -> str:
+    def _classify(self, status, content_type: str, body_head: bytes, final_url: str) -> str:
         """Clasifica el resultado de una descarga para decidir la reacción adaptativa."""
         url_l = (final_url or "").lower()
         if "searchinvalidqr" in url_l or "invalidqr" in url_l:

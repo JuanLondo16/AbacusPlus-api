@@ -62,9 +62,7 @@ class PublishDocumentFilesUseCase:
                 "xml_url": document.xml_url,
                 "uploaded": [],
                 "skipped": ["pdf", "xml"],
-                "warnings": [
-                    "La subida a S3 no está configurada; no se publicó ningún archivo."
-                ],
+                "warnings": ["La subida a S3 no está configurada; no se publicó ningún archivo."],
             }
 
         uploaded: list[str] = []
@@ -72,15 +70,27 @@ class PublishDocumentFilesUseCase:
         warnings: list[str] = []
 
         pdf_link = await self._publish(
-            document, "pdf", document.pdf_data, document.pdf_url,
-            tenant_slug, overwrite, skipped, warnings,
+            document,
+            "pdf",
+            document.pdf_data,
+            document.pdf_url,
+            tenant_slug,
+            overwrite,
+            skipped,
+            warnings,
         )
         if pdf_link:
             uploaded.append("pdf")
 
         xml_link = await self._publish(
-            document, "xml", document.xml_data, document.xml_url,
-            tenant_slug, overwrite, skipped, warnings,
+            document,
+            "xml",
+            document.xml_data,
+            document.xml_url,
+            tenant_slug,
+            overwrite,
+            skipped,
+            warnings,
         )
         if xml_link:
             uploaded.append("xml")

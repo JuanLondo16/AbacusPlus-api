@@ -87,8 +87,13 @@ class RepoFalso:
         return self.doc
 
     def mark_accounted(
-        self, document_id, siigo_id, siigo_name=None, *,
-        siigo_total=None, total_matches_dian=None,
+        self,
+        document_id,
+        siigo_id,
+        siigo_name=None,
+        *,
+        siigo_total=None,
+        total_matches_dian=None,
     ):
         self.marked_accounted.append((document_id, siigo_id))
         self.doc.status = DocumentStatus.CONTABILIZADA
@@ -397,8 +402,14 @@ def test_lote_continua_cuando_un_documento_falla():
     """Un proveedor mal configurado no puede bloquear el cierre contable del mes."""
     docs = {
         1: _documento(id=1),
-        2: _documento(id=2, details=[SimpleNamespace(code=None, type="Account", quantity=1,
-                                                     price=1.0, description="x", tax_id=None)]),
+        2: _documento(
+            id=2,
+            details=[
+                SimpleNamespace(
+                    code=None, type="Account", quantity=1, price=1.0, description="x", tax_id=None
+                )
+            ],
+        ),
         3: _documento(id=3),
     }
 
@@ -421,8 +432,13 @@ def test_lote_continua_cuando_un_documento_falla():
             return doc
 
         def mark_accounted(
-            self, document_id, siigo_id, siigo_name=None, *,
-            siigo_total=None, total_matches_dian=None,
+            self,
+            document_id,
+            siigo_id,
+            siigo_name=None,
+            *,
+            siigo_total=None,
+            total_matches_dian=None,
         ):
             self.marked_accounted.append(document_id)
             self.docs[document_id].status = DocumentStatus.CONTABILIZADA
@@ -609,8 +625,11 @@ def test_se_envia_fecha_de_vencimiento_del_pago():
 
 def test_el_centro_de_costo_del_documento_prevalece_sobre_la_plantilla():
     doc = _documento(cost_center_id=735)
-    uc, _, client = _use_case(doc, PurchaseInvoiceResult(ok=True, siigo_id="x"),
-                              parametros={**PARAMETROS, "cost_center": 999})
+    uc, _, client = _use_case(
+        doc,
+        PurchaseInvoiceResult(ok=True, siigo_id="x"),
+        parametros={**PARAMETROS, "cost_center": 999},
+    )
 
     uc.execute(1)
 

@@ -85,7 +85,9 @@ class TestLasCifrasDelArticuloNoSonTarifas:
         """0,772 % = 0,00772 sobre 30.000.000 son 231.600. La conversión a decimal es un paso
         matemático, y el corpus debe enseñarla sin que se confunda con una tarifa."""
         calculo = next(
-            p for p in reteica_knowledge.recuperar("calculo tarifa", limite=9) if p["id"] == "calculo"
+            p
+            for p in reteica_knowledge.recuperar("calculo tarifa", limite=9)
+            if p["id"] == "calculo"
         )
 
         assert "0,00772" in calculo["ejemplo_ilustrativo"]

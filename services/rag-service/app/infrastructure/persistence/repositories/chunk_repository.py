@@ -152,6 +152,7 @@ class ChunkRepository(ChunkRepositoryPort):
 
         where = " AND ".join(conditions)
         rows = self.db.execute(
+            # nosemgrep: avoid-sqlalchemy-text
             text(f"""
                 SELECT id, source_type, source_id, content, is_validated, siigo_id,
                        metadata,

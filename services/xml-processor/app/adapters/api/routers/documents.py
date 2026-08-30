@@ -448,11 +448,7 @@ async def update_detail_codes(
         changed_by=(token.email or token.user_id),
         # El motivo distingue una corrección de causación normal de la que se hace para
         # desatascar un documento que SIIGO rechazó, que es la que un auditor busca.
-        reason=(
-            "error_correction"
-            if doc.status == DocumentStatus.ERROR
-            else "causacion_edit"
-        ),
+        reason=("error_correction" if doc.status == DocumentStatus.ERROR else "causacion_edit"),
     )
     return DocumentDetailCodeUpdateResponse(updated=updated)
 
@@ -695,9 +691,7 @@ async def update_document_status(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Document {document_id} not found"
         )
 
-    use_case = (
-        unapprove_use_case if estado_actual == DocumentStatus.APROBADO else causar_use_case
-    )
+    use_case = unapprove_use_case if estado_actual == DocumentStatus.APROBADO else causar_use_case
     try:
         updated = use_case.execute(document_id)
     except EntityNotFoundException:
@@ -779,9 +773,7 @@ async def publish_documents_file_links(
     limit: int = Query(
         50, ge=1, le=500, description="Máximo de documentos a procesar en esta ejecución."
     ),
-    overwrite: bool = Query(
-        False, description="Republica también los que ya tienen enlace."
-    ),
+    overwrite: bool = Query(False, description="Republica también los que ya tienen enlace."),
     token: TokenData = Depends(get_token_data),
     repo: DocumentRepository = Depends(get_document_repo),
 ):
@@ -880,10 +872,7 @@ def create_document_accounting_entry(
         raise HTTPException(
             status_code=(
                 status.HTTP_409_CONFLICT
-                if (
-                    outcome.status == DocumentStatus.CONTABILIZADA
-                    or outcome.needs_reconciliation
-                )
+                if (outcome.status == DocumentStatus.CONTABILIZADA or outcome.needs_reconciliation)
                 else status.HTTP_422_UNPROCESSABLE_ENTITY
             ),
             detail=_accounting_response(outcome).model_dump(),
@@ -1064,9 +1053,7 @@ def get_document_siigo_invoices(
     try:
         vista = use_case.lookup(document_id)
     except EntityNotFoundException as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     return DocumentReconciliationView(
         document_id=vista.document_id,

@@ -13,8 +13,14 @@ from types import SimpleNamespace
 
 from app.application.use_cases.diagnose_fiscal_setup import DiagnoseFiscalSetupUseCase
 
-_COMPROBANTE = {"id": 19693, "name": "Compra", "type": "FC", "active": True,
-                "reteiva": True, "reteica": True}
+_COMPROBANTE = {
+    "id": 19693,
+    "name": "Compra",
+    "type": "FC",
+    "active": True,
+    "reteiva": True,
+    "reteica": True,
+}
 
 
 class _Credenciales:
@@ -33,8 +39,11 @@ class _Credenciales:
 
 class _Perfil:
     def __init__(self, **kwargs):
-        base = {"agente_retencion_renta": False, "agente_retencion_ica": False,
-                "agente_retencion_iva": False}
+        base = {
+            "agente_retencion_renta": False,
+            "agente_retencion_ica": False,
+            "agente_retencion_iva": False,
+        }
         base.update(kwargs)
         self._perfil = SimpleNamespace(**base)
 
@@ -57,8 +66,15 @@ class _Db:
         return SimpleNamespace(fetchall=lambda: list(self.terceros))
 
 
-def _caso(terceros=(), respuestas=None, falla_comprobante=False, falla_terceros=False,
-          perfil=None, document_id=19693, monkeypatch=None):
+def _caso(
+    terceros=(),
+    respuestas=None,
+    falla_comprobante=False,
+    falla_terceros=False,
+    perfil=None,
+    document_id=19693,
+    monkeypatch=None,
+):
     uc = DiagnoseFiscalSetupUseCase(
         credential_repository=_Credenciales(),
         fiscal_profile_repository=perfil or _Perfil(),
@@ -86,9 +102,7 @@ def _caso(terceros=(), respuestas=None, falla_comprobante=False, falla_terceros=
         def _extract_results(payload):
             return payload.get("results", []) if isinstance(payload, dict) else payload
 
-    monkeypatch.setattr(
-        "app.application.use_cases.diagnose_fiscal_setup.SiigoApiClient", _Cliente
-    )
+    monkeypatch.setattr("app.application.use_cases.diagnose_fiscal_setup.SiigoApiClient", _Cliente)
     return uc
 
 
@@ -110,8 +124,11 @@ class TestEmpresa:
 
     def test_si_siigo_no_responde_lo_advierte_en_vez_de_suponer(self, monkeypatch):
         """Sin la configuración no se puede afirmar que una retención esté deshabilitada."""
-        uc = _caso(perfil=_Perfil(agente_retencion_ica=True), falla_comprobante=True,
-                   monkeypatch=monkeypatch)
+        uc = _caso(
+            perfil=_Perfil(agente_retencion_ica=True),
+            falla_comprobante=True,
+            monkeypatch=monkeypatch,
+        )
 
         r = uc.execute()
 
@@ -164,8 +181,9 @@ class TestTerceros:
 
     def test_un_fallo_de_consulta_no_se_confunde_con_una_ausencia(self, monkeypatch):
         """Distinguirlos es el punto: «no existe» es un hallazgo, «no se pudo» es una laguna."""
-        uc = _caso(terceros=[("900123456", "X", "O-15")], falla_terceros=True,
-                   monkeypatch=monkeypatch)
+        uc = _caso(
+            terceros=[("900123456", "X", "O-15")], falla_terceros=True, monkeypatch=monkeypatch
+        )
 
         r = uc.execute()
 

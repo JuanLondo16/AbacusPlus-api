@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 
 
 class RetencionDeEmpresaResponse(BaseModel):
-    clave: str = Field(..., description="Campo del perfil fiscal.", examples=["agente_retencion_ica"])
+    clave: str = Field(
+        ..., description="Campo del perfil fiscal.", examples=["agente_retencion_ica"]
+    )
     etiqueta: str = Field(..., description="Nombre de la retención.", examples=["Retención de ICA"])
     declarada_en_abacus: bool = Field(..., description="Marcada en el perfil fiscal de la empresa.")
     habilitada_en_siigo: Optional[bool] = Field(

@@ -242,9 +242,7 @@ class RetentionEvidenceRetriever:
             "encontrados": len(casos),
         }
         return (
-            self._formatear(
-                casos, mismo_proveedor=False, municipios_reteica=municipios_reteica
-            ),
+            self._formatear(casos, mismo_proveedor=False, municipios_reteica=municipios_reteica),
             traza,
         )
 

@@ -96,9 +96,7 @@ class TestSpanishHeaderAliases:
     def test_nivel_agrupacion_is_not_mistaken_for_level(self, use_case):
         """«Nivel agrupación» es texto («Transaccional»), no el nivel jerárquico."""
         accounts = use_case._parse_excel(
-            _xlsx(
-                [("Código", "Nombre", "Nivel agrupación"), ("110505", "Caja", "Transaccional")]
-            ),
+            _xlsx([("Código", "Nombre", "Nivel agrupación"), ("110505", "Caja", "Transaccional")]),
             None,
         )
 

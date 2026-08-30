@@ -92,8 +92,8 @@ class TestTodosLosTiposDelCatalogo:
         "tipo,tarifa,base,esperado",
         [
             # Tarifas reales del catálogo de la empresa.
-            ("ReteICA", 11.04, 1_000_000.0, 11040.0),   # por mil
-            ("ReteICA", 4.14, 1_000_000.0, 4140.0),     # por mil
+            ("ReteICA", 11.04, 1_000_000.0, 11040.0),  # por mil
+            ("ReteICA", 4.14, 1_000_000.0, 4140.0),  # por mil
             ("Retefuente", 11.0, 1_000_000.0, 110000.0),
             ("Retefuente", 2.5, 1_000_000.0, 25000.0),
             ("ReteIVA", 15.0, 1_000_000.0, 150000.0),

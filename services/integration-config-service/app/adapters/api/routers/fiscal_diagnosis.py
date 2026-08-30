@@ -49,10 +49,14 @@ def _recomendacion_tercero(d) -> str:
         return "Responsabilidades fiscales alineadas."
     partes = []
     if d.faltan_en_siigo:
-        nombres = ", ".join(f"{c} ({RESPONSABILIDADES.get(c, c)})" for c in sorted(d.faltan_en_siigo))
+        nombres = ", ".join(
+            f"{c} ({RESPONSABILIDADES.get(c, c)})" for c in sorted(d.faltan_en_siigo)
+        )
         partes.append(f"Falta declarar en SIIGO: {nombres}.")
     if d.sobran_en_siigo:
-        nombres = ", ".join(f"{c} ({RESPONSABILIDADES.get(c, c)})" for c in sorted(d.sobran_en_siigo))
+        nombres = ", ".join(
+            f"{c} ({RESPONSABILIDADES.get(c, c)})" for c in sorted(d.sobran_en_siigo)
+        )
         partes.append(f"SIIGO declara y Abacus no: {nombres}.")
     if d.afecta_retencion:
         partes.append(

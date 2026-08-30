@@ -24,6 +24,4 @@ class IntegrationTaxRepository:
         pero está inactiva»— sin traer todo el catálogo. Es el mismo criterio que usa RF-01
         con el PUC y RF-07 con los centros de costo.
         """
-        return (
-            self._db.query(IntegrationTax).filter(IntegrationTax.id == tax_id).one_or_none()
-        )
+        return self._db.query(IntegrationTax).filter(IntegrationTax.id == tax_id).one_or_none()

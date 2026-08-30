@@ -163,9 +163,7 @@ def impuestos_de_la_linea(
         if not id_impuesto:
             # Se reintenta contra el índice: el enlace pudo fallar al procesar el XML porque
             # el catálogo no había llegado, y para entonces ya está disponible.
-            id_impuesto = _buscar_en_indice(
-                float(impuesto.get("porcentaje") or 0), indice_catalogo
-            )
+            id_impuesto = _buscar_en_indice(float(impuesto.get("porcentaje") or 0), indice_catalogo)
         if not id_impuesto:
             avisos.append(
                 f"El impuesto {nombre} ({impuesto.get('porcentaje')}%) de esta línea no está "
@@ -227,7 +225,6 @@ def _importe_del_impuesto(detalle, tax_id: int) -> Optional[float]:
     if not coincidencias:
         return None
     return round(sum(float(i.get("valor") or 0) for i in coincidencias), 2)
-
 
 
 def importe_declarado(detalle) -> float:
