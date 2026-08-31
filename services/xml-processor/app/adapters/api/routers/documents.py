@@ -464,7 +464,7 @@ def _auditar_correcciones(
     """
     for asignacion in assignments:
         enviados = asignacion.model_dump(exclude_unset=True)
-        detail_id = enviados.pop("id", None) or getattr(asignacion, "id", None)
+        detail_id = enviados.pop("detail_id", None) or getattr(asignacion, "detail_id", None)
         anterior = previos.get(detail_id, {})
         for campo, nuevo in enviados.items():
             if campo not in anterior:

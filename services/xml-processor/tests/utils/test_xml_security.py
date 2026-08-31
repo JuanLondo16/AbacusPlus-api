@@ -81,7 +81,9 @@ class TestZipHandlerRejectsMaliciousXml:
 
     @pytest.mark.asyncio
     async def test_accepts_a_plain_xml_inside_the_zip(self):
-        content, filename = await extract_zip_file(_zip_upload("<Invoice><a>1</a></Invoice>"))
+        content, filename, _xml_bytes, _pdf_bytes = await extract_zip_file(
+            _zip_upload("<Invoice><a>1</a></Invoice>")
+        )
 
         assert filename == "factura.xml"
         assert "<Invoice>" in content

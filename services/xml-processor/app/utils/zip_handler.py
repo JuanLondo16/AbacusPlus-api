@@ -10,16 +10,19 @@ from defusedxml.ElementTree import fromstring as parse_xml_string
 
 async def extract_zip_file(
     zip_file, max_file_size: int = 10 * 1024 * 1024
-) -> tuple[str, Optional[str]]:
+) -> tuple[str, Optional[str], bytes, Optional[bytes]]:
     """
-    Extract the first XML file found in a ZIP.
+    Extract the first XML file found in a ZIP, along with the raw bytes needed to keep an
+    official backup of the invoice (RF-03: `documents.xml_data` / `documents.pdf_data`).
 
     Args:
         zip_file: Uploaded ZIP file (FastAPI UploadFile)
         max_file_size: Maximum allowed size (10MB by default)
 
     Returns:
-        Tuple[xml_content, filename]
+        Tuple[xml_content, filename, xml_bytes, pdf_bytes]. `pdf_bytes` is None when the ZIP
+        doesn't contain a PDF, or its content doesn't have a valid `%PDF-` signature — the
+        same criterion the DIAN download queue already applies.
 
     Raises:
         ValueError: If no XML files found or file is too large
@@ -47,7 +50,8 @@ async def extract_zip_file(
                 raise ValueError("File name not allowed")
 
             with zip_ref.open(xml_filename) as xml_file:
-                content = xml_file.read().decode("utf-8")
+                xml_bytes = xml_file.read()
+                content = xml_bytes.decode("utf-8")
 
                 try:
                     parse_xml_string(content)
@@ -57,7 +61,20 @@ async def extract_zip_file(
                     # DTD o entidades: se descarta antes de seguir procesando el ZIP.
                     raise ValueError(f"XML rechazado por seguridad: {exc}") from exc
 
-                return content, xml_filename
+            # El ZIP de la DIAN puede traer también la representación gráfica oficial. Se
+            # conserva junto al XML para que la carga manual quede respaldada igual que la
+            # descarga automática (`infrastructure/queue/download_queue.py`), en vez de
+            # depender de que alguien vuelva a la DIAN a buscarla.
+            pdf_bytes: Optional[bytes] = None
+            for name in zip_ref.namelist():
+                if name.lower().endswith(".pdf") and not name.startswith(("__MACOSX/", "._")):
+                    with zip_ref.open(name) as pdf_file:
+                        data = pdf_file.read()
+                    if data[:5] == b"%PDF-":
+                        pdf_bytes = data
+                        break
+
+            return content, xml_filename, xml_bytes, pdf_bytes
 
     except zipfile.BadZipFile as exc:
         raise ValueError("File is not a valid ZIP") from exc

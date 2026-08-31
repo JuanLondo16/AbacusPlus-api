@@ -69,7 +69,7 @@ class ProcessXmlUseCase:
         self.tenant_slug = tenant_slug
 
     async def execute(self, file: UploadFile) -> dict:
-        xml_content, filename = await self._extract_content(file)
+        xml_content, filename, xml_bytes, pdf_bytes = await self._extract_content(file)
         xml_data = parse_xml(xml_content)
         if not xml_data:
             raise FileProcessingException("Failed to parse XML. Please verify the file content.")
@@ -92,6 +92,15 @@ class ProcessXmlUseCase:
             xml_data, filename, payment_type_id=issuer.payment_id if issuer else None
         )
         self._build_details(document, xml_data, taxes=taxes)
+
+        # RF-03: conserva el respaldo del documento igual que la descarga automática desde la
+        # DIAN (`infrastructure/queue/download_queue.py`). Sin esto, un documento cargado a
+        # mano no tiene bytes propios ni en `pdf_data`/`xml_data` ni, por lo tanto, en el
+        # enlace S3 que se deriva de ellos: `GET /documents/{id}/pdf|xml` respondía 404.
+        document.xml_data = xml_bytes
+        if pdf_bytes:
+            document.pdf_data = pdf_bytes
+            document.pdf_source = "dian_official"
 
         created = self.document_repo.create(document)
         logger.info("Document created with ID: %d", created.id)
@@ -146,6 +155,11 @@ class ProcessXmlUseCase:
         }
 
     async def _extract_content(self, file: UploadFile) -> tuple:
+        """Devuelve (xml_content, filename, xml_bytes, pdf_bytes).
+
+        `pdf_bytes` solo puede venir del ZIP (una carga `.xml` directa nunca trae PDF); es
+        None en ese caso y también cuando el ZIP no incluye uno válido.
+        """
         file_extension = file.filename.split(".")[-1].lower()
         if file_extension not in ALLOWED_EXTENSIONS:
             raise FileProcessingException(
@@ -154,7 +168,7 @@ class ProcessXmlUseCase:
         if file_extension == "zip":
             return await extract_zip_file(file)
         xml_bytes = await file.read()
-        return xml_bytes.decode("utf-8"), file.filename
+        return xml_bytes.decode("utf-8"), file.filename, xml_bytes, None
 
     def _ensure_issuer(self, xml_data: dict) -> Issuer:
         emisor = xml_data.get("emisor", {})
