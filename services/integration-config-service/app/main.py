@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -45,6 +46,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    internal_secret = os.environ.get("INTERNAL_SECRET", "")
+    if not internal_secret or internal_secret == "change-me":
+        raise RuntimeError(
+            "INTERNAL_SECRET no está configurado (o sigue en 'change-me' de .env.example). "
+            "Los endpoints /internal/* de todos los servicios lo requieren para autenticar "
+            "llamadas entre microservicios. Genera uno real: openssl rand -hex 32"
+        )
     _migrate_tenant_db(engine)
     logger.info("Tablas de integration-config-service verificadas/creadas")
     yield

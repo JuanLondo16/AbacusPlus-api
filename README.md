@@ -68,6 +68,13 @@ awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' private.pem   # copiar en JWT_PRIVA
 awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' public.pem    # copiar en JWT_PUBLIC_KEY
 rm private.pem public.pem
 
+# Generar INTERNAL_SECRET (obligatorio: .env.example trae el placeholder "change-me", no un
+# secreto real. Todos los endpoints /internal/* de cada microservicio lo exigen para aceptar
+# llamadas entre servicios — incluyendo el aprovisionamiento de tenants nuevos. Con el
+# placeholder, cada servicio rechaza esas llamadas con 403 sin avisar por qué, y un tenant
+# recién creado queda con tablas a medio crear). Reemplazar INTERNAL_SECRET en .env con:
+openssl rand -hex 32
+
 # Levantar todos los servicios
 docker-compose up --build
 

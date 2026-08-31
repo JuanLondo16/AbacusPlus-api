@@ -35,6 +35,13 @@ def _ensure_meta_db_exists() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    internal_secret = os.environ.get("INTERNAL_SECRET", "")
+    if not internal_secret or internal_secret == "change-me":
+        raise RuntimeError(
+            "INTERNAL_SECRET no está configurado (o sigue en 'change-me' de .env.example). "
+            "auth-service lo usa para autenticar cada llamada de aprovisionamiento a los "
+            "demás microservicios al crear un tenant. Genera uno real: openssl rand -hex 32"
+        )
     _ensure_meta_db_exists()
     Base.metadata.create_all(bind=get_engine(), checkfirst=True)
     logger.info("auth-service started")
