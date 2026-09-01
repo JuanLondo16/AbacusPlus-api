@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 STATUS_MAP = {
     "VALIDATION_ERROR": 400,
-    # RF-08: falta un prerequisito de negocio (el PUC o el catálogo de impuestos), no es un
-    # fallo del servidor: el usuario debe cargar el catálogo antes de pedir sugerencias.
+    # RF-08: falta un prerequisito de negocio (el PUC o el catálogo de retenciones), no es
+    # un fallo del servidor: el usuario debe cargar el catálogo antes de pedir sugerencias.
     "NO_CHART_OF_ACCOUNTS": 409,
-    "NO_TAX_CATALOG": 409,
+    "NO_RETENTION_CATALOG": 409,
     "DOMAIN_ERROR": 500,
 }
 

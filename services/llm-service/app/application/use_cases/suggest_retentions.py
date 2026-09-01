@@ -26,7 +26,7 @@ from datetime import date as date_type
 from typing import Any, Optional
 
 from app.application.services.retention_evidence import EvidenceBundle, RetentionEvidenceRetriever
-from app.domain.exceptions.base import NoChartOfAccountsError, NoTaxCatalogError
+from app.domain.exceptions.base import NoChartOfAccountsError, NoRetentionCatalogError
 from app.domain.ports.services import AIServicePort
 from app.domain.services.dian_responsibilities import expand_responsibilities
 from app.domain.services.retention_validation import RetentionValidator
@@ -473,7 +473,7 @@ class SuggestRetentionsUseCase:
         candidates, catalog_warnings = retention_candidates(retentions_catalog)
         warnings.extend(catalog_warnings)
         if not candidates:
-            raise NoTaxCatalogError()
+            raise NoRetentionCatalogError()
 
         # Impuestos del PROPIO documento, resueltos contra el catálogo de Impuestos por el
         # `tax_id` que el xml-processor ya dejó en cada línea (`document_details.tax_id`

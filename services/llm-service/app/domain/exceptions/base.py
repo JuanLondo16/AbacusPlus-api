@@ -24,15 +24,20 @@ class NoChartOfAccountsError(DomainException):
         super().__init__(message=message, code="NO_CHART_OF_ACCOUNTS")
 
 
-class NoTaxCatalogError(DomainException):
-    """RF-08: no hay catálogo de impuestos, así que no se pueden sugerir retenciones.
+class NoRetentionCatalogError(DomainException):
+    """RF-08: no hay catálogo de retenciones, así que no se pueden sugerir retenciones.
 
     Mismo principio que la regla del plan de cuentas: sin catálogo sincronizado el modelo
     tendría que inventar retenciones y porcentajes, así que el proceso se detiene. La
     tarifa siempre proviene del catálogo, nunca del modelo.
+
+    Se llamó `NoTaxCatalogError` hasta que el split del 2026-08-31 separó impuestos
+    (`integration_taxes`) de retenciones (`integration_retentions`): el chequeo siempre
+    fue sobre el catálogo de retenciones, pero el nombre y el mensaje seguían hablando de
+    impuestos, así que quien lo veía revisaba y sincronizaba la tabla equivocada.
     """
 
-    MESSAGE = "No tienes un catálogo de impuestos sincronizado"
+    MESSAGE = "No tienes un catálogo de retenciones sincronizado"
 
     def __init__(self, message: str = MESSAGE):
-        super().__init__(message=message, code="NO_TAX_CATALOG")
+        super().__init__(message=message, code="NO_RETENTION_CATALOG")

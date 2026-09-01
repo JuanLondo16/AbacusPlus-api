@@ -202,6 +202,14 @@ def _migrate_tenant_db(engine) -> None:
         # integration_taxes
         "ALTER TABLE integration_taxes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
         "ALTER TABLE integration_taxes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        # integration_retentions: tabla nueva del split del 2026-08-31. `create_all` la crea
+        # de cero en un tenant sin ella, pero un tenant que ya la tuviera creada por una
+        # versión anterior del modelo (antes de sumar `source`/`created_at`/`updated_at`) se
+        # queda sin estas columnas para siempre: `create_all(checkfirst=True)` solo crea
+        # tablas ausentes, nunca agrega columnas a una que ya existe.
+        "ALTER TABLE integration_retentions ADD COLUMN IF NOT EXISTS source VARCHAR(50)",
+        "ALTER TABLE integration_retentions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE integration_retentions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
         # tenant_fiscal_profile: los municipios de ICA se llevaban aquí y también en
         # `retention_ica_rates`, que es la única tabla que además guarda la TARIFA. Dos listas
         # de lo mismo solo podían coincidir (redundancia) o discrepar (un municipio sin tarifa

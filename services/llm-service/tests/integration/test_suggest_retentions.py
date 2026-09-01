@@ -19,7 +19,7 @@ import json
 
 import pytest
 from app.application.use_cases.suggest_retentions import SuggestRetentionsUseCase
-from app.domain.exceptions.base import NoChartOfAccountsError, NoTaxCatalogError
+from app.domain.exceptions.base import NoChartOfAccountsError, NoRetentionCatalogError
 
 # Impuestos reales del documento (`integration_taxes`). Ya no trae retenciones.
 _CATALOGO = [
@@ -331,7 +331,7 @@ class TestBlocksWithoutCatalog:
     async def test_raises_when_the_retentions_catalog_is_empty(self):
         uc = _use_case(json.dumps({"retentions": []}), retentions=[])
 
-        with pytest.raises(NoTaxCatalogError):
+        with pytest.raises(NoRetentionCatalogError):
             await uc.execute(1)
 
     @pytest.mark.asyncio
@@ -350,17 +350,17 @@ class TestBlocksWithoutCatalog:
             ],
         )
 
-        with pytest.raises(NoTaxCatalogError):
+        with pytest.raises(NoRetentionCatalogError):
             await uc.execute(1)
 
     @pytest.mark.asyncio
     async def test_the_message_names_the_missing_prerequisite(self):
         uc = _use_case("", retentions=[])
 
-        with pytest.raises(NoTaxCatalogError) as exc:
+        with pytest.raises(NoRetentionCatalogError) as exc:
             await uc.execute(1)
 
-        assert "catálogo de impuestos" in str(exc.value)
+        assert "catálogo de retenciones" in str(exc.value)
 
 
 class TestMalformedModelResponses:
