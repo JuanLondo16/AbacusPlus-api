@@ -5,12 +5,14 @@ from fastapi import APIRouter, Depends, status
 from app.application.dto.integration import CredentialResponse, CredentialUpsertRequest
 from app.application.use_cases.manage_credentials import ManageCredentialsUseCase
 from app.dependencies import get_credentials_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.put(
     "/integrations/credentials",
+    dependencies=[Depends(require_write)],
     response_model=CredentialResponse,
     status_code=status.HTTP_200_OK,
     summary="Registrar credenciales de una integracion",

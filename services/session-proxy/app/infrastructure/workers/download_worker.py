@@ -181,9 +181,7 @@ async def download_batch(
     finally:
         await session.close()
 
-    logger.info(
-        "Batch %s terminado — descargados: %d, fallidos: %d", batch_id, downloaded, failed
-    )
+    logger.info("Batch %s terminado — descargados: %d, fallidos: %d", batch_id, downloaded, failed)
     return {
         "batch_id": batch_id,
         "total": len(track_ids),

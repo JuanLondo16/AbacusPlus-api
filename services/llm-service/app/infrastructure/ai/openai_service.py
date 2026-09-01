@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import os
 from typing import Any, Optional
 
 from openai import AsyncOpenAI
@@ -9,9 +10,25 @@ from app.domain.ports.services import AIServicePort
 logger = logging.getLogger(__name__)
 
 
+#: Tope de espera de una llamada al modelo, en segundos.
+#:
+#: El SDK de OpenAI trae 600 s por defecto, y eso aquí no es un valor conservador sino una
+#: trampa: la sugerencia de retenciones corre con un contador esperando delante y también en
+#: el disparo automático al procesar un XML. Diez minutos colgado ocupa una conexión, deja la
+#: interfaz girando sin explicación y, en un lote, arrastra a los documentos que vienen
+#: detrás. Es preferible fallar en un minuto y que el contador reintente.
+_TIMEOUT_SEGUNDOS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "60"))
+
+#: Reintentos del propio SDK ante errores de red o 429. Dos son los que trae por defecto; se
+#: declara explícito para que se vea que la decisión está tomada y no heredada.
+_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "2"))
+
+
 class OpenAIService(AIServicePort):
     def __init__(self, api_key: str):
-        self._client = AsyncOpenAI(api_key=api_key)
+        self._client = AsyncOpenAI(
+            api_key=api_key, timeout=_TIMEOUT_SEGUNDOS, max_retries=_MAX_RETRIES
+        )
 
     async def complete(
         self,

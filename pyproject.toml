@@ -10,6 +10,13 @@ ignore = [
     "B008",   # do not perform function call in default arguments — FastAPI Depends pattern
     "E501",   # line too long — 538 violations; long strings/docstrings, not worth reformatting now
     "UP035",  # deprecated-import — 138 violations; typing.List/Dict/Optional still valid in py39
+    "UP006",  # non-pep585-annotation — `List[x]`→`list[x]`. Cosmético y no aplicable en py39
+              # fuera de `from __future__ import annotations`. Mismo criterio que UP035.
+    "UP007",  # non-pep604-annotation — `Optional[x]`→`x | None`. Cosmético; en modelos Pydantic
+              # la anotación se evalúa en tiempo de ejecución y `X | None` rompe en py39.
+    "E712",   # true-false-comparison — en filtros de SQLAlchemy `Columna == True` es la forma
+              # correcta y NO puede sustituirse por `if Columna:`: el ORM necesita la
+              # comparación para construir el SQL. Los 5 casos son de repositorios.
     "B904",   # raise-without-from-inside-except — 41 violations; requires careful review per site
     "E741",   # ambiguous-variable-name — 6 violations; l/O/I in existing domain code
     "S314",   # suspicious-xml-element-tree-usage — expected in xml-processor service

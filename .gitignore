@@ -2,6 +2,14 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+# Cualquier variante de .env, no solo el nombre exacto: en el repositorio había un
+# `.env.bak-104815` con credenciales reales que `.env` a secas no cubría y que estaba a un
+# `git add -A` de acabar publicado. La excepción es `.env.example`, que es la plantilla y sí
+# debe versionarse.
 .env
+.env.*
+!.env.example
 *.pem
+app.log
+*.log
 /downloads/

@@ -5,8 +5,14 @@ from pydantic import BaseModel, Field
 
 class DocumentsRangeRequest(BaseModel):
     token: str
-    pk: str = Field("", description="Partner key del portal DIAN (ej. '10910094|1125638394'). Usa EXTERNAL_FIXED_PK del entorno si está vacío.")
-    rk: str = Field("", description="Representative key del portal DIAN (ej. '901031352'). Usa EXTERNAL_FIXED_RK del entorno si está vacío.")
+    pk: str = Field(
+        "",
+        description="Partner key del portal DIAN (ej. '10910094|1125638394'). Usa EXTERNAL_FIXED_PK del entorno si está vacío.",
+    )
+    rk: str = Field(
+        "",
+        description="Representative key del portal DIAN (ej. '901031352'). Usa EXTERNAL_FIXED_RK del entorno si está vacío.",
+    )
     StartDate: str
     EndDate: str
     draw: int = 1

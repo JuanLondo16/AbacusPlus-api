@@ -3,13 +3,14 @@ from fastapi import APIRouter, Depends
 from app.application.dto.proxy import ProxyRequest, ProxyResponse
 from app.application.use_cases.proxy_request import ProxyRequestUseCase
 from app.dependencies import get_proxy_request_use_case
-from app.infrastructure.config.auth_dependency import get_token_data
+from app.infrastructure.config.auth_dependency import get_token_data, require_write
 
 router = APIRouter(dependencies=[Depends(get_token_data)])
 
 
 @router.post(
     "/proxy/request",
+    dependencies=[Depends(require_write)],
     response_model=ProxyResponse,
     summary="Reenviar petición autenticada al portal externo",
     description=(

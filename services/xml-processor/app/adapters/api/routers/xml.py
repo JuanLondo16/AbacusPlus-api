@@ -3,12 +3,14 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from app.application.dto.document import ProcessXmlResponse
 from app.application.use_cases.process_xml import ProcessXmlUseCase
 from app.dependencies import get_process_xml_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/documents",
+    dependencies=[Depends(require_write)],
     response_model=ProcessXmlResponse,
     status_code=201,
     summary="Procesar factura DIAN (ZIP o XML)",

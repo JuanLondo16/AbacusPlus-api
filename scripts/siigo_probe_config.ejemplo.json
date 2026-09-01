@@ -1,0 +1,28 @@
+{
+  "_comentario": "RF-05 · Identificadores de catálogo de la empresa contra la que se prueba. Cópiese a siigo_probe_config.json y ajústense los valores. NINGUNO se inventa: todos salen de la configuración real de la empresa en SIIGO.",
+
+  "_document_id": "Tipo de comprobante de factura de compra. El de IKBO es 19693 (plantilla 'produccion'). Se consulta con GET /v1/document-types?type=FC",
+  "document_id": 19693,
+
+  "_payment_id": "Forma de pago. Se consulta con GET /v1/payment-types?document_type=FC",
+  "payment_id": 5636,
+
+  "_account_code": "Cuenta PUC que admite movimiento. Úsese una de gasto menor para que el asiento de prueba sea irrelevante.",
+  "account_code": "51952501",
+
+  "_supplier_identification": "NIT del proveedor SIN dígito de verificación. Debe existir ya en SIIGO.",
+  "supplier_identification": "900276962",
+  "supplier_branch_office": 0,
+
+  "_price": "IMPORTE MÍNIMO EN PRODUCCIÓN. 100 pesos hace que un asiento olvidado sea trivial de identificar y de anular. No subir este valor.",
+  "price": 100,
+
+  "_prefix": "Prefijo que hace evidente en SIIGO que el comprobante es de prueba. Si algo queda sin borrar, se encuentra buscando por aquí.",
+  "prefix": "PRUEBA",
+
+  "_numero_base": "Raíz del número de factura del proveedor. El script le añade un sufijo único por petición.",
+  "numero_base": "RF05",
+
+  "_cuenta_inactiva": "OPCIONAL pero valioso: una cuenta PUC que exista en SIIGO pero esté INACTIVA. Es el caso que la tabla de clasificación de Abacus no puede resolver hoy sin adivinar, porque no se sabe si SIIGO lo distingue de una cuenta inexistente. Si el director puede desactivar una cuenta de prueba un momento, esta prueba vale por sí sola.",
+  "cuenta_inactiva": ""
+}

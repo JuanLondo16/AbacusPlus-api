@@ -1,23 +1,16 @@
-from typing import Optional
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.application.dto.user import InviteUserRequest, UserResponse
 from app.application.use_cases.invite_user import InviteUserUseCase
+from app.infrastructure.config.auth_dependency import TokenData, require_tenant_admin
 from app.infrastructure.config.database import get_db
 from app.infrastructure.config.tenant_connection import get_session_for_tenant
 from app.infrastructure.persistence.repositories.user_repository import UserRepository
 
 router = APIRouter()
-
-
-def _require_tenant_slug(x_tenant_slug: Optional[str] = Header(None, alias="X-Tenant-Slug")) -> str:
-    if not x_tenant_slug:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="X-Tenant-Slug header required"
-        )
-    return x_tenant_slug
 
 
 @router.post(
@@ -26,22 +19,27 @@ def _require_tenant_slug(x_tenant_slug: Optional[str] = Header(None, alias="X-Te
     status_code=status.HTTP_201_CREATED,
     summary="Invitar usuario al tenant",
     description=(
-        "Crea un nuevo usuario dentro del tenant identificado por el header `X-Tenant-Slug`.\n\n"
+        "Crea un nuevo usuario dentro del tenant **del token de quien llama**.\n\n"
+        "Requiere un access token con rol `tenant_admin`. El tenant NO se toma del header "
+        "`X-Tenant-Slug`: se resuelve desde el token, de modo que un administrador solo puede "
+        "crear usuarios dentro de su propia empresa.\n\n"
         "Roles disponibles: `tenant_admin`, `operator`, `viewer`."
     ),
     response_description="Datos del usuario creado.",
     responses={
         400: {"description": "Usuario ya existe o datos invalidos."},
+        401: {"description": "Falta el token o no es valido."},
+        403: {"description": "El usuario no es administrador del tenant."},
     },
 )
 def invite_user(
     request: InviteUserRequest,
+    token: Annotated[TokenData, Depends(require_tenant_admin)],
     db: Session = Depends(get_db),
-    tenant_slug: str = Depends(_require_tenant_slug),
 ):
     try:
         use_case = InviteUserUseCase(meta_db=db)
-        return use_case.execute(request, tenant_slug=tenant_slug)
+        return use_case.execute(request, tenant_slug=token.tenant_slug)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -50,11 +48,18 @@ def invite_user(
     "/api/v1/users",
     response_model=list[UserResponse],
     summary="Listar usuarios del tenant",
-    description="Retorna todos los usuarios activos del tenant identificado por `X-Tenant-Slug`.",
+    description=(
+        "Retorna los usuarios activos del tenant **del token de quien llama**. "
+        "Requiere rol `tenant_admin`: el listado expone los correos de toda la empresa."
+    ),
     response_description="Lista de usuarios.",
+    responses={
+        401: {"description": "Falta el token o no es valido."},
+        403: {"description": "El usuario no es administrador del tenant."},
+    },
 )
-def list_users(tenant_slug: str = Depends(_require_tenant_slug)):
-    tenant_db = get_session_for_tenant(tenant_slug)
+def list_users(token: Annotated[TokenData, Depends(require_tenant_admin)]):
+    tenant_db = get_session_for_tenant(token.tenant_slug)
     try:
         repo = UserRepository(tenant_db)
         users = repo.list_users()

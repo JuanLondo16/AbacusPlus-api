@@ -9,8 +9,17 @@ from app.infrastructure.persistence.repositories.tax_repository import TaxReposi
 
 
 class ImportTaxesUseCase:
-    REQUIRED_COLUMNS = {"name", "type", "percentage"}
-    OPTIONAL_COLUMNS = {"active"}
+    REQUIRED_COLUMNS = {"nombre", "tipo", "porcentaje"}
+    OPTIONAL_COLUMNS = {"activo"}
+    # `name`/`type`/`percentage`/`active` siguen aceptandose: son el encabezado con que este
+    # endpoint funciono antes de que la plantilla pasara a espanol, y romperian un archivo ya
+    # armado con ellos. El encabezado explicito en espanol siempre gana sobre el alias.
+    HEADER_ALIASES = {
+        "name": "nombre",
+        "type": "tipo",
+        "percentage": "porcentaje",
+        "active": "activo",
+    }
 
     def __init__(self, repository: TaxRepository):
         self.repository = repository
@@ -19,9 +28,12 @@ class ImportTaxesUseCase:
         self,
         file_content: bytes,
         sheet_name: Optional[str] = None,
+        mode: str = "upsert",
     ) -> ImportTaxesResponse:
+        if mode not in ("upsert", "replace"):
+            raise ValidationException("mode must be 'upsert' or 'replace'")
         taxes = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(taxes)
+        imported = self.repository.upsert_many(taxes, replace=(mode == "replace"))
         return ImportTaxesResponse(imported=imported, taxes=self.repository.list())
 
     def _parse_excel(self, file_content: bytes, sheet_name: Optional[str]) -> list[dict[str, Any]]:
@@ -45,6 +57,11 @@ class ImportTaxesUseCase:
 
         headers = [self._normalize_header(value) for value in header_row]
         header_map = {name: index for index, name in enumerate(headers) if name}
+        # Un encabezado en espanol explicito siempre gana sobre su alias en ingles.
+        for index, name in enumerate(headers):
+            canonical = self.HEADER_ALIASES.get(name)
+            if canonical and canonical not in header_map:
+                header_map[canonical] = index
         missing = self.REQUIRED_COLUMNS - set(header_map)
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
@@ -55,9 +72,9 @@ class ImportTaxesUseCase:
             if self._is_empty_row(row):
                 continue
 
-            name = self._cell(row, header_map["name"])
-            type_ = self._cell(row, header_map["type"])
-            percentage = self._cell(row, header_map["percentage"])
+            name = self._cell(row, header_map["nombre"])
+            type_ = self._cell(row, header_map["tipo"])
+            percentage = self._cell(row, header_map["porcentaje"])
 
             if name is None or str(name).strip() == "":
                 raise ValidationException(f"Row {row_number}: name is required")
@@ -69,9 +86,7 @@ class ImportTaxesUseCase:
             try:
                 percentage_value = float(str(percentage).strip())
             except ValueError as exc:
-                raise ValidationException(
-                    f"Row {row_number}: percentage must be a number"
-                ) from exc
+                raise ValidationException(f"Row {row_number}: percentage must be a number") from exc
 
             normalized_name = str(name).strip()
             if normalized_name in seen_names:
@@ -84,7 +99,7 @@ class ImportTaxesUseCase:
                     "type": str(type_).strip(),
                     "percentage": percentage_value,
                     "active": self._as_bool(
-                        self._optional_cell(row, header_map, "active"), default=True
+                        self._optional_cell(row, header_map, "activo"), default=True
                     ),
                 }
             )

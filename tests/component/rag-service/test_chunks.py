@@ -9,7 +9,11 @@ from fastapi.testclient import TestClient
 def test_index_chunk_returns_201(client: TestClient):
     r = client.post(
         "/api/v1/chunks",
-        json={"source_type": "invoice", "source_id": 1, "content": "Factura de compra proveedor ABC"},
+        json={
+            "source_type": "invoice",
+            "source_id": 1,
+            "content": "Factura de compra proveedor ABC",
+        },
     )
     assert r.status_code == 201
     body = r.json()

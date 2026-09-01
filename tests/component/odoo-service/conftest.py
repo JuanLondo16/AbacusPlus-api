@@ -10,14 +10,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "services" / "odoo-service"))
+# El conftest compartido se importa ANTES de anadir el servicio al sys.path: cada
+# services/<svc>/tests es un paquete regular (tiene __init__.py) y, en Python, un
+# paquete regular gana siempre sobre el namespace package de la raiz, sin importar
+# el orden de sys.path. Importarlo primero lo deja resuelto en sys.modules.
+from tests.component.conftest import make_session_factory, make_test_engine  # noqa: E402
+
+sys.path.append(str(Path(__file__).resolve().parents[3] / "services" / "odoo-service"))
 
 from app.dependencies import get_odoo_client, get_rag_client  # noqa: E402
 from app.infrastructure.config.auth_dependency import get_tenant_db  # noqa: E402
 from app.infrastructure.config.database import Base  # noqa: E402
 from app.main import app  # noqa: E402
-
-from tests.component.conftest import make_session_factory, make_test_engine  # noqa: E402
 
 _engine = make_test_engine()
 _SessionLocal = make_session_factory(_engine)

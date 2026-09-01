@@ -30,9 +30,14 @@ def measure(service: str) -> float | None:
     svc_path = ROOT / "services" / service
     result = subprocess.run(  # noqa: S603
         [
-            sys.executable, "-m", "pytest", "tests/",
-            "--cov=app", "--cov-report=json",
-            "-q", "--tb=no",
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/",
+            "--cov=app",
+            "--cov-report=json",
+            "-q",
+            "--tb=no",
         ],
         cwd=svc_path,
         capture_output=True,

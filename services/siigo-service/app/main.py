@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,6 +12,7 @@ from app.adapters.api.routers.journal_entries import router as journal_entries_r
 from app.adapters.api.routers.purchase_invoice_parameters import (
     router as purchase_invoice_parameters_router,
 )
+from app.adapters.api.routers.purchase_invoices import router as purchase_invoices_router
 from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import Base, engine
 from app.infrastructure.config.logging import setup_logging
@@ -28,6 +30,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    internal_secret = os.environ.get("INTERNAL_SECRET", "")
+    if not internal_secret or internal_secret == "change-me":
+        raise RuntimeError(
+            "INTERNAL_SECRET no está configurado (o sigue en 'change-me' de .env.example). "
+            "Los endpoints /internal/* de todos los servicios lo requieren para autenticar "
+            "llamadas entre microservicios. Genera uno real: openssl rand -hex 32"
+        )
     Base.metadata.create_all(bind=engine, checkfirst=True)
     logger.info("Tablas de siigo-service verificadas/creadas")
     yield
@@ -51,6 +60,7 @@ app.include_router(credentials_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(chart_accounts_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(purchase_invoice_parameters_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(journal_entries_router, prefix="/api/v1", tags=["siigo"])
+app.include_router(purchase_invoices_router, prefix="/api/v1", tags=["siigo"])
 app.include_router(internal_router)  # no prefix — path is /internal/provision-tenant
 
 logger.info("SIIGO Service started on port 8006")

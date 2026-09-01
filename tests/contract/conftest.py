@@ -43,5 +43,3 @@ def rag_service_url():
         pytest.skip("rag-service no arrancó en tiempo")
     yield url
     proc.terminate()
-
-

@@ -1,9 +1,7 @@
-import contextlib
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import httpx
-
 from app.domain.exceptions.base import ExternalAuthException, ExternalServiceException
 from app.infrastructure.persistence.models.integration import IntegrationCredential
 
@@ -51,9 +49,7 @@ class SiigoApiClient:
                 f"SIIGO returned status {exc.response.status_code} for {path}"
             ) from exc
         except httpx.HTTPError as exc:
-            raise ExternalServiceException(
-                f"Could not call SIIGO endpoint {path}: {exc}"
-            ) from exc
+            raise ExternalServiceException(f"Could not call SIIGO endpoint {path}: {exc}") from exc
 
         if isinstance(data, list):
             return {"results": data}

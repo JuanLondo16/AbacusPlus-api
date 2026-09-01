@@ -30,6 +30,10 @@ def validate_slug(slug: str) -> None:
 
 
 def provision(tenant_slug: str, admin_email: str, admin_password_hash: str) -> None:
+    # Defensa en profundidad: el slug se interpola en `CREATE DATABASE "..."` y en el DSN,
+    # así que se re-valida aquí aunque el caller ya lo haya validado. Es la única barrera si
+    # se invoca provision() desde otra ruta en el futuro.
+    validate_slug(tenant_slug)
     _create_database(tenant_slug)
     _notify_services(tenant_slug)
     _create_admin_user(tenant_slug, admin_email, admin_password_hash)

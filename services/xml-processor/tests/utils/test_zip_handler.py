@@ -37,9 +37,11 @@ class TestExtractZipFile:
     @pytest.mark.asyncio
     async def test_extract_valid_zip(self):
         mock_file = _create_mock_zip_upload(VALID_XML)
-        content, filename = await extract_zip_file(mock_file)
+        content, filename, xml_bytes, pdf_bytes = await extract_zip_file(mock_file)
         assert content == VALID_XML
         assert filename == "invoice.xml"
+        assert xml_bytes == VALID_XML.encode("utf-8")
+        assert pdf_bytes is None
 
     @pytest.mark.asyncio
     async def test_no_xml_in_zip(self):
@@ -77,6 +79,59 @@ class TestExtractZipFile:
         mock_file = AsyncMock()
         mock_file.read = AsyncMock(return_value=buffer.getvalue())
 
-        content, filename = await extract_zip_file(mock_file)
+        content, filename, xml_bytes, pdf_bytes = await extract_zip_file(mock_file)
         assert filename == "real_invoice.xml"
         assert content == VALID_XML
+        assert xml_bytes == VALID_XML.encode("utf-8")
+        assert pdf_bytes is None
+
+
+class TestExtractZipFilePreservesOfficialBackup:
+    """RF-03: la carga manual debe respaldar el XML y, si el ZIP lo trae, el PDF oficial.
+
+    Antes, `extract_zip_file` solo devolvía el texto decodificado del XML para poder
+    parsearlo; los bytes crudos no salían de la función, así que `process_xml.py` nunca
+    tenía nada que guardar en `document.xml_data`/`pdf_data`, y `GET /documents/{id}/pdf|xml`
+    respondía 404 para cualquier documento cargado a mano.
+    """
+
+    @pytest.mark.asyncio
+    async def test_xml_only_zip_still_returns_the_raw_xml_bytes(self):
+        mock_file = _create_mock_zip_upload(VALID_XML)
+        _content, _filename, xml_bytes, pdf_bytes = await extract_zip_file(mock_file)
+
+        assert xml_bytes == VALID_XML.encode("utf-8")
+        assert pdf_bytes is None
+
+    @pytest.mark.asyncio
+    async def test_zip_with_pdf_returns_both_official_files(self):
+        buffer = io.BytesIO()
+        pdf_content = b"%PDF-1.4 fake but valid signature"
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("invoice.xml", VALID_XML)
+            zf.writestr("invoice.pdf", pdf_content)
+        buffer.seek(0)
+
+        mock_file = AsyncMock()
+        mock_file.read = AsyncMock(return_value=buffer.getvalue())
+
+        _content, _filename, xml_bytes, pdf_bytes = await extract_zip_file(mock_file)
+
+        assert xml_bytes == VALID_XML.encode("utf-8")
+        assert pdf_bytes == pdf_content
+
+    @pytest.mark.asyncio
+    async def test_a_pdf_without_the_pdf_signature_is_discarded(self):
+        """Igual que la descarga automática: solo se acepta un PDF real (firma `%PDF-`)."""
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("invoice.xml", VALID_XML)
+            zf.writestr("invoice.pdf", b"not actually a pdf")
+        buffer.seek(0)
+
+        mock_file = AsyncMock()
+        mock_file.read = AsyncMock(return_value=buffer.getvalue())
+
+        _content, _filename, _xml_bytes, pdf_bytes = await extract_zip_file(mock_file)
+
+        assert pdf_bytes is None

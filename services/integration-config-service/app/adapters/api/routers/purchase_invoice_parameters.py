@@ -10,12 +10,14 @@ from app.application.use_cases.manage_purchase_invoice_parameters import (
     ManagePurchaseInvoiceParametersUseCase,
 )
 from app.dependencies import get_purchase_invoice_parameters_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/integrations/purchase-invoice-parameters",
+    dependencies=[Depends(require_write)],
     response_model=PurchaseInvoiceParameterResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear parametros para facturas de compra",

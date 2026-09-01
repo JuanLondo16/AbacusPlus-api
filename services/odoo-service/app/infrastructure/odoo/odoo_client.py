@@ -1,9 +1,18 @@
 import logging
 import socket
-import xmlrpc.client
+import xmlrpc.client  # nosec B411  # nosemgrep: use-defused-xmlrpc — protegido por defusedxml.monkey_patch() abajo
+
+# defusedxml endurece el cliente XML-RPC contra respuestas maliciosas (expansión de
+# entidades, «XML bombs»). `monkey_patch()` sustituye el parser de la librería estándar por
+# el de defusedxml en todo el proceso, así que basta importarlo aquí una vez. Odoo es un
+# servidor de confianza configurado por el cliente, pero deserializar la respuesta de un
+# servicio externo sin protección es un riesgo evitable con una sola línea.
+import defusedxml.xmlrpc
 
 from app.domain.exceptions.base import OdooConnectionException
 from app.domain.ports.services import OdooClientPort
+
+defusedxml.xmlrpc.monkey_patch()
 
 logger = logging.getLogger(__name__)
 

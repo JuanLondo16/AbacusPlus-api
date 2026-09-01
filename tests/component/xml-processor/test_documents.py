@@ -7,7 +7,10 @@ from fastapi.testclient import TestClient
 
 
 def test_list_documents_empty(client: TestClient):
-    r = client.get("/api/v1/documents")
+    # `from_date` y `to_date` son obligatorios en el endpoint: listar sin acotar el rango
+    # significaría recorrer la tabla entera de un tenant en produccion. El test los omitia y
+    # recibia 422, no la lista vacia que esperaba comprobar.
+    r = client.get("/api/v1/documents", params={"from_date": "2026-01-01", "to_date": "2026-12-31"})
     assert r.status_code == 200
     body = r.json()
     assert "items" in body or isinstance(body, list)

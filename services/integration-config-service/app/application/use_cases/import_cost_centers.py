@@ -9,8 +9,19 @@ from app.infrastructure.persistence.repositories.cost_center_repository import C
 
 
 class ImportCostCentersUseCase:
-    REQUIRED_COLUMNS = {"code", "name"}
-    OPTIONAL_COLUMNS = {"external_id", "active"}
+    REQUIRED_COLUMNS = {"código", "nombre"}
+    OPTIONAL_COLUMNS = {"id_externo", "activo"}
+    # `code`/`name`/`external_id`/`active` siguen aceptandose: son el encabezado con que
+    # este endpoint funciono antes de que la plantilla pasara a espanol, y romperian un
+    # archivo ya armado con ellos. El encabezado explicito en espanol siempre gana sobre el
+    # alias, y se acepta tanto con tilde como sin ella.
+    HEADER_ALIASES = {
+        "code": "código",
+        "codigo": "código",
+        "name": "nombre",
+        "external_id": "id_externo",
+        "active": "activo",
+    }
 
     def __init__(self, repository: CostCenterRepository):
         self.repository = repository
@@ -19,9 +30,12 @@ class ImportCostCentersUseCase:
         self,
         file_content: bytes,
         sheet_name: Optional[str] = None,
+        mode: str = "upsert",
     ) -> ImportCostCentersResponse:
+        if mode not in ("upsert", "replace"):
+            raise ValidationException("mode must be 'upsert' or 'replace'")
         cost_centers = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(cost_centers)
+        imported = self.repository.upsert_many(cost_centers, replace=(mode == "replace"))
         return ImportCostCentersResponse(
             imported=imported,
             cost_centers=self.repository.list(),
@@ -48,6 +62,11 @@ class ImportCostCentersUseCase:
 
         headers = [self._normalize_header(value) for value in header_row]
         header_map = {name: index for index, name in enumerate(headers) if name}
+        # Un encabezado en espanol explicito siempre gana sobre su alias en ingles.
+        for index, name in enumerate(headers):
+            canonical = self.HEADER_ALIASES.get(name)
+            if canonical and canonical not in header_map:
+                header_map[canonical] = index
         missing = self.REQUIRED_COLUMNS - set(header_map)
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
@@ -58,8 +77,8 @@ class ImportCostCentersUseCase:
             if self._is_empty_row(row):
                 continue
 
-            code = self._cell(row, header_map["code"])
-            name = self._cell(row, header_map["name"])
+            code = self._cell(row, header_map["código"])
+            name = self._cell(row, header_map["nombre"])
             if code is None or str(code).strip() == "":
                 raise ValidationException(f"Row {row_number}: code is required")
             if name is None or str(name).strip() == "":
@@ -78,12 +97,12 @@ class ImportCostCentersUseCase:
             cost_centers.append(
                 {
                     "external_id": self._as_optional_text(
-                        self._optional_cell(row, header_map, "external_id")
+                        self._optional_cell(row, header_map, "id_externo")
                     ),
                     "code": normalized_code,
                     "name": str(name).strip(),
                     "active": self._as_bool(
-                        self._optional_cell(row, header_map, "active"), default=True
+                        self._optional_cell(row, header_map, "activo"), default=True
                     ),
                     "raw_payload": raw_payload,
                 }

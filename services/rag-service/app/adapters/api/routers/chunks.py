@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.application.dto.chunk import (
     IndexChunkRequest,
@@ -9,12 +9,14 @@ from app.application.dto.chunk import (
 from app.application.use_cases.index_chunk import IndexChunkUseCase
 from app.application.use_cases.search_chunks import SearchChunksUseCase
 from app.dependencies import get_index_chunk_use_case, get_search_chunks_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/chunks",
+    dependencies=[Depends(require_write)],
     response_model=IndexChunkResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Indexar fragmento de texto con embedding",
@@ -35,6 +37,19 @@ async def index_chunk(
     request: IndexChunkRequest,
     use_case: IndexChunkUseCase = Depends(get_index_chunk_use_case),
 ):
+    # RF-08: el conocimiento contable validado no entra por aquí. Marcar un chunk como
+    # validado exige constar que el documento quedó CONTABILIZADO en SIIGO, y eso solo lo
+    # sabe el xml-processor al cerrar la contabilización; esta ruta la usa cualquier cliente
+    # con un token de usuario, que no puede aportar esa garantía. La vía es
+    # `POST /internal/chunks` con `X-Internal-Secret`.
+    if request.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "El conocimiento contable validado solo puede crearlo el proceso de "
+                "contabilización, al confirmarse el estado «Contabilizada» en SIIGO."
+            ),
+        )
     return await use_case.execute(request)
 
 

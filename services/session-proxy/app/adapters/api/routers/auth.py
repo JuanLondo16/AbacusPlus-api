@@ -12,7 +12,7 @@ from app.dependencies import (
 )
 from app.domain.exceptions.base import BrowserLoginException
 from app.infrastructure.clients.external_client import HttpxExternalClient
-from app.infrastructure.config.auth_dependency import get_token_data
+from app.infrastructure.config.auth_dependency import get_token_data, require_write
 from app.infrastructure.session.in_memory_store import InMemorySessionStore
 
 router = APIRouter(dependencies=[Depends(get_token_data)])
@@ -20,6 +20,7 @@ router = APIRouter(dependencies=[Depends(get_token_data)])
 
 @router.post(
     "/dian/sessions",
+    dependencies=[Depends(require_write)],
     response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear sesión DIAN con token",
@@ -64,6 +65,7 @@ async def logout(
 
 @router.post(
     "/dian/sessions/debug",
+    dependencies=[Depends(require_write)],
     summary="[DEBUG] Probar login DIAN y ver cookies",
     description=(
         "Endpoint de diagnóstico para ejecutar el login contra el portal externo y "
@@ -95,6 +97,7 @@ async def login_debug(
 
 @router.post(
     "/dian/sessions/company",
+    dependencies=[Depends(require_write)],
     response_model=CompanyLoginResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear sesión DIAN mediante formulario de empresa",
@@ -124,30 +127,22 @@ async def company_login(
         )
 
 
-@router.get(
-    "/dian/sessions/{session_id}/debug",
-    summary="[DEBUG] Ver sesión DIAN almacenada",
-    description=(
-        "Retorna las cookies y metadatos de una sesión almacenada en memoria. "
-        "Sirve para verificar expiración, cantidad de cookies y tiempos de acceso durante pruebas."
-    ),
-    response_description="Información de depuración de la sesión local.",
-    responses={
-        404: {"description": "Sesión no encontrada o expirada."},
-    },
-)
-async def debug_session(
-    session_id: str,
-    store: InMemorySessionStore = Depends(get_session_store),
-) -> dict:
-    """[DEBUG] Retorna las cookies e información de la sesión almacenada."""
-    session = store.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
-    return {
-        "session_id": session.session_id,
-        "cookies": session.cookies,
-        "cookie_count": len(session.cookies),
-        "created_at": session.created_at.isoformat(),
-        "last_accessed_at": session.last_accessed_at.isoformat(),
-    }
+# ELIMINADO — `GET /dian/sessions/{session_id}/debug`
+#
+# Devolvía el `cookies` completo de una sesión del portal de la DIAN. Estaba autenticado
+# (el router entero exige token), pero eso no bastaba, por dos motivos:
+#
+# 1. **No distinguía roles.** Un `viewer` —el rol cuyo nombre promete que no puede tocar
+#    nada— obtenía las credenciales con las que se opera ante la autoridad tributaria.
+# 2. **El store no está acotado por empresa.** `InMemorySessionStore` indexa solo por
+#    `session_id`, así que un usuario autenticado de un cliente podía leer las cookies DIAN
+#    de otro con solo conocer el identificador —y ese identificador se escribe en el log en
+#    claro al crear la sesión—.
+#
+# Se elimina en lugar de protegerse porque no lo llama nadie: ni el frontend ni ningún
+# servicio. Era un endpoint `[DEBUG]` que solo servía para inspeccionar cookies durante el
+# desarrollo, y ese valor no compensa mantener viva una vía de fuga de credenciales.
+#
+# Para diagnosticar el login de la DIAN queda `POST /dian/sessions/debug`, que sí exige
+# `require_write` y solo devuelve las cookies del login que el propio llamante acaba de
+# hacer con sus credenciales: no cruza la frontera entre clientes.

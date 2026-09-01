@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sts="dian:gov:co:facturaelectronica:Structures-2-1" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2     http://docs.oasis-open.org/ubl/os-UBL-2.1/xsd/maindoc/UBL-Invoice-2.1.xsd">
+  <ext:UBLExtensions>
+    <ext:UBLExtension>
+      <ext:ExtensionContent>
+        <sts:DianExtensions>
+          <sts:InvoiceControl>
+            <sts:InvoiceAuthorization>18764100403333</sts:InvoiceAuthorization>
+            <sts:AuthorizationPeriod>
+              <cbc:StartDate>2025-10-21</cbc:StartDate>
+              <cbc:EndDate>2027-10-21</cbc:EndDate>
+            </sts:AuthorizationPeriod>
+            <sts:AuthorizedInvoices>
+              <sts:Prefix>BEC</sts:Prefix>
+              <sts:From>500000001</sts:From>
+              <sts:To>550000000</sts:To>
+            </sts:AuthorizedInvoices>
+          </sts:InvoiceControl>
+          <sts:InvoiceSource>
+            <cbc:IdentificationCode listAgencyID="6" listAgencyName="United Nations Economic Commission for Europe" listSchemeURI="urn:oasis:names:specification:ubl:codelist:gc:CountryIdentificationCode-2.1">CO</cbc:IdentificationCode>
+          </sts:InvoiceSource>
+          <sts:SoftwareProvider>
+            <sts:ProviderID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="1" schemeName="31">830122566</sts:ProviderID>
+            <sts:SoftwareID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)">74fdde3e-8dc0-4d90-8515-4f9c19634999</sts:SoftwareID>
+          </sts:SoftwareProvider>
+          <sts:SoftwareSecurityCode schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)">45aa025ba9183fe1681b4a11a3afdf4ce285587afbddaa586aae94e6ae887254d06b0d4fc09cf45d3d6eb18ea105ef3c</sts:SoftwareSecurityCode>
+          <sts:AuthorizationProvider>
+            <sts:AuthorizationProviderID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="4" schemeName="31">800197268</sts:AuthorizationProviderID>
+          </sts:AuthorizationProvider>
+          <sts:QRCode>https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=585113be92c3741728ec65080dba2c9195f850d1fb7b303097a40d84e462db60dcb511c0fff15a2dc9138273fd84c2f0</sts:QRCode>
+        </sts:DianExtensions>
+      </ext:ExtensionContent>
+    </ext:UBLExtension>
+    <ext:UBLExtension>
+      <ext:ExtensionContent><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="SIGNATURE-1EFA43ACDD5F9A878C4BD95FA727A67BA4EE487C"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><ds:Reference Id="REFERENCE-06EDB4736ECA117A03E175FC4B1AEC3D9A8D9284" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>21/6EjruJ+bvPTgAEWiy2hnUbnNNu4WaSpNWCf6zc54=</ds:DigestValue></ds:Reference><ds:Reference URI="#SIGNATURE-77DF54F38AA7771E667A8628D5CA8820336EC0FC"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>Mngyt0kd9Nlx7vctxib29b+dhS5dVGfCyy9SpSehodQ=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#XMLDSIG-SIGNATURE-18AD3DCCE31C0F58C9BB443CC5D5F3BE8187F224"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>mgapTgRCRHhH/tzpNgKF3isAsp2pxOePHFrVulgTYCY=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue Id="SIGNATUREVALUE-EFBBB2EA13A8C5FBDCF1B6314E1F98980823826B">p7+z3qjqChvPl+WdTUWXADQxN0QJEBa0puzrkm7CgBYo59DiZy1MGJ6rLtDfBcEyB3Un4uU+BPA/RzJgAB8BlzkwKmDsSgSI9LbI3qRCc9pmj7sKsbSvlHDUkRabN942g1G04XpEzUyRWjZrvYQdgq8x4sNtL2szw94uvYLiVQ6Zy4t/nIsuGF9IHiCFX24EkaaqGmaqnpFRwJ651wXW6PoQRozukA6eK5EI+hiqRw5nOIgPO8aRkZGMNrvqQlCiGIUINvlnqNs4gcyR0z60Y5dIl9VV5Hbp2PNPQE+/5vj0O3H+BLzFLKjqLpouwFbNEnqok81ZHuOCd+dVvD2EWw==</ds:SignatureValue><ds:KeyInfo Id="SIGNATURE-77DF54F38AA7771E667A8628D5CA8820336EC0FC"><ds:X509Data><ds:X509Certificate>MIIHHzCCBgegAwIBAgIINkoIJHVvVygwDQYJKoZIhvcNAQELBQAwgcUxJjAkBgNVBAMMHVNVQkNBIENBTUVSRklSTUEgQ09MT01CSUEgU0FTMRQwEgYDVQQFEws5MDEzMTIxMTItNDFAMD4GA1UECww3Q2VydGlmaWNhZG9zIFBhcmEgRmlybWEgRWxlY3Ryb25pY2EgQ2FtZXJmaXJtYSBDb2xvbWJpYTEgMB4GA1UECgwXQ0FNRVJGSVJNQSBDT0xPTUJJQSBTQVMxFDASBgNVBAcMC0JPR09UQSBELkMuMQswCQYDVQQGEwJDTzAeFw0yNjAzMDQxNjU5MDVaFw0yODAzMDMxNjU5MDRaMIHiMRgwFgYDVQQJDA9UdiA2MCBOIDExNCBBIDUxEzARBgNVBBQTCjYwMTcwNTAwMDAxLzAtBgNVBAMMJkNPTE9NQklBIFRFTEVDT01VTklDQUNJT05FUyBTQSBFU1AgQklDMRMwEQYDVQQFEwo4MzAxMjI1NjYxMRwwGgYDVQQLDBNGYWN0dXJhIEVsZWN0cm9uaWNhMS8wLQYDVQQKDCZDT0xPTUJJQSBURUxFQ09NVU5JQ0FDSU9ORVMgU0EgRVNQIEJJQzEPMA0GA1UECAwGQm9nb3RhMQswCQYDVQQGEwJDTzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALK1arZaIIc6kCCe6mtNvCdB4MLmOIwSqOiDVyn+9WGq2mozPS4nMTmCfl8ZPXpbFk+Iwd+HU1zak5wy7Q2wo46V8mQLQbuGJpI6cBvi5v87byaWi0QUpd05W/2fRH4AneDZWuUnNsoqQhkA/Iwh1/g+RJRd7YZqtCLuxD0IjIVgp4iRv+Pc8incKiLBWE//mvVrqCgSK0OQK1b8E3pge5akLaHYjMhjRJQ8f99l8nf8HlmCasEjC5xeJciFWO6lk2h0G4OBLM5juB6aKz8zeREvC4wf0FRUd0Kz3WZ7LWNQGHQX6B4JFuikvdJtjBA5+LhNSi9DO2psUQO7ybz/kcUCAwEAAaOCAvIwggLuMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUwI+fa5UZVlE1nlSYxneX/SXY9s0wWwYIKwYBBQUHAQEETzBNMEsGCCsGAQUFBzABhj9odHRwOi8vcGtpY29sLmNhbWVyZmlybWFjb2xvbWJpYS5jby9lamJjYS9wdWJsaWN3ZWIvc3RhdHVzL29jc3AwFQYDVR0RBA4wDIgKKwYBBAGBhy4eCzAnBgNVHSUEIDAeBggrBgEFBQcDAgYIKwYBBQUHAwQGCCsGAQUFBwMBMIIB7wYDVR0fAQH/BIIB4zCCAd8wggHboIIBCaCCAQWGggEBaHR0cDovL3BraWNvbC5jYW1lcmZpcm1hY29sb21iaWEuY28vZWpiY2EvcHVibGljd2ViL3dlYmRpc3QvY2VydGRpc3Q/Y21kPWNybCZpc3N1ZXI9Q04lM0RTVUJDQStDQU1FUkZJUk1BK0NPTE9NQklBK1NBUyUyQ1NOJTNEOTAxMzEyMTEyLTQlMkNPVSUzRENlcnRpZmljYWRvcytQYXJhK0Zpcm1hK0VsZWN0cm9uaWNhK0NhbWVyZmlybWErQ29sb21iaWElMkNPJTNEQ0FNRVJGSVJNQStDT0xPTUJJQStTQVMlMkNMJTNEQk9HT1RBK0QuQy4lMkNDJTNEQ0+igcukgcgwgcUxJjAkBgNVBAMMHVNVQkNBIENBTUVSRklSTUEgQ09MT01CSUEgU0FTMQswCQYDVQQGEwJDTzEUMBIGA1UEBwwLQk9HT1RBIEQuQy4xIDAeBgNVBAoMF0NBTUVSRklSTUEgQ09MT01CSUEgU0FTMUAwPgYDVQQLDDdDZXJ0aWZpY2Fkb3MgUGFyYSBGaXJtYSBFbGVjdHJvbmljYSBDYW1lcmZpcm1hIENvbG9tYmlhMRQwEgYDVQQFEws5MDEzMTIxMTItNDAdBgNVHQ4EFgQUHOQP/x9TQpdCK+rPF8r0+/irsSYwDgYDVR0PAQH/BAQDAgXgMA0GCSqGSIb3DQEBCwUAA4IBAQAytntPj+uy6Klc3qVoTyzABWen32vLQuXezSkbxlAOeZqcnmPvUEtbe9rsxdjV1sKHG/sq3rbqtGHt2rrUJUaP3mSTHm3vNq62oiYIS4poglvfY5X5m+QILFg71g+kAzCRAcwxFR5nLnnp3Tmg7vlqXleFqJyDZw74aHqXD6Cq5NNLPIg+oDa8EHp0VUWl+a/yd2ytUZzpRqP4uxThaTTu7HbyfXN8LmTQEoEp7Mr2XL7RDNEP56JAFcwPe9rKJxTQXd62GLJGjItI1THX80xyV9pfRVwyASSl9KCL4vYf+Jxr/IJZ/+Hs84ygmHw9TPFF6lGQRWyTYP8o3tXTJPwF</ds:X509Certificate></ds:X509Data></ds:KeyInfo><ds:Object Id="XADESOBJECTID-64E3B02A4C1EEAE160914BB593A70F699E49A761"><xades:QualifyingProperties Target="#SIGNATURE-1EFA43ACDD5F9A878C4BD95FA727A67BA4EE487C"><xades:SignedProperties Id="XMLDSIG-SIGNATURE-18AD3DCCE31C0F58C9BB443CC5D5F3BE8187F224"><xades:SignedSignatureProperties><xades:SigningTime>2026-04-22T06:49:04.991-05:00</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>VdxHYQ3E4PX5zC9wRrTmfiYp/4eY9TGMwmHSKAn1Bd8=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>C=CO,L=BOGOTA D.C.,O=CAMERFIRMA COLOMBIA SAS,OU=Certificados Para Firma Electronica Camerfirma Colombia,serialNumber=901312112-4,CN=SUBCA CAMERFIRMA COLOMBIA SAS</ds:X509IssuerName><ds:X509SerialNumber>3911948179006773032</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>JAYPAyAohTEMn6PQKRQ+HysaRSTbA4JQnDVTQ8rOAPk=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>C=CO,L=Bogota D.C,O=AC CAMERFIRMA COLOMBIA S.A.S,OU=Direccion actual https://camerfirma.co/address/,serialNumber=NIT-901312112-4,CN=ROOT CAMERFIRMA COLOMBIA</ds:X509IssuerName><ds:X509SerialNumber>1501523974</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>1lnS9Dy2foOenePARwy7YAuV+V0r6x7qQLciIqoC+bw=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>C=CO,L=Bogota D.C,O=AC CAMERFIRMA COLOMBIA S.A.S,OU=Direccion actual https://camerfirma.co/address/,serialNumber=NIT-901312112-4,CN=ROOT CAMERFIRMA COLOMBIA</ds:X509IssuerName><ds:X509SerialNumber>972528782</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignaturePolicyIdentifier><xades:SignaturePolicyId><xades:SigPolicyId><xades:Identifier>https://facturaelectronica.dian.gov.co/politicadefirma/v2/politicadefirmav2.pdf</xades:Identifier><xades:Description/></xades:SigPolicyId><xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>dMoMvtcG5aIzgYo0tIsSQeVJBDnUnfSOfBpxXrmor0Y=</ds:DigestValue></xades:SigPolicyHash></xades:SignaturePolicyId></xades:SignaturePolicyIdentifier><xades:SignerRole><xades:ClaimedRoles><xades:ClaimedRole>supplier</xades:ClaimedRole></xades:ClaimedRoles></xades:SignerRole></xades:SignedSignatureProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature></ext:ExtensionContent>
+    </ext:UBLExtension>
+  </ext:UBLExtensions>
+  <cbc:UBLVersionID>UBL 2.1</cbc:UBLVersionID>
+  <cbc:CustomizationID>10</cbc:CustomizationID>
+  <cbc:ProfileID>DIAN 2.1: Factura Electrónica de Venta</cbc:ProfileID>
+  <cbc:ProfileExecutionID>1</cbc:ProfileExecutionID>
+  <cbc:ID>BEC520526814</cbc:ID>
+  <cbc:UUID schemeID="1" schemeName="CUFE-SHA384">585113be92c3741728ec65080dba2c9195f850d1fb7b303097a40d84e462db60dcb511c0fff15a2dc9138273fd84c2f0</cbc:UUID>
+  <cbc:IssueDate>2026-04-22</cbc:IssueDate>
+  <cbc:IssueTime>06:49:04-05:00</cbc:IssueTime>
+  <cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>
+  <cbc:Note>Folio: BEC520526814 | Cuenta: 1043721217 | Localidad de domicilio: BOGOTA DC - BOGOTA DC | Periodo facturado: 21/Abr/2026 al 20/May/2026 | Fecha límite de pago: 26/04/2026 | Ajuste al peso: ($ 7.37) | *-* COLOMBIA TELECOMUNICACIONES S.A. ESP BIC – NIT 830.122.566-1 - Gran Contribuyente (Res. DIAN No. 0200 de 2024) - Autorretenedor por ventas y servicios (Res. DIAN No. 4095 de 2012) - Autorretenedor sobre los conceptos definidos en el artículo 1° del Decreto 2885 de 2001 (Res. DIAN No. 06142 de 2003) – IVA Régimen Ordinario - Agente retenedor de IVA Art. 437-2 Numeral 2 E.T. - Actividad económica ICA por Servicios 6190 (9,66x1000), 6110 y 6120 (10,62 x 1000), Ventas 4741 (11,04 x 1000) tarifas Bogotá D.C. Gran Contribuyente ICA Bogotá D.C. (Res. SHD No. DDI-042065 de 2017). Autorretenedor por ICA en: Antioquia: Medellín, Puerto Triunfo, Sonsón, Guarne, San Rafael, Envigado, Copacabana, La Unión, Gomez Plata, Chigorodó, Barbosa, Ituango, Apartadó, Girardota, Caldas, La Ceja del Tambo, Guarne, Bello, La Estrella, Itagüí. Arauca: Arauca. Atlántico: Barranquilla, Soledad, Tubará, Santo Tomás, Galapa, Puerto Colombia. Bolívar: Cartagena, Mahates, Turbaco, Calamar, Arjona, Clemencia, Magangué, Morales. Boyacá: Ráquira, Paya, Tuta, Paipa, Miraflores, Tibasosa, Puerto Boyacá. Caldas: Manizales, La Dorada. Casanare: Monterrey, Tauramena, Támara, Aguazul, Maní, Trinidad, Villanueva. Cauca: Popayán, Caloto, Santander de Quilichao. Cesar: Valledupar, La Jagua de Ibirico, Agustín Codazzi, San Martín, Becerril, Bosconia, La Paz, San Diego. Córdoba: Montería, Montelíbano, Sahagún. Cundinamarca: Soacha, Chía, Facatativá, Sibaté, Gachancipá, Sopó, Pacho, Funza, Anapoima, Cajicá, Fusagasugá, Girardot, Silvania, Tocancipá, Zipaquirá. Huila: Neiva, Baraya, Tesalia, Gigante, Garzón, La Plata. La Guajira: Riohacha, Maicao, Barrancas, Hatonuevo, San Juan del Cesar. Magdalena: Santa Marta, Ariguaní, Pivijay, Salamina, Plato, Ciénaga, Fundación. Meta: Restrepo, San Carlos de Guaroa. Nariño: Pasto. Norte de Santander: Cúcuta, Villa del Rosario, Los Patios. Putumayo: Valle del Guamuez, Villagarzón. Quindío: Armenia, Calarcá, Circasia; Risaralda: Pereira, La Virginia, Santa Rosa de Cabal, Dosquebradas. Santander: Bucaramanga, Lebrija, El Carmen de Chucurí, Piedecuesta, San Vicente del Chucurí, Valle de San José, Girón, Barrancabermeja, Barichara. Sucre: Corozal, San Pedro, Coloso, San Benito Abad, Santiago de Tolú. Tolima: Cajamarca, Honda, San Sebastián de Mariquita, Lérida, Guamo, Fresno. Valle del Cauca: Guadalajara de Buga, Jamundí, Cartago, Tuluá, Yotoco, Ansermanuevo, Guacarí, Buenaventura, Bugalagrande, Zarzal, Cerrito, Palmira, La Unión. Vichada: Puerto Carreño, La Primavera. Los servicios de seguros son prestados por: CHUBB SEGUROS COLOMBIA S.A. - NIT: 860.026.518-6, responsable de IVA, Régimen Común, Gran Contribuyente (Res. DIAN No. 0200 de 2024), Autorretenedor por ventas y servicios, Agente retenedor de IVA Art. 437-2 Numeral 2 E.T. - Actividad económica 6511. No practicar retención en la fuente según el artículo 21 del Decreto Reglamentario 2126 de 1983. El servicio de Seguro de terminales es prestado por: BBVA SEGUROS COLOMBIA S.A. - NIT: 800.226.098-4, responsable de IVA, Régimen Común, Gran Contribuyente (Res. DIAN No. 0200 de 2024), Autorretenedor por ventas y servicios, Agente retenedor de IVA Art. 437-2 Numeral 2 E.T. -Actividad económica 6511. No practicar retención en la fuente según el artículo 21 del Decreto Reglamentario 2126 de 1983. El servicio de asistencia es prestado por: CONNECT ASSISTANCE S.A.S. - NIT: 900.951.215-1, responsable de IVA, Régimen Común, No Gran contribuyente, No agente retenedor de IVA - Actividad económica 6511 y 8220. El servicio de financiación de terminales es prestado por: Movistar MOVISTAR CONSUMER FINANCE COLOMBIA S.A.S. - NIT: 901.445.795-5, responsable de IVA, Régimen Común, No Gran contribuyente, No agente retenedor de IVA - Actividad económica 6499. El servicio de Netflix es prestado por: NETFLIX INTERNATIONAL B.V. - NIT: 901.244.710-7, responsable de IVA régimen común, atendiendo a lo establecido por el parágrafo 3 del artículo 420, parágrafo 2 del artículo 437 y artículo 579-2 del E.T. al haberse cumplido el procedimiento establecido por la Resolución 051 de 2018 por parte del Proveedor del servicio. El recaudo por la financiación de terminales se realiza en nombre de APEX ASSET MANAGEMENT S.A.S. NIT: 901.228.870-1, responsable de IVA, Régimen Común, No Gran contribuyente, No agente retenedor de IVA. *-*  _**_</cbc:Note>
+  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
+  <cbc:LineCountNumeric>2</cbc:LineCountNumeric>
+  <cac:InvoicePeriod>
+    <cbc:StartDate>2026-04-21</cbc:StartDate>
+    <cbc:EndDate>2026-05-20</cbc:EndDate>
+  </cac:InvoicePeriod>
+  <cac:AccountingSupplierParty>
+    <cbc:AdditionalAccountID>1</cbc:AdditionalAccountID>
+    <cac:Party>
+      <cbc:IndustryClassificationCode>6120</cbc:IndustryClassificationCode>
+      <cac:PartyName>
+        <cbc:Name>COLOMBIA TELECOMUNICACIONES S.A. E.S.P. BIC</cbc:Name>
+      </cac:PartyName>
+      <cac:PhysicalLocation>
+        <cac:Address>
+          <cbc:ID>11001</cbc:ID>
+          <cbc:CityName>Bogotá, D.C.</cbc:CityName>
+          <cbc:PostalZone>000000</cbc:PostalZone>
+          <cbc:CountrySubentity>Bogotá</cbc:CountrySubentity>
+          <cbc:CountrySubentityCode>11</cbc:CountrySubentityCode>
+          <cac:AddressLine>
+            <cbc:Line>Transversal 60 (Av. Suba) No 114A- 55</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>CO</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Colombia</cbc:Name>
+          </cac:Country>
+        </cac:Address>
+      </cac:PhysicalLocation>
+      <cac:PartyTaxScheme>
+        <cbc:RegistrationName>COLOMBIA TELECOMUNICACIONES S.A. E.S.P. BIC</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="1" schemeName="31" schemeVersionID="1">830122566</cbc:CompanyID>
+        <cbc:TaxLevelCode>O-13;O-15;O-23</cbc:TaxLevelCode>
+        <cac:RegistrationAddress>
+          <cbc:ID>11001</cbc:ID>
+          <cbc:CityName>Bogotá, D.C.</cbc:CityName>
+          <cbc:PostalZone>000000</cbc:PostalZone>
+          <cbc:CountrySubentity>Bogotá</cbc:CountrySubentity>
+          <cbc:CountrySubentityCode>11</cbc:CountrySubentityCode>
+          <cac:AddressLine>
+            <cbc:Line>Transversal 60 (Av. Suba) No 114A- 55</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>CO</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Colombia</cbc:Name>
+          </cac:Country>
+        </cac:RegistrationAddress>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>COLOMBIA TELECOMUNICACIONES S.A. E.S.P. BIC</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="1" schemeName="31" schemeVersionID="1">830122566</cbc:CompanyID>
+        <cac:CorporateRegistrationScheme>
+          <cbc:ID>BEC</cbc:ID>
+          <cbc:Name>0000000</cbc:Name>
+        </cac:CorporateRegistrationScheme>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>COLOMBIA TELECOMUNICACIONES S.A. E.S.P. BIC</cbc:Name>
+        <cbc:Telephone>018000930930</cbc:Telephone>
+        <cbc:ElectronicMail>notificacionesjudiciales@telefonica.com</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cbc:AdditionalAccountID>1</cbc:AdditionalAccountID>
+    <cac:Party>
+      <cac:PartyName>
+        <cbc:Name>IKBO  SAS</cbc:Name>
+      </cac:PartyName>
+      <cac:PhysicalLocation>
+        <cac:Address>
+          <cbc:ID>11001</cbc:ID>
+          <cbc:CityName>Bogotá, D.C.</cbc:CityName>
+          <cbc:PostalZone>000000</cbc:PostalZone>
+          <cbc:CountrySubentity>Bogotá</cbc:CountrySubentity>
+          <cbc:CountrySubentityCode>11</cbc:CountrySubentityCode>
+          <cac:AddressLine>
+            <cbc:Line>KR KR 14 # 79 - 78 OF 602 OF 602</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>CO</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Colombia</cbc:Name>
+          </cac:Country>
+        </cac:Address>
+      </cac:PhysicalLocation>
+      <cac:PartyTaxScheme>
+        <cbc:RegistrationName>IKBO  SAS</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="9" schemeName="31" schemeVersionID="1">901031352</cbc:CompanyID>
+        <cbc:TaxLevelCode>R-99-PN</cbc:TaxLevelCode>
+        <cac:RegistrationAddress>
+          <cbc:ID>11001</cbc:ID>
+          <cbc:CityName>Bogotá, D.C.</cbc:CityName>
+          <cbc:PostalZone>000000</cbc:PostalZone>
+          <cbc:CountrySubentity>Bogotá</cbc:CountrySubentity>
+          <cbc:CountrySubentityCode>11</cbc:CountrySubentityCode>
+          <cac:AddressLine>
+            <cbc:Line>KR KR 14 # 79 - 78 OF 602 OF 602</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>CO</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Colombia</cbc:Name>
+          </cac:Country>
+        </cac:RegistrationAddress>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>IKBO  SAS</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="9" schemeName="31" schemeVersionID="1">901031352</cbc:CompanyID>
+        <cac:CorporateRegistrationScheme>
+          <cbc:Name>No tiene</cbc:Name>
+        </cac:CorporateRegistrationScheme>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>IKBO  SAS</cbc:Name>
+        <cbc:Telephone/>
+        <cbc:ElectronicMail>NOTIFICACIONES@IKBO.CO;EDITHV@IKBO.CO</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:PaymentMeans>
+    <cbc:ID>2</cbc:ID>
+    <cbc:PaymentMeansCode>ZZZ</cbc:PaymentMeansCode>
+    <cbc:PaymentDueDate>2026-04-26</cbc:PaymentDueDate>
+    <cbc:PaymentID>1043721217</cbc:PaymentID>
+  </cac:PaymentMeans>
+  <cac:PaymentTerms>
+    <cbc:ReferenceEventCode>2</cbc:ReferenceEventCode>
+    <cac:SettlementPeriod>
+      <cbc:DurationMeasure unitCode="DAY">1</cbc:DurationMeasure>
+    </cac:SettlementPeriod>
+  </cac:PaymentTerms>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="COP">21290.000000</cbc:TaxAmount>
+    <cbc:RoundingAmount currencyID="COP">0.000000</cbc:RoundingAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="COP">99577.630000</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="COP">18919.750000</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:Percent>19.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="COP">12475.000000</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="COP">2370.250000</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:Percent>19.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="COP">499.000000</cbc:TaxAmount>
+    <cbc:RoundingAmount currencyID="COP">0.000000</cbc:RoundingAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="COP">12475.000000</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="COP">499.000000</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:Percent>4.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>04</cbc:ID>
+          <cbc:Name>INC</cbc:Name>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="COP">112052.630000</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="COP">112052.630000</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="COP">133841.630000</cbc:TaxInclusiveAmount>
+    <cbc:AllowanceTotalAmount currencyID="COP">0.000000</cbc:AllowanceTotalAmount>
+    <cbc:ChargeTotalAmount currencyID="COP">0.000000</cbc:ChargeTotalAmount>
+    <cbc:PrepaidAmount currencyID="COP">0.000000</cbc:PrepaidAmount>
+    <cbc:PayableRoundingAmount currencyID="COP">7.370000</cbc:PayableRoundingAmount>
+    <cbc:PayableAmount currencyID="COP">133849.000000</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="EA">1.000000</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="COP">99577.630000</cbc:LineExtensionAmount>
+    <cbc:AccountingCostCode>1</cbc:AccountingCostCode>
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="COP">18919.750000</cbc:TaxAmount>
+      <cbc:RoundingAmount currencyID="COP">0.000000</cbc:RoundingAmount>
+      <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="COP">99577.630000</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="COP">18919.750000</cbc:TaxAmount>
+        <cac:TaxCategory>
+          <cbc:Percent>19.00</cbc:Percent>
+          <cac:TaxScheme>
+            <cbc:ID>01</cbc:ID>
+            <cbc:Name>IVA</cbc:Name>
+          </cac:TaxScheme>
+        </cac:TaxCategory>
+      </cac:TaxSubtotal>
+    </cac:TaxTotal>
+    <cac:Item>
+      <cbc:Description>Valor de tu plan del 21-Abr-2026 al 20-May-2026</cbc:Description>
+      <cbc:BrandName>N/A</cbc:BrandName>
+      <cbc:ModelName>N/A</cbc:ModelName>
+      <cac:SellersItemIdentification>
+        <cbc:ID>1</cbc:ID>
+      </cac:SellersItemIdentification>
+      <cac:StandardItemIdentification>
+        <cbc:ID schemeID="999" schemeName="Estándar de adopción del contribuyente" schemeAgencyID="">1</cbc:ID>
+      </cac:StandardItemIdentification>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="COP">99577.630000</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="EA">1.000000</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="EA">1.000000</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="COP">12475.000000</cbc:LineExtensionAmount>
+    <cbc:AccountingCostCode>2</cbc:AccountingCostCode>
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="COP">2370.250000</cbc:TaxAmount>
+      <cbc:RoundingAmount currencyID="COP">0.000000</cbc:RoundingAmount>
+      <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="COP">12475.000000</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="COP">2370.250000</cbc:TaxAmount>
+        <cac:TaxCategory>
+          <cbc:Percent>19.00</cbc:Percent>
+          <cac:TaxScheme>
+            <cbc:ID>01</cbc:ID>
+            <cbc:Name>IVA</cbc:Name>
+          </cac:TaxScheme>
+        </cac:TaxCategory>
+      </cac:TaxSubtotal>
+    </cac:TaxTotal>
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="COP">499.000000</cbc:TaxAmount>
+      <cbc:RoundingAmount currencyID="COP">0.000000</cbc:RoundingAmount>
+      <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="COP">12475.000000</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="COP">499.000000</cbc:TaxAmount>
+        <cac:TaxCategory>
+          <cbc:Percent>4.00</cbc:Percent>
+          <cac:TaxScheme>
+            <cbc:ID>04</cbc:ID>
+            <cbc:Name>INC</cbc:Name>
+          </cac:TaxScheme>
+        </cac:TaxCategory>
+      </cac:TaxSubtotal>
+    </cac:TaxTotal>
+    <cac:Item>
+      <cbc:Description>Valor de tu plan del 21-Abr-2026 al 20-May-2026 + Impuesto al consumo de voz</cbc:Description>
+      <cbc:BrandName>N/A</cbc:BrandName>
+      <cbc:ModelName>N/A</cbc:ModelName>
+      <cac:SellersItemIdentification>
+        <cbc:ID>1</cbc:ID>
+      </cac:SellersItemIdentification>
+      <cac:StandardItemIdentification>
+        <cbc:ID schemeID="999" schemeName="Estándar de adopción del contribuyente" schemeAgencyID="">1</cbc:ID>
+      </cac:StandardItemIdentification>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="COP">12475.000000</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="EA">1.000000</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

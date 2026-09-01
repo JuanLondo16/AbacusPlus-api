@@ -11,7 +11,7 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "services" / "session-proxy"))
+sys.path.append(str(Path(__file__).resolve().parents[3] / "services" / "session-proxy"))
 
 from app.infrastructure.config.auth_dependency import get_token_data  # noqa: E402
 from app.main import app  # noqa: E402

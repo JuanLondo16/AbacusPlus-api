@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from app.application.dto.cost_center import ImportCostCentersResponse
 from app.domain.exceptions.base import EntityNotFoundException
 from app.infrastructure.clients.siigo_client import SiigoApiClient, token_expiration_from_response
+from app.infrastructure.clients.xml_processor_client import XmlProcessorClient
+from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 from app.infrastructure.persistence.repositories.integration_repository import (
     IntegrationCredentialRepository,
 )
-from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
 
 _SIIGO_PROVIDER = "siigo"
 _COST_CENTERS_PATH = "/v1/cost-centers"
@@ -18,9 +19,13 @@ class SyncSiigoCostCentersUseCase:
         self,
         credential_repository: IntegrationCredentialRepository,
         cost_center_repository: CostCenterRepository,
+        tenant_slug: str,
+        xml_processor_client: Optional[XmlProcessorClient] = None,
     ):
         self.credential_repository = credential_repository
         self.cost_center_repository = cost_center_repository
+        self.tenant_slug = tenant_slug
+        self.xml_processor_client = xml_processor_client or XmlProcessorClient()
 
     def execute(self) -> ImportCostCentersResponse:
         credentials = self.credential_repository.list(provider=_SIIGO_PROVIDER)
@@ -37,6 +42,17 @@ class SyncSiigoCostCentersUseCase:
 
         cost_centers = [self._map_item(item) for item in raw_items]
         imported = self.cost_center_repository.upsert_many(cost_centers, deactivate_missing=True)
+
+        # El catálogo que consume el frontend vive en `cost_centers` (xml-processor). Sin esta
+        # proyección la sincronización quedaría aislada en `integration_cost_centers` y el
+        # selector de centro de costo seguiría vacío.
+        self.xml_processor_client.project_cost_centers(
+            tenant_slug=self.tenant_slug,
+            items=[
+                {"code": cc["code"], "name": cc["name"], "active": cc["active"]}
+                for cc in cost_centers
+            ],
+        )
 
         return ImportCostCentersResponse(
             imported=imported,

@@ -1,16 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.application.use_cases.assign_account_codes import AssignAccountCodesUseCase
-from app.dependencies import (
-    get_assign_account_codes_use_case,
-    get_system_prompt_repo,
-)
 from app.application.dto.accounting import (
+    CodeAssignmentBatchItem,
+    CodeAssignmentBatchRequest,
+    CodeAssignmentBatchResponse,
     CodeAssignmentResponse,
+    RetentionSuggestionResponse,
     SystemPromptActivateRequest,
     SystemPromptRequest,
     SystemPromptResponse,
 )
+from app.application.use_cases.assign_account_codes import AssignAccountCodesUseCase
+from app.application.use_cases.suggest_retentions import SuggestRetentionsUseCase
+from app.dependencies import (
+    get_assign_account_codes_use_case,
+    get_suggest_retentions_use_case,
+    get_system_prompt_repo,
+)
+from app.infrastructure.config.auth_dependency import require_write
 from app.infrastructure.persistence.repositories.system_prompt_repository import (
     SystemPromptRepository,
 )
@@ -20,6 +27,7 @@ router = APIRouter()
 
 @router.post(
     "/accounting/code-assignments/{document_id}",
+    dependencies=[Depends(require_write)],
     response_model=CodeAssignmentResponse,
     status_code=status.HTTP_200_OK,
     summary="Asignar cuentas PUC a las líneas de un documento",
@@ -39,18 +47,160 @@ router = APIRouter()
     response_description="Cantidad de líneas asignadas, omitidas y advertencias.",
     responses={
         404: {"description": "Documento no encontrado en xml-processor."},
+        409: {
+            "description": (
+                "RF-08: no hay Plan Único de Cuentas cargado. El proceso se detiene con el "
+                "mensaje «No tienes un plan único de cuenta» en lugar de dejar que el modelo "
+                "sugiera cuentas de un PUC genérico."
+            )
+        },
         502: {"description": "Error de comunicación con OpenAI o xml-processor."},
     },
 )
 async def assign_account_codes(
     document_id: int,
+    overwrite_manual: bool = Query(
+        False,
+        description=(
+            "RF-04: por defecto las líneas con cuenta editada manualmente se conservan. "
+            "Enviar `true` solo cuando el contador confirmó sobrescribir esas ediciones."
+        ),
+    ),
     use_case: AssignAccountCodesUseCase = Depends(get_assign_account_codes_use_case),
 ):
     try:
-        result = await use_case.execute(document_id)
+        result = await use_case.execute(document_id, overwrite_manual=overwrite_manual)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     return CodeAssignmentResponse(**result)
+
+
+@router.post(
+    "/accounting/code-assignments",
+    dependencies=[Depends(require_write)],
+    response_model=CodeAssignmentBatchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Asignar cuentas PUC a las líneas de varios documentos",
+    description=(
+        "Ejecuta la asignación de cuentas de `POST /accounting/code-assignments/{id}` sobre "
+        "una selección completa de documentos, **en paralelo**.\n\n"
+        "**Cuándo usarlo.** Es la vía para el botón «Calcular contabilización» sobre una "
+        "selección. Recorrer los documentos llamando al endpoint individual una vez por cada "
+        "uno suma la latencia del modelo tantas veces como documentos haya; en paralelo, el "
+        "lote tarda aproximadamente lo que la tanda más lenta.\n\n"
+        "**Concurrencia acotada.** El número de llamadas al modelo en vuelo a la vez lo fija "
+        "`ASSIGN_CODES_MAX_CONCURRENCY` (5 por defecto). Es lo que impide que un lote grande "
+        "se convierta en una ráfaga que el proveedor rechace con 429.\n\n"
+        "**Ningún documento interrumpe el lote:** el que falle se marca con `ok: false` y su "
+        "motivo en `warnings`, y los demás continúan. La única excepción es la falta de Plan "
+        "Único de Cuentas, que afecta por igual a todos y responde `409`.\n\n"
+        "Los ids repetidos se procesan una sola vez. Este endpoint **no cambia el estado** de "
+        "los documentos: para pasarlos a `Causado` usar `PATCH /api/v1/documents` del "
+        "xml-processor."
+    ),
+    response_description="Totales del lote y el resultado de cada documento.",
+    responses={
+        409: {
+            "description": (
+                "RF-08: no hay Plan Único de Cuentas cargado. Afecta a todo el lote, así que "
+                "se responde una sola vez en lugar de repetirlo por documento."
+            )
+        },
+        422: {"description": "Lista de documentos vacía o por encima del máximo permitido."},
+    },
+)
+async def assign_account_codes_batch(
+    request: CodeAssignmentBatchRequest,
+    overwrite_manual: bool = Query(
+        False,
+        description=(
+            "RF-04: por defecto las líneas con cuenta editada manualmente se conservan. "
+            "Enviar `true` solo cuando el contador confirmó sobrescribir esas ediciones."
+        ),
+    ),
+    use_case: AssignAccountCodesUseCase = Depends(get_assign_account_codes_use_case),
+):
+    resultados = await use_case.execute_many(
+        request.document_ids, overwrite_manual=overwrite_manual
+    )
+    return CodeAssignmentBatchResponse(
+        requested=len(resultados),
+        succeeded=sum(1 for r in resultados if r["ok"]),
+        failed=sum(1 for r in resultados if not r["ok"]),
+        assigned=sum(r.get("assigned", 0) for r in resultados),
+        results=[CodeAssignmentBatchItem(**r) for r in resultados],
+    )
+
+
+@router.post(
+    "/accounting/retention-suggestions/{document_id}",
+    dependencies=[Depends(require_write)],
+    response_model=RetentionSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sugerir retenciones aplicables a un documento",
+    description=(
+        "RF-08: usa el LLM para determinar qué retenciones (ReteFuente, ReteICA, ReteIVA, "
+        "entre otras) corresponden al tercero emisor del documento.\n\n"
+        "**Flujo interno:**\n"
+        "1. Obtiene el documento y el catálogo de impuestos sincronizado con SIIGO.\n"
+        "2. Consulta el `tipo_contribuyente` del emisor (responsabilidades fiscales DIAN).\n"
+        "3. Recupera contexto histórico del emisor vía RAG (best-effort).\n"
+        "4. Pide al modelo qué retenciones aplican, limitado al catálogo entregado.\n"
+        "5. Valida la respuesta contra el catálogo y calcula base y valor.\n\n"
+        "**El modelo solo elige la retención.** El porcentaje se toma del catálogo y la "
+        "base gravable del subtotal del documento, de modo que ningún importe tributario "
+        "depende de su respuesta.\n\n"
+        "**Por defecto las sugerencias no se persisten.** Se devuelven para que el contador "
+        "las confirme o ajuste en la sección de retenciones; guardarlas es responsabilidad "
+        "de `POST /api/v1/documents/{id}/taxes`. Las retenciones ya registradas se excluyen "
+        "de la propuesta para no duplicarlas.\n\n"
+        "Con `persist=true` la propuesta sí se guarda con origen `llm`. Ese es el modo que "
+        "usa el procesamiento automático del XML, donde no hay interfaz esperando la "
+        "respuesta y la propuesta debe quedar en el documento para que el contador la vea."
+    ),
+    response_description="Retenciones propuestas con su porcentaje, base y valor estimado.",
+    responses={
+        404: {"description": "Documento no encontrado en xml-processor."},
+        409: {
+            "description": (
+                "El proceso se detiene por falta de un prerrequisito:\n\n"
+                "- **Sin PUC cargado** → «No tienes un plan único de cuenta». RF-08 lo "
+                "exige como regla de negocio crítica: sin PUC no se ejecuta "
+                "contabilización con IA.\n"
+                "- **Sin catálogo de impuestos sincronizado** → el modelo tendría que "
+                "inventar retenciones y tarifas."
+            )
+        },
+        502: {"description": "Error de comunicación con OpenAI o xml-processor."},
+    },
+)
+async def suggest_retentions(
+    document_id: int,
+    overwrite_manual: bool = Query(
+        False,
+        description=(
+            "RF-08: por defecto las retenciones ya registradas se excluyen de la propuesta "
+            "para no duplicarlas. Enviar `true` cuando el contador confirmó reemplazar las "
+            "que registró manualmente; el modelo propondrá entonces el conjunto completo."
+        ),
+    ),
+    persist: bool = Query(
+        False,
+        description=(
+            "RF-08: guarda la propuesta en el documento con origen `llm` en lugar de solo "
+            "devolverla. Lo usa la determinación automática al procesar el XML. Es "
+            "idempotente por `tax_id`: no duplica ni pisa lo que el contador ya registró."
+        ),
+    ),
+    use_case: SuggestRetentionsUseCase = Depends(get_suggest_retentions_use_case),
+):
+    try:
+        result = await use_case.execute(
+            document_id, overwrite_manual=overwrite_manual, persist=persist
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    return RetentionSuggestionResponse(**result)
 
 
 @router.get(
@@ -74,6 +224,7 @@ def list_system_prompts(
 
 @router.post(
     "/accounting/system-prompts",
+    dependencies=[Depends(require_write)],
     response_model=SystemPromptResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear nuevo system prompt",
@@ -94,6 +245,7 @@ def create_system_prompt(
 
 @router.patch(
     "/accounting/system-prompts/{prompt_id}",
+    dependencies=[Depends(require_write)],
     response_model=SystemPromptResponse,
     summary="Activar un system prompt",
     description=(

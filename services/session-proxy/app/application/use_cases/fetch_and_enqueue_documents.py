@@ -32,7 +32,9 @@ class FetchAndEnqueueDocumentsUseCase:
         self._batch_store = batch_store
         self._progress = job_progress_store
 
-    async def execute(self, request: DocumentsRangeRequest, tenant_slug: str = "") -> EnqueueDownloadsResponse:
+    async def execute(
+        self, request: DocumentsRangeRequest, tenant_slug: str = ""
+    ) -> EnqueueDownloadsResponse:
         batch_id = str(uuid.uuid4())
         started_at = datetime.now(timezone.utc)
 

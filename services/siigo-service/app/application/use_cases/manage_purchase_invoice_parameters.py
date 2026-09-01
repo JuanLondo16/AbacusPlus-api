@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.application.dto.purchase_invoice_parameter import PurchaseInvoiceParameterCreate
 from app.domain.exceptions.base import ValidationException
 from app.infrastructure.persistence.repositories.purchase_invoice_parameter_repository import (
@@ -26,5 +28,6 @@ class ManagePurchaseInvoiceParametersUseCase:
         data["provider"] = data["provider"].lower()
         return self.repository.create(data)
 
-    def list(self, account_key: str = "default"):
+    def list(self, account_key: Optional[str] = None):
+        """Sin `account_key` devuelve las plantillas de todas las cuentas del proveedor."""
         return self.repository.list("siigo", account_key)

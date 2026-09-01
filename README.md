@@ -4,12 +4,17 @@ Plataforma de procesamiento de facturas electrónicas DIAN y causación contable
 
 ## Arquitectura
 
-7 microservicios detrás de un gateway Nginx:
+8 microservicios detrás de un gateway Nginx:
 
 ```
 Cliente
   │
   └─ :8000  ──►  gateway (Nginx)
+                   │   (enruta por prefijo; NO valida el JWT: lo hace cada servicio)
+                   │
+                   ├─ POST /api/v1/auth/login ──►  auth-service :8008
+                   │  GET|POST /api/v1/tenants      (emite JWT RS256, tenants, usuarios)
+                   │  GET  /api/v1/users
                    │
                    ├─ POST /api/v1/documents  ──►  xml-processor :8001
                    │  GET  /api/v1/documents        │  parsea ZIP/XML → PostgreSQL
@@ -24,6 +29,8 @@ Cliente
                    │                                 └─ OpenAI API (asigna PUC por ítem)
                    │
                    ├─ GET|POST /api/v1/siigo  ──►  siigo-service :8006
+                   │                                (credenciales, plan de cuentas,
+                   │                                 factura de compra → SIIGO API · RF-05)
                    │
                    ├─ GET|POST /api/v1/integrations ──►  integration-config-service :8007
                    │
@@ -50,6 +57,23 @@ Cliente
 ```bash
 # Copiar y configurar variables de entorno
 cp .env.example .env   # editar al menos OPENAI_API_KEY
+
+# Generar el par de claves JWT (obligatorio: .env.example trae un placeholder, no una clave
+# real, y sin esto el login falla con un error de la librería de criptografía). Pegar cada
+# salida en JWT_PRIVATE_KEY / JWT_PUBLIC_KEY dentro de .env, en una sola línea, sin comillas
+# y con \n literal entre renglones — es el mismo formato en el que ya está el placeholder.
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' private.pem   # copiar en JWT_PRIVATE_KEY
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' public.pem    # copiar en JWT_PUBLIC_KEY
+rm private.pem public.pem
+
+# Generar INTERNAL_SECRET (obligatorio: .env.example trae el placeholder "change-me", no un
+# secreto real. Todos los endpoints /internal/* de cada microservicio lo exigen para aceptar
+# llamadas entre servicios — incluyendo el aprovisionamiento de tenants nuevos. Con el
+# placeholder, cada servicio rechaza esas llamadas con 403 sin avisar por qué, y un tenant
+# recién creado queda con tablas a medio crear). Reemplazar INTERNAL_SECRET en .env con:
+openssl rand -hex 32
 
 # Levantar todos los servicios
 docker-compose up --build

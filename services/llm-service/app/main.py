@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,6 +10,7 @@ from app.adapters.api.routers.analyze import router as analyze_router
 from app.adapters.api.routers.internal import router as internal_router
 from app.adapters.api.routers.query import router as query_router
 from app.domain.exceptions.base import DomainException
+from app.infrastructure.clients.http_pool import close_client
 from app.infrastructure.config.database import Base, SessionLocal, engine
 from app.infrastructure.config.logging import setup_logging
 from app.infrastructure.persistence.models import chart_account as _ca_model  # noqa: F401
@@ -23,6 +25,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    internal_secret = os.environ.get("INTERNAL_SECRET", "")
+    if not internal_secret or internal_secret == "change-me":
+        raise RuntimeError(
+            "INTERNAL_SECRET no está configurado (o sigue en 'change-me' de .env.example). "
+            "Los endpoints /internal/* de todos los servicios lo requieren para autenticar "
+            "llamadas entre microservicios. Genera uno real: openssl rand -hex 32"
+        )
     Base.metadata.create_all(bind=engine, checkfirst=True)
     db = SessionLocal()
     try:
@@ -31,6 +40,9 @@ async def lifespan(app: FastAPI):
         db.close()
     logger.info("LLM Service listo")
     yield
+    # El pool HTTP compartido sobrevive a las peticiones, así que hay que cerrarlo aquí: sin
+    # esto, apagar el servicio dejaría conexiones abiertas contra el resto de microservicios.
+    await close_client()
 
 
 app = FastAPI(

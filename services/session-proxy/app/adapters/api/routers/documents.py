@@ -15,13 +15,14 @@ from app.dependencies import (
     get_job_status_use_case,
 )
 from app.domain.exceptions.base import ExternalAuthException, ExternalRequestException
-from app.infrastructure.config.auth_dependency import TokenData, get_token_data
+from app.infrastructure.config.auth_dependency import TokenData, get_token_data, require_write
 
 router = APIRouter(dependencies=[Depends(get_token_data)])
 
 
 @router.post(
     "/dian/downloads",
+    dependencies=[Depends(require_write)],
     response_model=EnqueueDownloadsResponse,
     status_code=202,
     summary="Consulta documentos DIAN por rango de fechas y encola descarga de ZIPs",

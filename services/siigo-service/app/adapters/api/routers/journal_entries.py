@@ -3,12 +3,14 @@ from fastapi import APIRouter, Depends, status
 from app.application.dto.journal_entry import SendJournalEntryRequest, SendJournalEntryResponse
 from app.application.use_cases.send_journal_entry import SendJournalEntryUseCase
 from app.dependencies import get_send_journal_entry_use_case
+from app.infrastructure.config.auth_dependency import require_write
 
 router = APIRouter()
 
 
 @router.post(
     "/siigo/journal-entries",
+    dependencies=[Depends(require_write)],
     response_model=SendJournalEntryResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Enviar causacion a SIIGO",
