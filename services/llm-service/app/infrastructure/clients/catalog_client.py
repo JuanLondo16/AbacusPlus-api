@@ -1,6 +1,6 @@
 import logging
 
-import httpx
+from app.infrastructure.clients.http_pool import get_client
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,12 @@ class CatalogClient:
         self._headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
 
     async def _get(self, path: str) -> list[dict]:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{self._base_url}{path}", headers=self._headers)
-            response.raise_for_status()
-            return response.json()
+        client = await get_client()
+        response = await client.get(
+            f"{self._base_url}{path}", headers=self._headers, timeout=10.0
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def get_cost_centers(self) -> list[dict]:
         return await self._get("/api/v1/catalog/cost-centers")

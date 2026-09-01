@@ -17,6 +17,7 @@ El caso de uso corre en dos modos:
   siendo quien la confirma, ajusta o elimina antes de aprobar el documento.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -445,7 +446,16 @@ class SuggestRetentionsUseCase:
         """
         warnings: list[str] = []
 
-        document = await self._document_client.get_document_full(document_id)
+        # Las cuatro son independientes entre sí y ninguna depende del resultado de otra: el
+        # documento, el PUC y los catálogos de impuestos/retenciones son consultas separadas
+        # que no se cruzan hasta después de que las cuatro respondan. Se piden a la vez para
+        # no encadenar cuatro latencias antes de poder empezar a validar el documento.
+        document, chart_accounts, taxes_catalog, retentions_catalog = await asyncio.gather(
+            self._document_client.get_document_full(document_id),
+            self._integration_config_client.get_chart_accounts(),
+            self._integration_config_client.get_taxes(),
+            self._integration_config_client.get_retentions(),
+        )
         if document is None:
             raise ValueError(f"Documento {document_id} no encontrado en xml-processor")
 
@@ -453,7 +463,6 @@ class SuggestRetentionsUseCase:
         # con IA. La sugerencia de retenciones es parte de ese flujo, así que se detiene
         # aquí igual que la asignación de cuentas: de lo contrario el documento acumularía
         # retenciones propuestas por el modelo que nunca podrán contabilizarse.
-        chart_accounts = await self._integration_config_client.get_chart_accounts()
         if not chart_accounts:
             raise NoChartOfAccountsError()
 
@@ -463,8 +472,6 @@ class SuggestRetentionsUseCase:
         # Autorretención). Las candidatas de retención salen de la segunda; la primera sigue
         # siendo la fuente del desglose de impuestos DEL PROPIO documento (más abajo) y de
         # los tipos ya registrados que hay que excluir.
-        taxes_catalog = await self._integration_config_client.get_taxes()
-        retentions_catalog = await self._integration_config_client.get_retentions()
         # Se lee clasificada —no como lista plana— para que el impoconsumo y la autorretención
         # no se ofrezcan como retenciones de una compra. Cada candidata `reteica` ya trae su
         # municipio, concepto y base mínima en la misma fila (fusionados en `integration_
@@ -504,14 +511,20 @@ class SuggestRetentionsUseCase:
                 or ["El documento ya tiene todas las retenciones del catálogo."],
             }
 
-        # El tipo de contribuyente vive en `issuers`, no en el documento: se consulta aparte.
-        issuer = await self._document_client.get_issuer(str(document.get("issuer_nit") or ""))
-        # Perfil fiscal del COMPRADOR (tenant). Es autoritativo sobre el XML: si la empresa no
-        # es agente de retención de un tipo, ese tipo no debe proponerse.
-        profile = await self._integration_config_client.get_fiscal_profile()
-        # Tarifas oficiales por concepto: es lo que ancla la elección entre las once
-        # tarifas de ReteFuente del catálogo, cuyos nombres solo indican el porcentaje.
-        rates = await self._retention_rates()
+        # Las tres son independientes entre sí y ninguna depende del resultado de otra:
+        # `issuer` solo necesita el NIT que ya trae `document` (resuelto arriba), no el
+        # resultado de `profile` ni de `rates`. Se piden a la vez para no encadenar tres
+        # latencias antes de poder filtrar `available`.
+        issuer, profile, rates = await asyncio.gather(
+            # El tipo de contribuyente vive en `issuers`, no en el documento: se consulta aparte.
+            self._document_client.get_issuer(str(document.get("issuer_nit") or "")),
+            # Perfil fiscal del COMPRADOR (tenant). Es autoritativo sobre el XML: si la
+            # empresa no es agente de retención de un tipo, ese tipo no debe proponerse.
+            self._integration_config_client.get_fiscal_profile(),
+            # Tarifas oficiales por concepto: es lo que ancla la elección entre las once
+            # tarifas de ReteFuente del catálogo, cuyos nombres solo indican el porcentaje.
+            self._retention_rates(),
+        )
         # Filas `reteica` de las candidatas YA FRESCAS (antes de excluir tipos registrados):
         # cada una es una tarifa de `integration_retentions` con su propio municipio, concepto
         # y base mínima. No hace falta una consulta aparte —como antes con `retention_ica_
