@@ -425,6 +425,44 @@ services:
     networks:
       - abacus-network
 
+  # Deja el proyecto usable justo despues de levantarlo, sin restaurar ningun respaldo a
+  # mano: crea (si no existe) un tenant de demostracion con credenciales conocidas. Usa el
+  # mismo endpoint de bootstrap con el que se registra un cliente real
+  # (POST /api/v1/tenants) — crea la base `abacus_t_{slug}`, provisiona cada microservicio
+  # y el primer usuario administrador en una sola llamada. Idempotente: si el tenant ya
+  # existe, el endpoint responde 400 y el script lo trata como exito, asi que correr esto
+  # de nuevo (o en un volumen que ya tenia el tenant) no falla ni duplica nada.
+  #
+  # SOLO PARA DESARROLLO. `profiles: [dev]` es lo que evita que esto arranque solo: un
+  # `docker compose up` normal (el que se usaria en un servidor real) lo ignora por
+  # completo. Un tenant con contrasena conocida creandose solo en cualquier ambiente donde
+  # se levante el stack seria una puerta trasera real en produccion. Activarlo a proposito:
+  #   docker compose --profile dev up demo-tenant-init
+  # (o agregar COMPOSE_PROFILES=dev al .env local, nunca al de un servidor compartido).
+  demo-tenant-init:
+    image: curlimages/curl:latest
+    container_name: abacus_demo_tenant_init
+    profiles: ["dev"]
+    depends_on:
+      - gateway
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        i=0
+        while [ $$i -lt 60 ]; do
+          CODE=$$(curl -s -o /tmp/resp -w '%{http_code}' -X POST http://gateway/api/v1/tenants -H "X-Internal-Secret: ${INTERNAL_SECRET}" -H 'Content-Type: application/json' -d '{"slug":"${DEMO_TENANT_SLUG:-ikbo}","display_name":"${DEMO_TENANT_NAME:-IKBO SAS}","email_domain":"${DEMO_TENANT_EMAIL_DOMAIN:-ikbo.co}","admin_email":"${DEMO_TENANT_ADMIN_EMAIL:-admin@ikbo.co}","admin_password":"${DEMO_TENANT_ADMIN_PASSWORD:-Secure123!}"}' 2>/dev/null)
+          if [ "$$CODE" = "201" ]; then echo "Tenant demo creado."; exit 0; fi
+          if [ "$$CODE" = "400" ]; then echo "Tenant demo ya existia, nada que hacer."; exit 0; fi
+          i=$$((i+1))
+          sleep 2
+        done
+        echo "No se pudo crear el tenant demo tras varios intentos (ultimo HTTP $$CODE):"
+        cat /tmp/resp 2>/dev/null
+        exit 1
+    networks:
+      - abacus-network
+
 networks:
   abacus-network:
     driver: bridge

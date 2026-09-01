@@ -17,6 +17,12 @@ docker run --rm -v "$(pwd)/services/xml-processor:/app" --workdir //app python:3
 
 # Instalar dependencias localmente (desarrollo)
 pip install -r services/<servicio>/requirements.txt
+
+# Crear un tenant de demostración con credenciales conocidas (SOLO DESARROLLO — no arranca
+# con un `docker-compose up` normal, hay que activar el profile "dev" a propósito). Deja el
+# proyecto usable justo después de clonarlo, sin restaurar ningún respaldo de base de datos
+# a mano. Ver DEMO_TENANT_* en .env.example para cambiar slug/credenciales.
+docker-compose --profile dev up demo-tenant-init
 ```
 
 ## Arquitectura — Microservicios
