@@ -16,6 +16,7 @@ from app.application.use_cases.import_retention_rates import ImportRetentionRate
 from app.dependencies import (
     get_cost_center_repo,
     get_import_retention_rates_use_case,
+    get_integration_retention_repo,
     get_integration_tax_repo,
     get_puc_repo,
     get_retention_repo,
@@ -26,6 +27,9 @@ from app.domain.value_objects.retention_scope import (
 )
 from app.infrastructure.config.auth_dependency import require_write
 from app.infrastructure.persistence.repositories.cost_center_repository import CostCenterRepository
+from app.infrastructure.persistence.repositories.integration_retention_repository import (
+    IntegrationRetentionRepository,
+)
 from app.infrastructure.persistence.repositories.integration_tax_repository import (
     IntegrationTaxRepository,
 )
@@ -57,8 +61,12 @@ def get_cost_centers(
     response_model=list[TaxCatalogResponse],
     summary="Listar impuestos/retenciones del catálogo",
     description=(
-        "RF-02: retorna los impuestos y retenciones activos del catálogo `integration_taxes` "
-        "sincronizado con SIIGO (id, nombre, tipo y porcentaje).\n\n"
+        "RF-02: retorna los impuestos y retenciones activos del catálogo (id, nombre, tipo y "
+        "porcentaje).\n\n"
+        "Desde la migración del 2026-08-31 el catálogo vive en DOS tablas físicas: "
+        "`integration_taxes` (impuestos reales del documento: IVA, Impoconsumo, AdValorem) e "
+        "`integration_retentions` (retenciones: ReteICA, ReteIVA, Retefuente, "
+        "Autorretención). `ambito` decide de cuál — o de las dos — se lee.\n\n"
         "Alimenta el selector de la sección de retenciones del detalle del documento, de modo "
         "que el usuario solo pueda agregar retenciones que existen en el catálogo."
     ),
@@ -72,38 +80,53 @@ def get_taxes(
             "Qué parte del catálogo se necesita. SIIGO reparte los impuestos en dos sitios "
             "del comprobante y cada selector debe ofrecer solo los suyos:\n\n"
             "- `retenciones` (por defecto): las que SIIGO practica a nivel de documento "
-            "(ReteICA, ReteIVA). Alimenta el selector de retenciones.\n"
+            "(ReteICA, ReteIVA), leídas de `integration_retentions`. Cada fila `reteica` trae "
+            "ya su municipio, concepto y base mínima. Alimenta el selector de retenciones.\n"
             "- `linea`: los impuestos que se asignan a un ítem y suman al valor de la "
-            "operación (IVA, Impoconsumo, AdValorem). Alimenta el selector de la línea.\n"
-            "- `todos`: el catálogo activo completo. Solo para resolver el nombre de lo ya "
-            "registrado, incluido lo que hoy no se ofrecería."
+            "operación (IVA, Impoconsumo, AdValorem), leídos de `integration_taxes`. Alimenta "
+            "el selector de la línea.\n"
+            "- `todos`: el catálogo activo completo de las DOS tablas. Solo para resolver el "
+            "nombre de lo ya registrado (`document_taxes.tax_id` puede apuntar a cualquiera "
+            "de las dos), incluido lo que hoy no se ofrecería."
         ),
     ),
     repo: IntegrationTaxRepository = Depends(get_integration_tax_repo),
+    retention_repo: IntegrationRetentionRepository = Depends(get_integration_retention_repo),
 ):
-    # Solo lo que SIIGO puede practicar en una factura de compra.
-    #
-    # Antes se devolvía el catálogo entero, así que el selector ofrecía Retefuente,
-    # Autorretención e Impoconsumo. El contador las registraba, Abacus las descontaba del
-    # total a pagar y el envío las descartaba porque la API las rechaza: el documento acababa
-    # contabilizado por el importe íntegro y la pantalla mostraba otro. No ofrecerlas es lo
-    # que evita esa diferencia, en lugar de explicarla después.
-    activos = repo.get_active()
-
     # Un tipo no puede acabar en el sitio equivocado: un impuesto puesto donde va una
     # retención se resta en lugar de sumarse, que es lo que descuadró cuatro documentos con
     # el impuesto al consumo. Por eso cada ámbito filtra con la regla del dominio y no con
     # una lista escrita aquí.
     if ambito == "linea":
-        criterio = es_impuesto_de_linea
-    elif ambito == "todos":
-        # Sin filtro: solo sirve para poner nombre a lo ya registrado, nunca para ofrecerlo.
-        return [TaxCatalogResponse.model_validate(t) for t in activos]
-    else:
-        criterio = es_retencion_practicable
+        return [
+            TaxCatalogResponse.model_validate(t)
+            for t in repo.get_active()
+            if es_impuesto_de_linea(getattr(t, "type", None))
+        ]
 
+    if ambito == "todos":
+        # Sin filtro adicional de tipo: solo sirve para poner nombre a lo ya registrado,
+        # nunca para ofrecerlo. Combina las dos tablas porque un `tax_id` guardado puede
+        # resolver en cualquiera de las dos desde la separación del 2026-08-31.
+        return [
+            TaxCatalogResponse.model_validate(t)
+            for t in [*repo.get_active(), *retention_repo.get_active()]
+        ]
+
+    # ambito == "retenciones" (por defecto): solo lo que SIIGO puede practicar en una factura
+    # de compra (ReteICA, ReteIVA — ver `es_retencion_practicable`), leído de
+    # `integration_retentions`.
+    #
+    # Antes se devolvía el catálogo entero de `integration_taxes` (que entonces mezclaba
+    # impuestos y retenciones), así que el selector ofrecía también Retefuente, Autorretención
+    # e Impoconsumo. El contador las registraba, Abacus las descontaba del total a pagar y el
+    # envío las descartaba porque la API las rechaza: el documento acababa contabilizado por
+    # el importe íntegro y la pantalla mostraba otro. No ofrecerlas es lo que evita esa
+    # diferencia, en lugar de explicarla después.
     return [
-        TaxCatalogResponse.model_validate(t) for t in activos if criterio(getattr(t, "type", None))
+        TaxCatalogResponse.model_validate(t)
+        for t in retention_repo.get_active()
+        if es_retencion_practicable(getattr(t, "type", None))
     ]
 
 

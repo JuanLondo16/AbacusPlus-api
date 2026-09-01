@@ -28,4 +28,13 @@ class CatalogClient:
         return await self._get("/api/v1/catalog/retention-fuente-rates")
 
     async def get_retention_ica_rates(self) -> list[dict]:
+        """Tarifas de ReteICA de `retention_ica_rates` (xml-processor).
+
+        Desde la migración del 2026-08-31, `SuggestRetentionsUseCase` (RF-08) ya NO llama a
+        este método: las tarifas de ReteICA se leen de `integration_retentions`
+        (`IntegrationConfigClient.get_retentions()`), que fusionó esta misma información en la
+        tabla del catálogo de retenciones — cada candidata trae ya su municipio, concepto y
+        base mínima, así que cruzarla con esta tabla aparte dejó de hacer falta. Se conserva
+        el método por si algún otro consumidor todavía necesita leer la tabla legado.
+        """
         return await self._get("/api/v1/catalog/retention-ica-rates")

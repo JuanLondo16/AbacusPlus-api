@@ -136,6 +136,74 @@ class TestCandidatasDelCatalogo:
         assert retention_candidates([]) == ([], [])
 
 
+class TestLaReteicaVieneAutosuficiente:
+    """Desde la migración del 2026-08-31, `retention_candidates` también se llama con filas
+    de `integration_retentions`: cada `reteica` ya trae su municipio, concepto y base mínima
+    en la misma fila, y esos campos deben sobrevivir sin cruzarse con ninguna otra tabla.
+    """
+
+    def test_una_fila_reteica_conserva_su_municipio_concepto_y_base_minima(self):
+        catalogo = [
+            {
+                "id": 101,
+                "name": "ReteICA Bogotá D.C. · servicios",
+                "type": "reteica",
+                "percentage": 9.66,
+                "active": True,
+                "municipality_code": "11001",
+                "municipality_name": "Bogotá D.C.",
+                "retention_concept": "servicios",
+                "minimum_base_uvt": 4.0,
+            }
+        ]
+
+        candidatas, _ = retention_candidates(catalogo)
+
+        assert len(candidatas) == 1
+        candidata = candidatas[0]
+        assert candidata["municipality_code"] == "11001"
+        assert candidata["municipality_name"] == "Bogotá D.C."
+        assert candidata["retention_concept"] == "servicios"
+        assert candidata["minimum_base_uvt"] == 4.0
+
+    def test_una_fila_que_no_es_reteica_no_trae_municipio(self):
+        catalogo = [
+            {"id": 10, "name": "Retefuente 2.5%", "type": "retefuente", "percentage": 2.5}
+        ]
+
+        candidatas, _ = retention_candidates(catalogo)
+
+        assert candidatas[0]["municipality_code"] is None
+        assert candidatas[0]["retention_concept"] is None
+
+    def test_dos_municipios_con_la_misma_tarifa_no_se_colapsan(self):
+        """El nombre sintetizado (municipio · concepto) es la identidad real: dos municipios
+        distintos con la misma tarifa no son la misma retención."""
+        catalogo = [
+            {
+                "id": 101,
+                "name": "ReteICA Bogotá D.C. · servicios",
+                "type": "reteica",
+                "percentage": 9.66,
+                "municipality_code": "11001",
+                "retention_concept": "servicios",
+            },
+            {
+                "id": 102,
+                "name": "ReteICA Cali · servicios",
+                "type": "reteica",
+                "percentage": 9.66,
+                "municipality_code": "76001",
+                "retention_concept": "servicios",
+            },
+        ]
+
+        candidatas, avisos = retention_candidates(catalogo)
+
+        assert sorted(c["id"] for c in candidatas) == [101, 102]
+        assert avisos == []
+
+
 class TestImpuestosDelDocumento:
     """El IVA de la factura no es `total_taxes`: ese campo suma todos los impuestos."""
 

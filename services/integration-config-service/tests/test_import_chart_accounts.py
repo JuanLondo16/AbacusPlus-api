@@ -103,6 +103,40 @@ class TestSpanishHeaderAliases:
         # No revienta al parsear y el nivel se infiere del código, no de esa columna.
         assert accounts[0]["level"] == 4
 
+    def test_unrecognized_columns_are_kept_in_raw_payload(self, use_case):
+        """Columnas reales de SIIGO sin equivalente en el modelo no se pierden en silencio."""
+        accounts = use_case._parse_excel(
+            _xlsx(
+                [
+                    (
+                        "Código",
+                        "Nombre",
+                        "Categoría",
+                        "Relación con",
+                        "Maneja vencimientos",
+                        "Diferencia fiscal",
+                        "Nivel agrupación",
+                    ),
+                    (
+                        "110505",
+                        "Caja general",
+                        "Caja - Bancos",
+                        "Formas de pago",
+                        "No maneja vencimiento",
+                        "No",
+                        "Transaccional",
+                    ),
+                ]
+            ),
+            None,
+        )
+
+        assert accounts[0]["raw_payload"]["categoría"] == "Caja - Bancos"
+        assert accounts[0]["raw_payload"]["relación con"] == "Formas de pago"
+        assert accounts[0]["raw_payload"]["maneja vencimientos"] == "No maneja vencimiento"
+        assert accounts[0]["raw_payload"]["diferencia fiscal"] == "No"
+        assert accounts[0]["raw_payload"]["nivel agrupación"] == "Transaccional"
+
 
 class TestLevelDerivation:
     @pytest.mark.parametrize(

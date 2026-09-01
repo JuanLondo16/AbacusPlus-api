@@ -38,12 +38,12 @@ from app.infrastructure.persistence.repositories.document_repository import Docu
 from app.infrastructure.persistence.repositories.document_tax_repository import (
     DocumentTaxRepository,
 )
-from app.infrastructure.persistence.repositories.integration_tax_repository import (
-    IntegrationTaxRepository,
-)
 from app.infrastructure.persistence.repositories.issuer_repository import IssuerRepository
 from app.infrastructure.persistence.repositories.puc_repository import PucRepository
 from app.infrastructure.persistence.repositories.retention_repository import RetentionRepository
+from app.infrastructure.persistence.repositories.tax_or_retention_repository import (
+    TaxOrRetentionRepository,
+)
 from app.infrastructure.persistence.tenant_migrations import apply_tenant_migrations
 
 logger = logging.getLogger(__name__)
@@ -185,7 +185,9 @@ async def reindex_documents(tenant_slug: str):
     total = 0
     try:
         # Mapas id -> nombre de los catálogos, para nombrar retenciones y centros de costo.
-        tax_name_map = {t.id: t.name for t in IntegrationTaxRepository(db).get_active()}
+        # Combinado (impuestos + retenciones): un `tax_id` de `document_taxes` puede resolver
+        # en cualquiera de las dos tablas desde la migración del 2026-08-31.
+        tax_name_map = {t.id: t.name for t in TaxOrRetentionRepository(db).get_active()}
         cost_center_map = {c.id: c.name for c in CostCenterRepository(db).get_active()}
         # Municipio del tenant, si tiene uno solo configurado (ver el publicador RF-08).
         _ica_codes = {
@@ -424,20 +426,32 @@ def create_document_taxes_internal(
     y advertirle antes de regenerarlas.
 
     Idempotente por `tax_id`: reprocesar un XML no duplica retenciones ni pisa las que el
-    contador ya registró a mano.
+    contador ya registró a mano. Tampoco agrega una segunda retención del mismo tipo
+    (RETEICA/RETEIVA/RETEFUENTE) que ya esté presente por otra vía — la misma regla que
+    aplica la ruta pública de creación manual (`document_taxes.py`).
     """
     repo = DocumentRepository(db)
     if repo.get_by_id(document_id) is None:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
 
     tax_repo = DocumentTaxRepository(db)
-    existing_ids = {row.tax_id for row in tax_repo.list_by_document(document_id)}
+    # Combinado: las sugerencias de la IA traen un `tax_id` de `integration_retentions` casi
+    # siempre, pero el catálogo real del cliente también registra impuestos del documento
+    # (Impoconsumo) en `document_taxes`, así que la validación no puede asumir una sola tabla.
+    integration_tax_repo = TaxOrRetentionRepository(db)
+    existing_taxes = tax_repo.list_by_document(document_id)
+    existing_ids = {row.tax_id for row in existing_taxes}
+    existing_types = {
+        str(t.type or "").strip().lower()
+        for t in (integration_tax_repo.get_by_id(row.tax_id) for row in existing_taxes)
+        if t is not None
+    }
 
     # Solo se persisten retenciones cuyo tax_id exista y esté activo en el catálogo. El LLM
     # ya elige de las candidatas, pero esta ruta corre sin nadie escuchando, así que se
     # descarta —no se aborta— cualquier propuesta con un tax_id inválido, del mismo modo que
     # la asignación de cuentas del modelo (RF-04). Evita retenciones huérfanas en la base.
-    catalog_ids = {t.id for t in IntegrationTaxRepository(db).get_active()}
+    catalog = {t.id: t for t in integration_tax_repo.get_active()}
 
     created = 0
     skipped = 0
@@ -445,11 +459,23 @@ def create_document_taxes_internal(
         if retention.tax_id in existing_ids:
             skipped += 1
             continue
-        if catalog_ids and retention.tax_id not in catalog_ids:
+        tax = catalog.get(retention.tax_id)
+        if catalog and tax is None:
             logger.warning(
                 "Retención sugerida descartada (doc=%s, tax_id=%s): no está activa en el catálogo.",
                 document_id,
                 retention.tax_id,
+            )
+            skipped += 1
+            continue
+        tipo = str(tax.type or "").strip().lower() if tax is not None else ""
+        if tipo and tipo in existing_types:
+            logger.warning(
+                "Retención sugerida descartada (doc=%s, tax_id=%s): ya hay una retención "
+                "de tipo '%s' en el documento.",
+                document_id,
+                retention.tax_id,
+                tipo,
             )
             skipped += 1
             continue
@@ -460,9 +486,11 @@ def create_document_taxes_internal(
             retention.percentage,
             source="llm",
         )
-        # El alta se refleja de inmediato para que un mismo lote con `tax_id` repetido
-        # no inserte dos filas idénticas.
+        # El alta se refleja de inmediato para que un mismo lote con `tax_id` repetido, o con
+        # dos tax_id distintos del mismo tipo, no inserte más de una fila.
         existing_ids.add(retention.tax_id)
+        if tipo:
+            existing_types.add(tipo)
         created += 1
 
     return DocumentTaxSuggestionResponse(created=created, skipped=skipped)

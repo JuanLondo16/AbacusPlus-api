@@ -48,6 +48,12 @@ logger = logging.getLogger(__name__)
 # impuesto: se practica sobre el IVA facturado.
 _RETEIVA_TYPE = "reteiva"
 
+# Longitud mínima de `scope_reason` para tratarlo como una justificación real y no como un
+# relleno vacío ("", "-", "sí"). No valida que la razón sea tributariamente correcta —eso
+# exigiría criterio que este código no tiene—, solo que el modelo se haya detenido a
+# articular algo antes de acotar la base. Ver `_taxable_base`.
+_MIN_SCOPE_REASON_CHARS = 8
+
 # Tope de caracteres del texto libre del emisor que se inyecta en el prompt. El nombre y las
 # notas provienen del XML de un tercero, así que se acotan para limitar tanto el consumo de
 # tokens como la superficie de una inyección de instrucciones.
@@ -202,10 +208,17 @@ MÉTODO (en este orden, sin saltarte pasos):
 5. Un documento puede requerir varias retenciones simultáneas (por ejemplo ReteFuente y
    ReteICA), o ninguna. La retención NO es automática: solo procede si el concepto está
    sujeto, el tercero no es autorretenedor y la operación supera la base mínima.
-6. ACOTA LA BASE. Si la retención responde a unos renglones concretos de la factura,
-   devuelve sus `detail_id` en `detail_ids`. Una factura puede mezclar conceptos con
-   tarifas distintas, y aplicar el total a cada uno retendría de más. Si aplica a toda la
-   factura, omite el campo.
+6. ACOTA LA BASE SOLO CON JUSTIFICACIÓN TRIBUTARIA. Si la retención responde a unos
+   renglones concretos porque esos renglones son un CONCEPTO TRIBUTARIO DISTINTO al resto
+   de la factura (por ejemplo: transporte y refrigerio, o compras y servicios, con tarifas
+   distintas), devuelve sus `detail_id` en `detail_ids` y explica en `scope_reason` cuál es
+   ese concepto distinto y por qué separa esos renglones de los demás. Sin `scope_reason`
+   el sistema IGNORA `detail_ids` por completo y usa el subtotal de TODA la factura como
+   base. Que dos renglones tengan descripciones distintas, IVA distinto o tarifas de IVA
+   distintas NO basta para acotar: eso no cambia el concepto tributario de la retención que
+   estás proponiendo. Ante la duda, omite `detail_ids`: acotar sin una razón tributaria real
+   puede dejar la retención por debajo de la base mínima cuando la factura completa sí la
+   alcanzaba.
 7. UNA SOLA retención por tipo. No propongas dos ReteFuente para el mismo documento: si
    dos renglones tienen conceptos distintos, elige el que corresponda a la operación
    principal y acota su base.
@@ -285,6 +298,9 @@ REGLAS ESPECÍFICAS DE ReteICA:
   `evidencia.1_tarifas_oficiales_reteica_por_municipio` trae una fila por
   (municipio, concepto): busca la fila cuyo `retention_concept` corresponda al concepto que
   identificaste en el paso 1 —compra, servicios, honorarios, comisiones…— y usa SU tarifa.
+  Cada fila trae su propio `id`: ese `id` ES el `tax_id` de esa combinación exacta de
+  municipio, concepto, tarifa y base mínima — no busques por porcentaje entre las
+  `retenciones_candidatas`, devuelve directamente el `id` de la fila que elegiste.
 - Un concepto `todos` significa que esa tarifa aplica a cualquier operación del municipio.
   Úsala solo si no hay una fila con el concepto específico.
 - Si el municipio tiene varias filas y NINGUNA corresponde al concepto de la operación, NO
@@ -340,6 +356,10 @@ REGLAS DE FORMATO:
       {
         "tax_id": <id entero del catálogo>,
         "detail_ids": [<id de las líneas que generan la retención; omitir si es toda la factura>],
+        "scope_reason": "<OBLIGATORIO si envías detail_ids: qué concepto tributario distinto
+                          tienen esas líneas frente al resto de la factura. Omite el campo si
+                          no acotas la base — no lo rellenes con relleno genérico, sin un
+                          concepto tributario real el sistema descarta el acotamiento>",
         "reason": "<justificación breve, máximo 20 palabras: nombra el CONCEPTO tributario>",
         "evidence": "<qué fuente sustenta la decisión: 'tabla_retefuente' | 'tabla_reteica' |
                       'perfil_fiscal' | 'criterio_contador' | 'caso_historico' | 'inferencia'>",
@@ -437,19 +457,29 @@ class SuggestRetentionsUseCase:
         if not chart_accounts:
             raise NoChartOfAccountsError()
 
-        catalog = await self._integration_config_client.get_taxes()
-        # La sección Impuestos es la fuente del `tax_id` y del porcentaje de toda retención.
+        # Desde la migración del 2026-08-31 impuestos y retenciones viven en tablas
+        # separadas: `integration_taxes` (IVA, Impoconsumo, AdValorem — impuestos reales del
+        # documento) e `integration_retentions` (ReteFuente, ReteICA, ReteIVA,
+        # Autorretención). Las candidatas de retención salen de la segunda; la primera sigue
+        # siendo la fuente del desglose de impuestos DEL PROPIO documento (más abajo) y de
+        # los tipos ya registrados que hay que excluir.
+        taxes_catalog = await self._integration_config_client.get_taxes()
+        retentions_catalog = await self._integration_config_client.get_retentions()
         # Se lee clasificada —no como lista plana— para que el impoconsumo y la autorretención
-        # del catálogo real del cliente no se ofrezcan como retenciones de una compra.
-        candidates, catalog_warnings = retention_candidates(catalog)
+        # no se ofrezcan como retenciones de una compra. Cada candidata `reteica` ya trae su
+        # municipio, concepto y base mínima en la misma fila (fusionados en `integration_
+        # retentions`): no hace falta cruzarla con ninguna otra tabla para saber si es
+        # verificable.
+        candidates, catalog_warnings = retention_candidates(retentions_catalog)
         warnings.extend(catalog_warnings)
         if not candidates:
             raise NoTaxCatalogError()
 
-        # Impuestos del PROPIO documento, resueltos contra ese mismo catálogo por el `tax_id`
-        # que el xml-processor ya dejó en cada línea. Es lo que permite conocer el IVA real
+        # Impuestos del PROPIO documento, resueltos contra el catálogo de Impuestos por el
+        # `tax_id` que el xml-processor ya dejó en cada línea (`document_details.tax_id`
+        # siempre resuelve ahí, nunca en retenciones). Es lo que permite conocer el IVA real
         # —base de la ReteIVA— en vez de usar `total_taxes`, que suma todos los impuestos.
-        impuestos_documento = document_tax_breakdown(document, catalog)
+        impuestos_documento = document_tax_breakdown(document, taxes_catalog)
         iva_documento = (
             impuestos_documento["iva"]
             if impuestos_documento["iva"] is not None
@@ -458,10 +488,15 @@ class SuggestRetentionsUseCase:
 
         # Retenciones ya registradas: no se vuelven a proponer, salvo que se vayan a
         # reemplazar, en cuyo caso el modelo debe poder proponer el conjunto completo.
+        # `document.taxes[].tax_id` puede resolver en cualquiera de las dos tablas —un
+        # impuesto de línea también puede registrarse ahí para conciliación (p. ej.
+        # Impoconsumo)—, así que se resuelve contra las dos juntas.
         if overwrite_manual:
             available = candidates
         else:
-            available = self._excluding_registered_types(candidates, document, catalog, warnings)
+            available = self._excluding_registered_types(
+                candidates, document, [*taxes_catalog, *retentions_catalog], warnings
+            )
         if not available:
             return {
                 "suggestions": [],
@@ -477,8 +512,13 @@ class SuggestRetentionsUseCase:
         # Tarifas oficiales por concepto: es lo que ancla la elección entre las once
         # tarifas de ReteFuente del catálogo, cuyos nombres solo indican el porcentaje.
         rates = await self._retention_rates()
-        ica_rates = await self._ica_rates()
-        available = self._only_anchored_types(available, rates, ica_rates, warnings)
+        # Filas `reteica` de las candidatas YA FRESCAS (antes de excluir tipos registrados):
+        # cada una es una tarifa de `integration_retentions` con su propio municipio, concepto
+        # y base mínima. No hace falta una consulta aparte —como antes con `retention_ica_
+        # rates` del xml-processor— porque candidatas y "tabla oficial" son literalmente la
+        # misma fuente: no pueden divergir entre sí.
+        ica_rates = [c for c in candidates if c["clase"] == "reteica"]
+        available = self._only_anchored_types(available, rates, warnings)
         # Filtro por rol del comprador: solo se ofrecen los tipos para los que la empresa es
         # agente de retención. Solo se aplica si el perfil está configurado, para no vaciar las
         # sugerencias cuando aún no se ha diligenciado (en ese caso decide el resto de reglas).
@@ -727,8 +767,7 @@ class SuggestRetentionsUseCase:
             nombre = s.get("name") or s.get("tax_id")
             warnings.append(
                 f"«{nombre}» no se propone: SIIGO la practica por su cuenta a partir de la "
-                "ficha del proveedor, y su API no tiene dónde recibirla en una factura de "
-                "compra."
+                "ficha del proveedor."
             )
         return [s for s in suggestions if _tipo_de(s) != "retefuente"]
 
@@ -736,33 +775,37 @@ class SuggestRetentionsUseCase:
     def _only_anchored_types(
         candidates: list[dict],
         rates: list[dict],
-        ica_rates: list[dict],
         warnings: list[str],
     ) -> list[dict]:
         """Deja solo los tipos cuya tarifa puede verificarse contra una tabla oficial.
 
         En Colombia la tarifa de ReteFuente la fija el CONCEPTO de la operación (servicios,
-        honorarios, compras, transporte, arrendamiento…), y la de ReteICA la actividad y el
-        municipio. El catálogo sincronizado desde SIIGO no guarda esa información: sus
-        nombres solo llevan el porcentaje. Sin la tabla oficial correspondiente, elegir
-        entre once ReteFuente es adivinar, y adivinar produjo el caso real de proponer 10%
-        una vez y 1% la siguiente para la misma factura.
+        honorarios, compras, transporte, arrendamiento…). El catálogo sincronizado desde
+        SIIGO no guarda esa información: sus once nombres de ReteFuente solo llevan el
+        porcentaje. Sin la tabla oficial de tarifas por concepto, elegir entre ellas es
+        adivinar, y adivinar produjo el caso real de proponer 10% una vez y 1% la siguiente
+        para la misma factura.
 
-        Por eso, si la tabla que ancla un tipo está vacía, ese tipo no se propone y se
+        ReteICA YA NO necesita este anclaje aparte. Desde la migración del 2026-08-31 cada
+        candidata `reteica` es directamente una fila de `integration_retentions`, con su
+        municipio, concepto y base mínima incluidos: no puede existir una candidata `reteica`
+        sin tarifa verificable, porque la tarifa verificable ES la candidata. Antes ReteICA sí
+        necesitaba un anclaje separado (`retention_ica_rates`, una tabla distinta a la del
+        catálogo) precisamente porque ese cruce por porcentaje era el que fallaba.
+
+        Por eso, si la tabla que ancla ReteFuente está vacía, ese tipo no se propone y se
         explica por qué. Una sugerencia que el contador no puede verificar vale menos que
         ninguna: le obliga a rehacer el análisis y, peor, puede colarse sin revisión.
         """
-        anclas = {"retefuente": bool(rates), "reteica": bool(ica_rates)}
+        if rates:
+            return candidates
 
-        remaining = [c for c in candidates if anclas.get(c["clase"], True)]
-
-        faltantes = sorted({t for t, tiene in anclas.items() if not tiene})
-        if faltantes and len(remaining) != len(candidates):
+        remaining = [c for c in candidates if c["clase"] != "retefuente"]
+        if len(remaining) != len(candidates):
             warnings.append(
-                "No hay tarifas oficiales cargadas para "
-                + ", ".join(faltantes)
-                + ": no se proponen esas retenciones para no elegir una tarifa por "
-                "aproximación. Cargue la tabla de tarifas por concepto para habilitarlas."
+                "No hay tarifas oficiales cargadas para retefuente: no se propone esa "
+                "retención para no elegir una tarifa por aproximación. Cargue la tabla de "
+                "tarifas por concepto para habilitarla."
             )
         return remaining
 
@@ -838,16 +881,6 @@ class SuggestRetentionsUseCase:
             }
             for r in rates
         ]
-
-    async def _ica_rates(self) -> list[dict]:
-        """Tarifas de ReteICA por actividad y municipio. Best-effort, igual que las de fuente."""
-        if self._catalog is None:
-            return []
-        try:
-            return await self._catalog.get_retention_ica_rates()
-        except Exception as exc:
-            logger.warning("No se pudieron obtener las tasas de ReteICA: %s", exc)
-            return []
 
     @staticmethod
     def _con_base_en_pesos(ica_rates: list[dict], uvt: Optional[int]) -> list[dict]:
@@ -1244,7 +1277,19 @@ class SuggestRetentionsUseCase:
         —transporte y refrigerio en el mismo documento—, y aplicar el subtotal completo a
         cada uno retendría de más.
 
-        Los identificadores de línea llegan del modelo, así que solo se aceptan los que
+        Ese acotamiento exige `scope_reason` (RF-08 · caso real 2026-08-31): el prompt le pide
+        `detail_ids` "si la retención responde a unos renglones concretos", sin exigir por qué,
+        y el modelo lo usó para acotar una ReteICA a un solo renglón de una factura de un solo
+        proveedor y un solo concepto (servicio de aseo), sin ninguna razón tributaria distinta
+        entre ese renglón y el resto — solo porque llevaba una tarifa de IVA distinta. La base
+        acotada ($49.758,68) quedó por debajo del mínimo de ReteICA cuando el subtotal completo
+        ($547.345,80) lo superaba ampliamente, y la retención se descartó por completo. Un IVA
+        distinto por renglón no es un concepto tributario distinto para efectos de ReteFuente o
+        ReteICA, así que sin una justificación explícita el acotamiento se ignora: es más seguro
+        retener sobre la factura completa —el comportamiento que el contador ya conoce— que
+        perder una retención procedente porque el modelo aisló un renglón sin motivo.
+
+        Los identificadores de línea llegan del modelo, así que además solo se aceptan los que
         existen realmente en el documento; si ninguno es válido se vuelve al subtotal
         completo, que es el comportamiento conservador y el que el contador ya conoce.
         """
@@ -1253,6 +1298,14 @@ class SuggestRetentionsUseCase:
 
         detail_ids = item.get("detail_ids")
         if not isinstance(detail_ids, list):
+            return base_documento
+
+        # Sin una justificación tributaria explícita, se ignora el acotamiento por completo:
+        # ver la nota de `scope_reason` más arriba. No basta con que el campo exista — un
+        # relleno vacío o trivial ("sí", "-") no es una razón, así que se exige un mínimo de
+        # contenido real antes de confiar en él.
+        motivo = str(item.get("scope_reason") or "").strip()
+        if len(motivo) < _MIN_SCOPE_REASON_CHARS:
             return base_documento
 
         validos = []

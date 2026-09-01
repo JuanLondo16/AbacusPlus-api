@@ -46,6 +46,9 @@ from app.infrastructure.persistence.repositories.document_repository import Docu
 from app.infrastructure.persistence.repositories.document_tax_repository import (
     DocumentTaxRepository,
 )
+from app.infrastructure.persistence.repositories.integration_retention_repository import (
+    IntegrationRetentionRepository,
+)
 from app.infrastructure.persistence.repositories.integration_tax_repository import (
     IntegrationTaxRepository,
 )
@@ -56,6 +59,9 @@ from app.infrastructure.persistence.repositories.processing_log_repository impor
 from app.infrastructure.persistence.repositories.puc_repository import PucRepository
 from app.infrastructure.persistence.repositories.receiver_repository import ReceiverRepository
 from app.infrastructure.persistence.repositories.retention_repository import RetentionRepository
+from app.infrastructure.persistence.repositories.tax_or_retention_repository import (
+    TaxOrRetentionRepository,
+)
 from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
 from app.infrastructure.queue.download_queue import get_queue
 
@@ -128,6 +134,19 @@ def get_concept_repo(db: Session = Depends(get_tenant_db)) -> ConceptRepository:
 
 def get_integration_tax_repo(db: Session = Depends(get_tenant_db)) -> IntegrationTaxRepository:
     return IntegrationTaxRepository(db)
+
+
+def get_integration_retention_repo(
+    db: Session = Depends(get_tenant_db),
+) -> IntegrationRetentionRepository:
+    return IntegrationRetentionRepository(db)
+
+
+def get_tax_or_retention_repo(db: Session = Depends(get_tenant_db)) -> TaxOrRetentionRepository:
+    """`document_taxes.tax_id` puede apuntar a un impuesto o a una retención: las rutas que
+    validan ese campo (crear/editar un impuesto del documento, persistir sugerencias de la
+    IA) usan este repositorio combinado en vez de `IntegrationTaxRepository` solo."""
+    return TaxOrRetentionRepository(db)
 
 
 def get_cost_center_repo(db: Session = Depends(get_tenant_db)) -> CostCenterRepository:
@@ -275,7 +294,12 @@ def build_knowledge_publisher(db: Session, tenant_slug: str) -> AccountingKnowle
         tenant_slug=tenant_slug,
         document_repo=DocumentRepository(db),
         tax_repo=DocumentTaxRepository(db),
-        integration_tax_repo=IntegrationTaxRepository(db),
+        # Combinado (impuestos + retenciones): `document_taxes.tax_id` puede resolver en
+        # cualquiera de las dos tablas, y el nombre tiene que salir de la que corresponda —
+        # de lo contrario la causación indexada nombraría "Impuesto #10608" en vez de
+        # "ReteIVA 15%" para toda retención contabilizada después de la migración del
+        # 2026-08-31.
+        integration_tax_repo=TaxOrRetentionRepository(db),
         cost_center_repo=CostCenterRepository(db),
         # Aporta el municipio del caso: el documento de la DIAN no lo trae y la única fuente
         # en el sistema son las tarifas de ReteICA configuradas.

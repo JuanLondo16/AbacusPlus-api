@@ -23,23 +23,34 @@ from tests.integration.test_suggest_retentions import (
     _FakeIntegrationClient,
 )
 
-_CATALOGO = [
-    {"id": 11, "name": "ReteICA 9.66", "type": "ReteICA", "percentage": 9.66, "active": True},
-]
+# Impuestos reales del documento (`integration_taxes`). Ninguno de estos tests ejercita el
+# desglose de IVA/impoconsumo, así que queda vacío.
+_CATALOGO = []
 
-_ICA_RATES = [
+# Retenciones (`integration_retentions`). Desde la migración del 2026-08-31 cada fila
+# `reteica` YA ES la "tabla oficial por municipio": no hay una tabla aparte con la que
+# cruzarla por porcentaje. `id=11` es la que las pruebas de esta clase proponen.
+_RETENTIONS = [
     {
+        "id": 11,
+        "name": "ReteICA Bogotá D.C. · servicios",
+        "type": "reteica",
+        "percentage": 9.66,
+        "active": True,
         "municipality_code": "11001",
         "municipality_name": "Bogotá D.C.",
         "retention_concept": "servicios",
-        "percentage": 9.66,
         "minimum_base_uvt": 4,
     },
     {
+        "id": 12,
+        "name": "ReteICA Bogotá D.C. · compras",
+        "type": "reteica",
+        "percentage": 11.04,
+        "active": True,
         "municipality_code": "11001",
         "municipality_name": "Bogotá D.C.",
         "retention_concept": "compras",
-        "percentage": 11.04,
         "minimum_base_uvt": 27,
     },
 ]
@@ -100,14 +111,18 @@ class _RagConPrecedente:
         ]
 
 
-def _use_case(ai_content='{"retentions": [], "missing_information": []}', rag=None):
+def _use_case(ai_content='{"retentions": [], "missing_information": []}', rag=None, retentions=None):
     ai = _FakeAI(ai_content)
     uc = SuggestRetentionsUseCase(
         ai_service=ai,
         document_client=_FakeDocumentClient(_DOCUMENTO, _EMISOR),
-        integration_config_client=_FakeIntegrationClient(_CATALOGO, fiscal_profile=_PERFIL),
+        integration_config_client=_FakeIntegrationClient(
+            _CATALOGO,
+            retentions=retentions if retentions is not None else _RETENTIONS,
+            fiscal_profile=_PERFIL,
+        ),
         rag_client=rag,
-        catalog_client=_FakeCatalogClient(rates=[], ica_rates=_ICA_RATES),
+        catalog_client=_FakeCatalogClient(rates=[]),
     )
     return uc, ai
 
@@ -304,19 +319,40 @@ class TestNoSeInventanTarifas:
         assert suggestion["value"] == round(3_000_000 * 9.66 / 1000, 2)
 
     @pytest.mark.asyncio
-    async def test_sin_tabla_de_reteica_no_se_propone_nada(self):
+    async def test_sin_filas_de_reteica_en_el_catalogo_no_se_propone_nada(self):
+        """Ya no existe el estado "hay un tax_id de ReteICA pero sin tabla que lo ancle": desde
+        la migración del 2026-08-31, una tarifa de ReteICA sin municipio verificable
+        simplemente no tiene fila en `integration_retentions`, así que ni siquiera llega a
+        ser candidata — no hace falta un filtro aparte que la descarte y avise."""
         uc = SuggestRetentionsUseCase(
             ai_service=_FakeAI(json.dumps({"retentions": [{"tax_id": 11}]})),
             document_client=_FakeDocumentClient(_DOCUMENTO, _EMISOR),
-            integration_config_client=_FakeIntegrationClient(_CATALOGO, fiscal_profile=_PERFIL),
+            integration_config_client=_FakeIntegrationClient(
+                _CATALOGO,
+                retentions=[
+                    {
+                        "id": 10,
+                        "name": "Retefuente 2.5%",
+                        "type": "retefuente",
+                        "percentage": 2.5,
+                        "active": True,
+                    }
+                ],
+                fiscal_profile=_PERFIL,
+            ),
             rag_client=None,
-            catalog_client=_FakeCatalogClient(rates=[], ica_rates=[]),
+            catalog_client=_FakeCatalogClient(
+                rates=[{"retention_concept": "servicios", "rate_percentage": 2.5}]
+            ),
         )
 
         result = await uc.execute(5)
 
         assert result["suggestions"] == []
-        assert any("tarifas oficiales" in w for w in result["warnings"])
+        # No hay un aviso de "falta la tabla oficial de ReteICA": esa clase de aviso ya no
+        # existe para ReteICA (ver `_only_anchored_types`), justamente porque no puede haber
+        # una candidata sin tarifa verificable.
+        assert not any("tarifas oficiales" in w and "reteica" in w for w in result["warnings"])
 
 
 class TestElContextoEsDeterminista:

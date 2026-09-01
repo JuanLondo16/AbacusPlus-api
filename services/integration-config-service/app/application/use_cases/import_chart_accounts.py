@@ -171,10 +171,14 @@ class ImportChartAccountsUseCase:
                 self._optional_cell(row, header_map, "level"), row_number, "level"
             )
 
+            # Todo lo que traiga el encabezado, reconocido o no: es lo que el docstring del
+            # endpoint promete («las columnas no reconocidas ... se conservan en raw_payload
+            # pero no se interpretan»). Antes solo entraban aquí las columnas de
+            # REQUIRED_COLUMNS/OPTIONAL_COLUMNS, así que «Categoría» o «Relación con» —reales
+            # en la exportación de SIIGO— se leían del archivo y se descartaban sin dejar
+            # rastro.
             raw_payload = {
-                column: self._cell(row, index)
-                for column, index in header_map.items()
-                if column in self.REQUIRED_COLUMNS or column in self.OPTIONAL_COLUMNS
+                column: self._cell(row, index) for column, index in header_map.items()
             }
             accounts.append(
                 {

@@ -184,6 +184,21 @@ def _migrate_tenant_db(engine) -> None:
         # integration_payment_types
         "ALTER TABLE integration_payment_types ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
         "ALTER TABLE integration_payment_types ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        # `id` nació como `autoincrement=False` (solo aceptaba el id que trae SIIGO) y por eso
+        # la importación por Excel —que nunca conoce ese id— no podía crear un tipo de pago
+        # nuevo: cada fila intentaba insertarse con `id=NULL` contra una columna sin secuencia
+        # ni DEFAULT y Postgres la rechazaba (NOT NULL). Se agrega la secuencia que le faltaba,
+        # igual que ya tiene `integration_taxes.id`, y se realinea por encima del máximo id
+        # existente (típicamente ids de SIIGO) para que el primer valor local no choque con uno
+        # ya usado.
+        "CREATE SEQUENCE IF NOT EXISTS integration_payment_types_id_seq OWNED BY integration_payment_types.id",
+        "ALTER TABLE integration_payment_types ALTER COLUMN id SET DEFAULT nextval('integration_payment_types_id_seq')",
+        (
+            "SELECT setval("
+            "  'integration_payment_types_id_seq',"
+            "  GREATEST((SELECT COALESCE(MAX(id), 0) FROM integration_payment_types), 1)"
+            ")"
+        ),
         # integration_taxes
         "ALTER TABLE integration_taxes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
         "ALTER TABLE integration_taxes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
@@ -199,6 +214,43 @@ def _migrate_tenant_db(engine) -> None:
         for sql in migrations:
             conn.execute(text(sql))
         conn.commit()
+
+
+@router.post(
+    "/internal/retentions/backfill",
+    include_in_schema=False,
+    dependencies=[Depends(_verify_internal_secret)],
+)
+def backfill_retentions_internal(tenant_slug: str):
+    """Backfill ÚNICO (2026-08-31): separa `integration_taxes` en impuestos y retenciones.
+
+    Mueve las filas de retención (ReteICA, ReteIVA, Retefuente, Autorretención) de
+    `integration_taxes` a `integration_retentions`, fusiona `retention_ica_rates` en la
+    misma tabla, reapunta `document_taxes`/`document_details` al nuevo id (cuando cambia:
+    ver `retention_backfill.run`, que preserva el id original siempre que puede) y solo
+    entonces elimina de `integration_taxes` lo que quedó migrado y verificado.
+
+    Requiere que la tabla `integration_retentions` ya exista en el tenant — se crea sola
+    (`Base.metadata.create_all`) al llamar primero a `POST /internal/provision-tenant`.
+
+    Idempotente y seguro de repetir: ver el docstring de `retention_backfill.py` para el
+    diseño completo. Nunca borra una fila de `integration_taxes` sin haber confirmado antes
+    que sus referencias quedaron resueltas.
+    """
+    from app.infrastructure.persistence.retention_backfill import run as run_backfill
+
+    user = os.environ["DATABASE_USER"]
+    password = os.environ["DATABASE_PASSWORD"]
+    host = os.environ["DATABASE_HOST"]
+    port = os.environ.get("DATABASE_PORT", "5432")
+    url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/abacus_t_{tenant_slug}"
+    engine = create_engine(url, poolclass=NullPool)
+    try:
+        report = run_backfill(engine)
+    finally:
+        engine.dispose()
+    logger.info("Backfill retenciones tenant=%s: %s", tenant_slug, report.as_dict())
+    return {"tenant_slug": tenant_slug, **report.as_dict()}
 
 
 @router.post(

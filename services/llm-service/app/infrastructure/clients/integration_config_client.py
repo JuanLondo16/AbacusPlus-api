@@ -71,6 +71,33 @@ class IntegrationConfigClient:
 
         return await catalog_cache.get_or_load(self._tenant_slug, "taxes", _cargar)
 
+    async def get_retentions(self) -> list[dict]:
+        """RF-08: catálogo de retenciones (ReteFuente, ReteICA, ReteIVA, Autorretención).
+
+        Separado de `get_taxes()` desde la migración del 2026-08-31: antes las retenciones
+        vivían mezcladas con los impuestos reales del documento en `integration_taxes`; ahora
+        tienen su propia tabla física (`integration_retentions`), y cada fila `type='reteica'`
+        trae además su municipio, concepto y base mínima en la misma fila — antes esa
+        información solo existía en una tabla paralela del xml-processor
+        (`retention_ica_rates`) que casi nunca coincidía en porcentaje con el catálogo plano,
+        así que muchas tarifas reales no podían proponerse. La tarifa sigue siendo la fuente
+        autorizada del porcentaje; el modelo solo elige cuál aplica.
+
+        Se piden TODAS (activas e inactivas), igual que `get_taxes()`: quien filtra por activo
+        es `retention_candidates()`, y las inactivas siguen haciendo falta para resolver el
+        tipo de una retención ya registrada aunque su fila se haya desactivado después
+        (`_excluding_registered_types`). Llamada best-effort, como el resto.
+        """
+
+        async def _cargar() -> list[dict]:
+            try:
+                return await self._get_json("/api/v1/integrations/retentions")
+            except Exception as exc:
+                logger.warning("No se pudo obtener el catálogo de retenciones: %s", exc)
+                return []
+
+        return await catalog_cache.get_or_load(self._tenant_slug, "retentions", _cargar)
+
     async def get_fiscal_profile(self) -> Optional[dict]:
         """Perfil fiscal del tenant (el COMPRADOR): define si la empresa es agente de retención.
 

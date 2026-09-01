@@ -14,7 +14,10 @@ Cada regla de este módulo tiene una fuente concreta y ninguna es una interpreta
   desde SIIGO trae once ReteFuente que solo se distinguen por el porcentaje de su nombre, así
   que el modelo puede elegir una que no corresponda a ninguna tarifa vigente. Si el
   porcentaje del impuesto elegido no aparece en la tabla, la sugerencia no se puede sustentar
-  y se descarta.
+  y se descarta. Para ReteICA el criterio es aún más simple desde la migración del
+  2026-08-31: cada candidata ES una fila de `integration_retentions` con su municipio,
+  concepto, tarifa y base mínima ya juntos, así que "está en la tabla" se comprueba por
+  `tax_id`, no por porcentaje — no hace falta cruzar contra ninguna tabla aparte.
 - **La base mínima.** Cada fila de las tablas trae su tope (`minimum_base_uvt` /
   `minimum_base_pesos`); por debajo no se practica la retención. Se compara contra el tope
   MÁS BAJO de las filas compatibles: rechazar solo cuando la base no alcanza ninguno de los
@@ -83,6 +86,11 @@ class RetentionValidator:
     ):
         self._fuente = tarifas_retefuente or []
         self._ica = tarifas_reteica or []
+        # Índice por `id`: desde que `tarifas_reteica` viene de `integration_retentions`, cada
+        # fila ES una candidata (municipio + concepto + tarifa + base mínima juntos), y su
+        # `id` es el mismo `tax_id` que trae la sugerencia. Ya no hace falta buscarla por
+        # porcentaje entre "las que coincidan".
+        self._ica_by_id = {f.get("id"): f for f in self._ica if f.get("id") is not None}
         self._uvt = uvt
         self._responsabilidades = responsabilidades_emisor or []
         self._iva = _num(iva_documento) or 0.0
@@ -127,7 +135,7 @@ class RetentionValidator:
             return self._rechazo_por_base(nombre, base)
         if tipo == "retefuente":
             return self._rechazo_retefuente(nombre, pct, base)
-        return self._rechazo_reteica(nombre, pct, base)
+        return self._rechazo_reteica(nombre, suggestion.get("tax_id"), base)
 
     @staticmethod
     def _rechazo_por_base(nombre: str, base: float) -> Optional[str]:
@@ -165,49 +173,34 @@ class RetentionValidator:
 
     # ── ReteICA ────────────────────────────────────────────────────────────────
 
-    def _rechazo_reteica(self, nombre: str, pct: float, base: float) -> Optional[str]:
-        filas = [f for f in self._ica if self._coincide(f.get("percentage"), pct)]
-        if filas:
-            return self._rechazo_por_base_minima(nombre, base, filas, "ReteICA")
+    def _rechazo_reteica(self, nombre: str, tax_id: Any, base: float) -> Optional[str]:
+        """Busca la candidata por `id`, no por porcentaje.
 
-        discrepancia = self._discrepancia_por_mil(pct)
-        if discrepancia is not None:
-            return (
-                f"«{nombre}» no se sugirió: el catálogo de Impuestos trae {pct:g} y la tabla de "
-                f"ReteICA trae {discrepancia:g} para el mismo municipio. Es la misma tarifa "
-                "expresada en unidades distintas —por mil frente a porcentaje—, y aplicar una "
-                "por la otra retendría diez veces de más o de menos. Unifique la unidad en las "
-                "dos tablas antes de usar la sugerencia automática de ReteICA."
-            )
-        return (
-            f"«{nombre}» no se sugirió: su porcentaje ({pct:g}%) no corresponde a ninguna "
-            "tarifa de la tabla de ReteICA de los municipios donde la empresa retiene."
-        )
+        Antes de la migración del 2026-08-31, `tarifas_reteica` venía de una tabla paralela
+        del xml-processor (`retention_ica_rates`) que había que cruzar con el catálogo de
+        Impuestos POR PORCENTAJE — y ese cruce casi nunca coincidía: el catálogo sincronizado
+        de SIIGO traía una tarifa plana sin municipio («ReteICA 6.9») que rara vez calzaba
+        exactamente con la tarifa real de un municipio concreto, así que tarifas reales
+        quedaban descartadas por un desajuste de origen, no por ser incorrectas.
 
-    def _discrepancia_por_mil(self, pct: float) -> Optional[float]:
-        """Detecta que catálogo y tabla expresan la misma tarifa en unidades distintas.
-
-        El ICA se publica tradicionalmente **por mil**: la tarifa de servicios de Bogotá es
-        9,66 por mil, es decir 0,966 %. El catálogo de Impuestos que sincroniza SIIGO trae
-        «ReteICA 9.66» y la tabla de tarifas documenta guardar el porcentaje (0.966 => 0,966 %).
-        Las dos cifras son correctas y describen lo mismo, pero no son la misma unidad.
-
-        Sin esta comprobación, el desajuste se manifiesta como «esa tarifa no está en la tabla»,
-        que es cierto pero inútil: el contador ve una tarifa idéntica en las dos pantallas y no
-        entiende el rechazo. Peor sería lo contrario —dar por buena la del catálogo y calcular
-        9,66 % sobre la base—, porque eso retiene diez veces de más sobre dinero de un tercero.
-
-        No se corrige automáticamente. Cuál de las dos unidades es la correcta lo decide el
-        contador, no este código: ambas convenciones existen y elegir por nuestra cuenta sería
-        exactamente la clase de suposición que RF-08 prohíbe.
+        Ahora `tarifas_reteica` viene de `integration_retentions`: cada fila YA ES la
+        candidata completa (municipio + concepto + tarifa + base mínima juntos) y su `id` es
+        exactamente el `tax_id` que la sugerencia trae. No hay nada que cruzar: si el `id`
+        está en la tabla cargada, la tarifa es, por construcción, la vigente para ese
+        municipio y ese concepto. Esto también vuelve estructuralmente imposible el problema
+        de unidades (por mil vs. porcentaje) que existía cuando había dos tablas
+        independientes: solo hay una fuente, y esa fuente documenta su propia unidad (por
+        mil) de forma consistente en todas sus filas.
         """
-        for fila in self._ica:
-            valor = _num(fila.get("percentage"))
-            if valor is None or valor <= 0:
-                continue
-            if self._coincide(valor * 10, pct) or self._coincide(valor / 10, pct):
-                return valor
-        return None
+        fila = self._ica_by_id.get(tax_id)
+        if fila is None:
+            return (
+                f"«{nombre}» no se sugirió: su identificador no corresponde a ninguna tarifa "
+                "de la tabla de ReteICA de los municipios donde la empresa retiene. Puede que "
+                "la tarifa se haya desactivado entre que se le presentó al modelo y se validó "
+                "la respuesta; regístrela manualmente si sigue vigente."
+            )
+        return self._rechazo_por_base_minima(nombre, base, [fila], "ReteICA")
 
     # ── ReteIVA ────────────────────────────────────────────────────────────────
 

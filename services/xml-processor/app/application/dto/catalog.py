@@ -12,7 +12,14 @@ class CostCenterResponse(BaseModel):
 
 
 class TaxCatalogResponse(BaseModel):
-    """RF-02: impuesto/retención del catálogo `integration_taxes` para el selector."""
+    """RF-02: impuesto/retención para el selector.
+
+    `ambito=linea` y `ambito=todos` (parcialmente) devuelven filas de `integration_taxes`;
+    `ambito=retenciones` devuelve filas de `integration_retentions` — desde la migración del
+    2026-08-31, cada retención `reteica` ya trae su municipio, concepto y base mínima, así
+    que el selector puede distinguir entre varias tarifas de ReteICA sin cruzar ninguna otra
+    tabla. Los campos de municipio quedan `null` para cualquier fila que no sea `reteica`.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -20,6 +27,24 @@ class TaxCatalogResponse(BaseModel):
     name: str
     type: str
     percentage: float
+    municipality_code: Optional[str] = Field(
+        None,
+        description="Código DANE del municipio. Solo presente si type='reteica'.",
+        examples=["11001"],
+    )
+    municipality_name: Optional[str] = Field(
+        None, description="Nombre del municipio. Solo en reteica.", examples=["Bogotá D.C."]
+    )
+    retention_concept: Optional[str] = Field(
+        None,
+        description="Concepto que fija la tarifa dentro del municipio. Solo en reteica.",
+        examples=["servicios"],
+    )
+    minimum_base_uvt: Optional[float] = Field(
+        None,
+        description="Base mínima en UVT por debajo de la cual no se practica. Solo en reteica.",
+        examples=[4.0],
+    )
 
 
 class PucAccountResponse(BaseModel):

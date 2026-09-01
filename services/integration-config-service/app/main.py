@@ -18,6 +18,7 @@ from app.adapters.api.routers.purchase_invoice_parameters import (
     router as purchase_invoice_parameters_router,
 )
 from app.adapters.api.routers.retention_criteria import router as retention_criteria_router
+from app.adapters.api.routers.retentions import router as retentions_router
 from app.adapters.api.routers.taxes import router as taxes_router
 from app.domain.exceptions.base import DomainException
 from app.infrastructure.config.database import engine
@@ -35,6 +36,7 @@ from app.infrastructure.persistence.models import (
 from app.infrastructure.persistence.models import (
     retention_criteria as _retention_criteria_model,  # noqa: F401
 )
+from app.infrastructure.persistence.models import retention as _retention_model  # noqa: F401
 from app.infrastructure.persistence.models import tax as _tax_model  # noqa: F401
 from app.infrastructure.persistence.models import (
     tenant_fiscal_profile as _tenant_fiscal_profile_model,  # noqa: F401
@@ -79,6 +81,7 @@ app.include_router(fiscal_profile_router, prefix="/api/v1", tags=["integrations"
 app.include_router(fiscal_diagnosis_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(payment_types_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(retention_criteria_router, prefix="/api/v1", tags=["integrations"])
+app.include_router(retentions_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(taxes_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(products_router, prefix="/api/v1", tags=["integrations"])
 app.include_router(purchase_invoice_parameters_router, prefix="/api/v1", tags=["integrations"])

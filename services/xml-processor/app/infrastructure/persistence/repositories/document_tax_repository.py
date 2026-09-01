@@ -44,20 +44,31 @@ class DocumentTaxRepository:
         )
 
     def _tipo_de_retencion(self, tax_id: Optional[int]) -> Optional[str]:
-        """Tipo del impuesto en el catálogo, que decide cómo se lee su tarifa.
+        """Tipo del impuesto/retención en el catálogo, que decide cómo se lee su tarifa.
 
         Hace falta porque el ICA se publica por mil y el resto en porcentaje: sin el tipo, la
         misma cifra —7,66— significa dos cosas que se diferencian en un factor de diez sobre
         dinero de un tercero.
 
-        Si no se puede consultar se devuelve None y el cálculo usa el divisor de siempre: es
-        preferible mantener el comportamiento conocido a inventar uno ante un fallo de lectura.
+        `tax_id` puede resolver en `integration_taxes` (impuestos) o en
+        `integration_retentions` (retenciones, desde la migración del 2026-08-31) — se
+        consultan las dos, porque este método no sabe de antemano cuál de las dos citó
+        `document_taxes.tax_id`. Si ninguna resuelve, o si `integration_retentions` todavía
+        no existe en una base sin migrar, se devuelve None y el cálculo usa el divisor de
+        siempre: es preferible mantener el comportamiento conocido a inventar uno ante un
+        fallo de lectura.
         """
         if not tax_id:
             return None
         try:
             fila = self.db.execute(
-                text("SELECT type FROM integration_taxes WHERE id = :id"), {"id": int(tax_id)}
+                text(
+                    "SELECT type FROM integration_taxes WHERE id = :id "
+                    "UNION ALL "
+                    "SELECT type FROM integration_retentions WHERE id = :id "
+                    "LIMIT 1"
+                ),
+                {"id": int(tax_id)},
             ).first()
         except Exception:  # noqa: BLE001
             return None

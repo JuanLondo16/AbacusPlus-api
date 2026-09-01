@@ -8,11 +8,26 @@ from app.domain.exceptions.base import ValidationException
 from app.infrastructure.persistence.repositories.product_repository import ProductRepository
 
 VALID_TYPES = {"product", "service"}
+# El valor se guarda en ingles (asi lo espera el resto del dominio), pero se escribe en
+# espanol en la plantilla: nadie que llena un Excel en espanol escribe "product"/"service".
+TYPE_ALIASES = {"producto": "product", "servicio": "service"}
 
 
 class ImportProductsUseCase:
-    REQUIRED_COLUMNS = {"code", "type", "description"}
-    OPTIONAL_COLUMNS = {"active"}
+    REQUIRED_COLUMNS = {"código", "tipo", "descripción"}
+    OPTIONAL_COLUMNS = {"activo"}
+    # `code`/`type`/`description`/`active` siguen aceptandose: son el encabezado con que
+    # este endpoint funciono antes de que la plantilla pasara a espanol, y romperian un
+    # archivo ya armado con ellos. El encabezado explicito en espanol siempre gana sobre el
+    # alias, y se acepta tanto con tilde como sin ella.
+    HEADER_ALIASES = {
+        "code": "código",
+        "codigo": "código",
+        "type": "tipo",
+        "description": "descripción",
+        "descripcion": "descripción",
+        "active": "activo",
+    }
 
     def __init__(self, repository: ProductRepository):
         self.repository = repository
@@ -21,9 +36,12 @@ class ImportProductsUseCase:
         self,
         file_content: bytes,
         sheet_name: Optional[str] = None,
+        mode: str = "upsert",
     ) -> ImportProductsResponse:
+        if mode not in ("upsert", "replace"):
+            raise ValidationException("mode must be 'upsert' or 'replace'")
         products = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(products=products)
+        imported = self.repository.upsert_many(products=products, replace=(mode == "replace"))
         return ImportProductsResponse(
             imported=imported,
             products=self.repository.list(),
@@ -50,6 +68,11 @@ class ImportProductsUseCase:
 
         headers = [self._normalize_header(value) for value in header_row]
         header_map = {name: index for index, name in enumerate(headers) if name}
+        # Un encabezado en espanol explicito siempre gana sobre su alias en ingles.
+        for index, name in enumerate(headers):
+            canonical = self.HEADER_ALIASES.get(name)
+            if canonical and canonical not in header_map:
+                header_map[canonical] = index
         missing = self.REQUIRED_COLUMNS - set(header_map)
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
@@ -60,9 +83,9 @@ class ImportProductsUseCase:
             if self._is_empty_row(row):
                 continue
 
-            code = self._cell(row, header_map["code"])
-            type_val = self._cell(row, header_map["type"])
-            description = self._cell(row, header_map["description"])
+            code = self._cell(row, header_map["código"])
+            type_val = self._cell(row, header_map["tipo"])
+            description = self._cell(row, header_map["descripción"])
 
             if code is None or str(code).strip() == "":
                 raise ValidationException(f"Row {row_number}: code is required")
@@ -77,9 +100,11 @@ class ImportProductsUseCase:
             seen_codes.add(normalized_code)
 
             normalized_type = str(type_val).strip().lower()
+            normalized_type = TYPE_ALIASES.get(normalized_type, normalized_type)
             if normalized_type not in VALID_TYPES:
                 raise ValidationException(
-                    f"Row {row_number}: type must be 'product' or 'service', got '{normalized_type}'"
+                    f"Row {row_number}: type must be 'producto'/'product' or "
+                    f"'servicio'/'service', got '{normalized_type}'"
                 )
 
             raw_payload = {
@@ -93,7 +118,7 @@ class ImportProductsUseCase:
                     "type": normalized_type,
                     "description": str(description).strip(),
                     "active": self._as_bool(
-                        self._optional_cell(row, header_map, "active"), default=True
+                        self._optional_cell(row, header_map, "activo"), default=True
                     ),
                     "raw_payload": raw_payload,
                 }

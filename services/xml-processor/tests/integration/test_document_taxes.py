@@ -15,11 +15,22 @@ import app.infrastructure.persistence.models.issuer  # noqa: F401
 import app.infrastructure.persistence.models.receiver  # noqa: F401
 import app.infrastructure.persistence.models.tax  # noqa: F401
 import pytest
-from app.application.dto.document_tax import compute_retention_value
+from app.adapters.api.routers.document_taxes import create_document_tax, update_document_tax
+from app.application.dto.document_tax import (
+    DocumentTaxCreateRequest,
+    DocumentTaxUpdateRequest,
+    compute_retention_value,
+)
 from app.infrastructure.persistence.models.document import Document
+from app.infrastructure.persistence.models.integration_tax import IntegrationTax
+from app.infrastructure.persistence.repositories.document_repository import DocumentRepository
 from app.infrastructure.persistence.repositories.document_tax_repository import (
     DocumentTaxRepository,
 )
+from app.infrastructure.persistence.repositories.integration_tax_repository import (
+    IntegrationTaxRepository,
+)
+from fastapi import HTTPException
 
 
 def _make_doc(**kwargs) -> Document:
@@ -59,6 +70,30 @@ def document(db_session):
 @pytest.fixture
 def repo(db_session):
     return DocumentTaxRepository(db_session)
+
+
+@pytest.fixture
+def doc_repo(db_session):
+    return DocumentRepository(db_session)
+
+
+@pytest.fixture
+def integration_tax_repo(db_session):
+    return IntegrationTaxRepository(db_session)
+
+
+@pytest.fixture
+def catalogo_reteica(db_session):
+    """Dos tarifas distintas de ReteICA — el mismo tipo, dos tax_id distintos."""
+    tarifas = [
+        IntegrationTax(id=101, name="ReteICA 6.9", type="reteica", percentage=0.69, active=True),
+        IntegrationTax(id=102, name="ReteICA 7", type="reteica", percentage=0.766, active=True),
+        IntegrationTax(id=103, name="ReteIVA 15%", type="reteiva", percentage=15.0, active=True),
+    ]
+    for tarifa in tarifas:
+        db_session.add(tarifa)
+    db_session.commit()
+    return tarifas
 
 
 class TestComputeRetentionValue:
@@ -192,3 +227,76 @@ class TestDocumentTaxRepository:
 
         assert repo.delete(document.id, row.id) is False
         assert len(repo.list_by_document(other.id)) == 1
+
+
+class TestNoMoreThanOneRetentionPerType:
+    """Como máximo una retención de cada tipo por documento, también al crearla a mano.
+
+    RF-08 ya lo exige de las sugerencias del modelo (dos ReteICA en conflicto → ninguna se
+    guarda); esta ruta de creación/edición manual carecía de la misma guarda, así que se
+    podían agregar varias tarifas de ReteICA distintas sobre el mismo documento.
+    """
+
+    def _crear(self, document, catalogo_reteica, doc_repo, repo, integration_tax_repo, tax_id):
+        return create_document_tax(
+            document.id,
+            DocumentTaxCreateRequest(tax_id=tax_id, taxable_base=100000.0, percentage=2.5),
+            doc_repo,
+            repo,
+            integration_tax_repo,
+        )
+
+    def test_a_second_tax_of_the_same_type_is_rejected(
+        self, document, catalogo_reteica, doc_repo, repo, integration_tax_repo
+    ):
+        self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 101)
+
+        with pytest.raises(HTTPException) as exc:
+            self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 102)
+
+        assert exc.value.status_code == 409
+        assert repo.list_by_document(document.id) == [
+            row for row in repo.list_by_document(document.id) if row.tax_id == 101
+        ]
+
+    def test_a_different_type_is_allowed(
+        self, document, catalogo_reteica, doc_repo, repo, integration_tax_repo
+    ):
+        self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 101)
+        self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 103)
+
+        assert {row.tax_id for row in repo.list_by_document(document.id)} == {101, 103}
+
+    def test_editing_the_rate_within_the_same_type_does_not_conflict_with_itself(
+        self, document, catalogo_reteica, doc_repo, repo, integration_tax_repo
+    ):
+        row = self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 101)
+
+        updated = update_document_tax(
+            document.id,
+            row.id,
+            DocumentTaxUpdateRequest(tax_id=102),
+            doc_repo,
+            repo,
+            integration_tax_repo,
+        )
+
+        assert updated.tax_id == 102
+
+    def test_editing_into_a_type_already_used_by_another_row_is_rejected(
+        self, document, catalogo_reteica, doc_repo, repo, integration_tax_repo
+    ):
+        self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 101)
+        otra = self._crear(document, catalogo_reteica, doc_repo, repo, integration_tax_repo, 103)
+
+        with pytest.raises(HTTPException) as exc:
+            update_document_tax(
+                document.id,
+                otra.id,
+                DocumentTaxUpdateRequest(tax_id=102),
+                doc_repo,
+                repo,
+                integration_tax_repo,
+            )
+
+        assert exc.value.status_code == 409

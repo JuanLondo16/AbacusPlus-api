@@ -15,6 +15,7 @@ _TARIFAS_FUENTE = [
 
 _TARIFAS_ICA = [
     {
+        "id": 11,
         "municipality_code": "11001",
         "retention_concept": "servicios",
         "percentage": 9.66,
@@ -56,15 +57,27 @@ class TestLaTarifaDebeExistirEnLaTablaOficial:
         assert motivo is not None
         assert "10%" in motivo and "tabla" in motivo
 
-    def test_descarta_una_reteica_cuya_tarifa_no_esta_en_la_tabla_del_municipio(self):
+    def test_descarta_una_reteica_cuyo_id_no_esta_en_el_catalogo_cargado(self):
+        """Desde la migración del 2026-08-31 se busca por `tax_id`, no por porcentaje: cada
+        candidata de `integration_retentions` YA ES una fila completa (municipio + concepto +
+        tarifa + base mínima), así que "está en la tabla" es "su id está en la tabla"."""
         validator = RetentionValidator(tarifas_reteica=_TARIFAS_ICA)
 
         motivo = validator.rechazo(
-            _sugerencia(name="ReteICA 4.14", type="ReteICA", percentage=4.14)
+            _sugerencia(tax_id=999, name="ReteICA 4.14", type="ReteICA", percentage=4.14)
         )
 
         assert motivo is not None
         assert "ReteICA" in motivo
+
+    def test_acepta_una_reteica_cuyo_id_esta_en_el_catalogo_cargado(self):
+        validator = RetentionValidator(tarifas_reteica=_TARIFAS_ICA)
+
+        motivo = validator.rechazo(
+            _sugerencia(tax_id=11, name="ReteICA 9.66", type="ReteICA", percentage=9.66)
+        )
+
+        assert motivo is None
 
 
 class TestBaseMinima:
@@ -105,6 +118,19 @@ class TestBaseMinima:
 
         assert validator.rechazo(_sugerencia(taxable_base=1_000.0)) is None
 
+    def test_tambien_aplica_a_reteica_encontrada_por_id(self):
+        """La base mínima de ReteICA sale de la MISMA fila que resolvió el `tax_id`."""
+        validator = RetentionValidator(tarifas_reteica=_TARIFAS_ICA)
+
+        sugerencia = _sugerencia(
+            tax_id=11, name="ReteICA 9.66", type="ReteICA", percentage=9.66, taxable_base=100_000.0
+        )
+
+        motivo = validator.rechazo(sugerencia)
+
+        assert motivo is not None
+        assert "base mínima" in motivo
+
 
 class TestAlAutorretenedorNoSeLeRetieneEnLaFuente:
     """Respuesta literal del contador del cliente en el cuestionario de retenciones."""
@@ -127,7 +153,7 @@ class TestAlAutorretenedorNoSeLeRetieneEnLaFuente:
             responsabilidades_emisor=[{"codigo": "O-15", "significado": "Autorretenedor"}],
         )
 
-        sugerencia = _sugerencia(name="ReteICA 9.66", type="ReteICA", percentage=9.66)
+        sugerencia = _sugerencia(tax_id=11, name="ReteICA 9.66", type="ReteICA", percentage=9.66)
 
         assert validator.rechazo(sugerencia) is None
 
@@ -196,50 +222,6 @@ class TestNoCorrigeNiInventa:
         validator = RetentionValidator(tarifas_retefuente=_TARIFAS_FUENTE)
 
         assert validator.rechazo(_sugerencia(taxable_base=base)) is not None
-
-
-class TestUnidadDeLaTarifaDeReteICA:
-    """El ICA se publica por mil; el catálogo y la tabla de tarifas pueden no coincidir.
-
-    «ReteICA 9.66» (catálogo sincronizado de SIIGO) y `0.966` (tabla de tarifas, que documenta
-    guardar porcentaje) son la MISMA tarifa de Bogotá en unidades distintas. Aplicar una por la
-    otra retiene diez veces de más. El sistema no elige por su cuenta cuál es la correcta: lo
-    dice y se detiene.
-    """
-
-    _TABLA_EN_PORCENTAJE = [
-        {"municipality_code": "11001", "retention_concept": "servicios", "percentage": 0.966}
-    ]
-
-    def test_detecta_que_es_la_misma_tarifa_en_otra_unidad(self):
-        validator = RetentionValidator(tarifas_reteica=self._TABLA_EN_PORCENTAJE)
-
-        motivo = validator.rechazo(
-            _sugerencia(name="ReteICA 9.66", type="ReteICA", percentage=9.66)
-        )
-
-        assert motivo is not None
-        assert "por mil" in motivo
-        assert "9.66" in motivo and "0.966" in motivo
-
-    def test_no_confunde_una_tarifa_realmente_ausente_con_un_problema_de_unidad(self):
-        validator = RetentionValidator(tarifas_reteica=self._TABLA_EN_PORCENTAJE)
-
-        motivo = validator.rechazo(
-            _sugerencia(name="ReteICA 4.14", type="ReteICA", percentage=4.14)
-        )
-
-        assert motivo is not None
-        assert "por mil" not in motivo
-
-    def test_si_ambas_tablas_usan_la_misma_unidad_no_hay_discrepancia(self):
-        validator = RetentionValidator(
-            tarifas_reteica=[{"municipality_code": "11001", "percentage": 9.66}]
-        )
-
-        sugerencia = _sugerencia(name="ReteICA 9.66", type="ReteICA", percentage=9.66)
-
-        assert validator.rechazo(sugerencia) is None
 
 
 class TestDeDondeSaleLaBaseMinima:

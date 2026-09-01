@@ -1,7 +1,9 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from openpyxl import Workbook
 
+from app.adapters.api.routers._excel_template import style_header, xlsx_response
 from app.application.dto.payment_type import (
     ImportPaymentTypesResponse,
     PaymentTypeResponse,
@@ -25,9 +27,12 @@ Estructura del Excel:
 
 | Columna | Obligatoria | Ejemplo | Descripcion |
 | --- | --- | --- | --- |
-| `name` | Si | `Transferencia bancaria` | Nombre del tipo de pago. |
-| `type` | Si | `electronico` | Categoria del tipo de pago. |
-| `active` | No | `true` | Estado. Si se omite, queda `true`. |
+| `nombre` | Si | `Transferencia bancaria` | Nombre del tipo de pago. |
+| `tipo` | Si | `electronico` | Categoria del tipo de pago. |
+| `activo` | No | `true` | Estado. Si se omite, queda `true`. |
+
+`name`, `type` y `active` tambien se aceptan como alias: son el encabezado en ingles con
+que este endpoint funciono antes de que la plantilla pasara a espanol.
 
 Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`, `x`.
 """
@@ -77,10 +82,48 @@ async def import_payment_types_from_excel(
         None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."
     ),
     file: UploadFile = File(..., description="Archivo Excel .xlsx con los tipos de pago."),
+    mode: str = Form(
+        "upsert",
+        description=(
+            "`upsert`: actualiza tipos de pago existentes y agrega nuevos (no elimina). "
+            "`replace`: elimina todos los tipos de pago actuales (incluidos los "
+            "sincronizados desde SIIGO) antes de importar."
+        ),
+        examples=["upsert"],
+    ),
     use_case: ImportPaymentTypesUseCase = Depends(get_import_payment_types_use_case),
 ) -> ImportPaymentTypesResponse:
     content = await file.read()
-    return use_case.execute(sheet_name=sheet_name, file_content=content)
+    return use_case.execute(sheet_name=sheet_name, file_content=content, mode=mode)
+
+
+@router.get(
+    "/integrations/payment-types/template",
+    summary="Descargar plantilla Excel de tipos de pago",
+    description=(
+        "Genera un `.xlsx` listo para llenar y volver a importar via "
+        "`POST /integrations/payment-types/imports`.\n\n"
+        "La hoja llega solo con encabezados: los tipos de pago son propios de cada "
+        "empresa y no existe una tabla estandar que precargar.\n\n"
+        f"{PAYMENT_TYPES_EXCEL_STRUCTURE}"
+    ),
+    response_description="Archivo .xlsx de plantilla.",
+)
+def download_payment_types_template():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Tipos de pago"
+    sheet.append(["nombre", "tipo", "activo"])
+    style_header(
+        sheet,
+        notes={
+            "nombre": "Nombre del tipo de pago, como aparecera en el selector.",
+            "tipo": "Categoria del tipo de pago (por ejemplo: efectivo, electronico).",
+            "activo": "Opcional. true/false. Si se omite, queda true.",
+        },
+        widths={"A": 26, "B": 18, "C": 10},
+    )
+    return xlsx_response(workbook, "plantilla-tipos-pago.xlsx")
 
 
 @router.post(

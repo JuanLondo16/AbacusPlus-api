@@ -1,9 +1,16 @@
-"""RF-08 · Lectura estructurada del catálogo de Impuestos (`integration_taxes`).
+"""RF-08 · Lectura estructurada de los catálogos de Impuestos y Retenciones.
 
-La sección **Impuestos** de la aplicación es la tabla que sincroniza SIIGO (o que se importa
-por Excel) y es la única fuente del `tax_id` y del porcentaje con el que se calcula cualquier
-retención. Llegaba al sugeridor como una lista plana de la que solo se descartaba el IVA, y
-esa lectura tan pobre tenía dos consecuencias medibles en la data real del cliente:
+Hasta el 2026-08-31 existía una sola tabla, `integration_taxes`, que mezclaba impuestos
+reales del documento (IVA, Impoconsumo, AdValorem) con retenciones (ReteFuente, ReteICA,
+ReteIVA, Autorretención). Ese día se separaron en dos tablas físicas —`integration_taxes`
+para impuestos, `integration_retentions` para retenciones—, pero ambas se sincronizan desde
+la misma fuente (SIIGO) con el mismo vocabulario de `type`, así que la lectura estructurada
+que sigue sirve para las dos: es la única fuente del `tax_id` y del porcentaje con el que se
+calcula cualquier retención, sea cual sea la tabla de la que venga la fila.
+
+Llegaba al sugeridor como una lista plana de la que solo se descartaba el IVA, y esa lectura
+tan pobre tenía dos consecuencias medibles en la data real del cliente (antes de la
+separación física, cuando ambas cosas todavía convivían en `integration_taxes`):
 
 1. **Se ofrecían como retención cosas que no lo son.** En el catálogo del tenant conviven
    `Impoconsumo 8%`, `Impoconsumo por valor` y `autorretencion`. El impoconsumo es un impuesto
@@ -135,7 +142,22 @@ def is_practicable_on_purchase(clase: str) -> bool:
 
 
 def retention_candidates(catalog: list[dict]) -> tuple[list[dict], list[str]]:
-    """Retenciones que un comprador puede practicar, tomadas del catálogo de Impuestos.
+    """Retenciones que un comprador puede practicar.
+
+    Desde la migración del 2026-08-31 se llama con DOS catálogos distintos, según el llamador:
+    `integration_taxes` (ya no trae retenciones, solo sirve para clasificar tipos registrados
+    en `_excluding_registered_types`) e `integration_retentions` (la fuente real de
+    candidatas). La función es agnóstica a cuál de las dos tablas viene cada fila: clasifica
+    por `type`/`name` igual en ambas, porque `integration_retentions` normaliza `type` con la
+    misma nomenclatura (`retefuente` · `reteica` · `reteiva` · `autorretencion`).
+
+    Para `type='reteica'`, `integration_retentions` trae además el municipio, el concepto y la
+    base mínima en la MISMA fila — antes esa información solo existía en una tabla paralela
+    del xml-processor (`retention_ica_rates`) que había que cruzar por porcentaje, y ese cruce
+    casi nunca coincidía con las tarifas planas sincronizadas de SIIGO. Esos campos viajan tal
+    cual si la fila los trae (`None` en cualquier otro tipo), así que el modelo y el validador
+    ya no necesitan consultar ninguna tabla aparte para saber si una ReteICA es verificable:
+    elegir su `id` ya implica un municipio, un concepto y una base mínima consistentes entre sí.
 
     Devuelve las candidatas ya clasificadas y normalizadas, más los avisos que explican qué se
     dejó fuera y por qué. Los avisos no son decoración: sin ellos, un catálogo mal sincronizado
@@ -205,6 +227,15 @@ def retention_candidates(catalog: list[dict]) -> tuple[list[dict], list[str]]:
                 "type": str(tax.get("type") or ""),
                 "clase": clase,
                 "percentage": percentage,
+                # Solo presentes cuando la fila viene de `integration_retentions` con
+                # `type='reteica'`; `None` en cualquier otro caso (incluida cualquier fila de
+                # `integration_taxes`, que nunca los trae). Viajan tal cual para que el
+                # candidato sea autosuficiente: municipio, concepto, tarifa y base mínima en
+                # el mismo objeto, sin tener que cruzarlo con ninguna otra tabla.
+                "municipality_code": tax.get("municipality_code"),
+                "municipality_name": tax.get("municipality_name"),
+                "retention_concept": tax.get("retention_concept"),
+                "minimum_base_uvt": tax.get("minimum_base_uvt"),
             }
         )
 

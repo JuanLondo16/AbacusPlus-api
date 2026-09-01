@@ -6,6 +6,13 @@ porcentaje sale siempre del catálogo**. Una alucinación no puede alterar un c�
 tributario. Se cubre además el endurecimiento frente a respuestas malformadas y a intentos
 de inyección de instrucciones a través de los datos del documento, que provienen de un
 tercero (el XML de la DIAN).
+
+Desde la migración del 2026-08-31 el catálogo vive en DOS tablas: `integration_taxes`
+(impuestos reales del documento: IVA, Impoconsumo, AdValorem — `_CATALOGO`) e
+`integration_retentions` (ReteFuente, ReteICA, ReteIVA, Autorretención — `_RETENTIONS`). Los
+fixtures de este archivo reflejan esa separación: `taxes=` alimenta la primera,
+`retentions=` la segunda. Cada fila `reteica` de `_RETENTIONS` ya trae su municipio, concepto
+y base mínima en la misma fila — no hay una tabla aparte con la que pueda desalinearse.
 """
 
 import json
@@ -14,12 +21,29 @@ import pytest
 from app.application.use_cases.suggest_retentions import SuggestRetentionsUseCase
 from app.domain.exceptions.base import NoChartOfAccountsError, NoTaxCatalogError
 
+# Impuestos reales del documento (`integration_taxes`). Ya no trae retenciones.
 _CATALOGO = [
-    {"id": 10, "name": "Retefuente 2.5%", "type": "Retefuente", "percentage": 2.5, "active": True},
-    {"id": 11, "name": "ReteICA 6.9", "type": "ReteICA", "percentage": 6.9, "active": True},
     {"id": 12, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": True},
-    {"id": 13, "name": "Retefuente 4%", "type": "Retefuente", "percentage": 4.0, "active": False},
-    {"id": 14, "name": "ReteIVA 15%", "type": "ReteIVA", "percentage": 15.0, "active": True},
+]
+
+# Retenciones (`integration_retentions`). El id=11 (ReteICA) ya trae municipio y concepto en
+# la misma fila, tal como las deja la migración: no hace falta una tabla aparte para
+# verificarla.
+_RETENTIONS = [
+    {"id": 10, "name": "Retefuente 2.5%", "type": "retefuente", "percentage": 2.5, "active": True},
+    {
+        "id": 11,
+        "name": "ReteICA Bogotá D.C. · servicios",
+        "type": "reteica",
+        "percentage": 6.9,
+        "active": True,
+        "municipality_code": "11001",
+        "municipality_name": "Bogotá",
+        "retention_concept": "servicios",
+        "minimum_base_uvt": None,
+    },
+    {"id": 13, "name": "Retefuente 4%", "type": "retefuente", "percentage": 4.0, "active": False},
+    {"id": 14, "name": "ReteIVA 15%", "type": "reteiva", "percentage": 15.0, "active": True},
 ]
 
 _DOCUMENTO = {
@@ -86,8 +110,9 @@ class _FakeDocumentClient:
 
 
 class _FakeIntegrationClient:
-    def __init__(self, taxes, chart_accounts=None, fiscal_profile=None):
+    def __init__(self, taxes, retentions=None, chart_accounts=None, fiscal_profile=None):
         self._taxes = taxes
+        self._retentions = retentions if retentions is not None else _RETENTIONS
         # Un PUC no vacío es el estado normal; los tests del bloqueo lo pasan vacío.
         self._chart_accounts = (
             chart_accounts if chart_accounts is not None else [{"code": "511500"}]
@@ -97,6 +122,9 @@ class _FakeIntegrationClient:
 
     async def get_taxes(self):
         return self._taxes
+
+    async def get_retentions(self):
+        return self._retentions
 
     async def get_chart_accounts(self, active_only: bool = True):
         return self._chart_accounts
@@ -111,44 +139,30 @@ class _FakeIntegrationClient:
 
 
 class _FakeCatalogClient:
-    """Tarifas oficiales por concepto. Vacías por defecto sería el estado real hoy, pero
-    los tests que no las examinan necesitan una tarifa para no toparse con la abstención.
+    """Tarifas oficiales de ReteFuente por concepto. Vacías por defecto sería el estado real
+    hoy, pero los tests que no las examinan necesitan una tarifa para no toparse con la
+    abstención. ReteICA ya no se consulta aquí: sus tarifas viven en `_RETENTIONS`.
     """
 
-    def __init__(self, rates=None, ica_rates=None):
+    def __init__(self, rates=None):
         self._rates = (
             rates
             if rates is not None
             else [{"retention_concept": "Servicios", "rate_percentage": 2.5}]
         )
-        self._ica_rates = (
-            ica_rates
-            if ica_rates is not None
-            else [
-                {
-                    "municipality_code": "11001",
-                    "municipality_name": "Bogotá",
-                    "retention_concept": "servicios",
-                    "percentage": 6.9,
-                }
-            ]
-        )
 
     async def get_retention_fuente_rates(self):
         return self._rates
-
-    async def get_retention_ica_rates(self):
-        return self._ica_rates
 
 
 def _use_case(
     ai_content,
     taxes=None,
+    retentions=None,
     document=None,
     issuer=None,
     chart_accounts=None,
     rates=None,
-    ica_rates=None,
 ):
     return SuggestRetentionsUseCase(
         ai_service=_FakeAI(ai_content),
@@ -157,10 +171,11 @@ def _use_case(
         ),
         integration_config_client=_FakeIntegrationClient(
             taxes if taxes is not None else _CATALOGO,
+            retentions=retentions,
             chart_accounts=chart_accounts,
         ),
         rag_client=None,
-        catalog_client=_FakeCatalogClient(rates=rates, ica_rates=ica_rates),
+        catalog_client=_FakeCatalogClient(rates=rates),
     )
 
 
@@ -202,7 +217,8 @@ class TestOnlyCatalogRetentionsAreSuggested:
 
     @pytest.mark.asyncio
     async def test_iva_is_never_a_candidate(self):
-        """El IVA es impuesto de ítem del XML, no una retención del documento."""
+        """El IVA vive en `integration_taxes`, no en `integration_retentions`: ni siquiera
+        llega a evaluarse como retención, porque `retention_candidates` solo lee la segunda."""
         uc = _use_case(json.dumps({"retentions": [{"tax_id": 12}]}))
 
         result = await uc.execute(1)
@@ -312,22 +328,34 @@ class TestBlocksWithoutCatalog:
     """Mismo principio que la regla del PUC: sin catálogo no se inventa."""
 
     @pytest.mark.asyncio
-    async def test_raises_when_the_catalog_is_empty(self):
-        uc = _use_case(json.dumps({"retentions": []}), taxes=[])
+    async def test_raises_when_the_retentions_catalog_is_empty(self):
+        uc = _use_case(json.dumps({"retentions": []}), retentions=[])
 
         with pytest.raises(NoTaxCatalogError):
             await uc.execute(1)
 
     @pytest.mark.asyncio
-    async def test_raises_when_the_catalog_only_has_iva(self):
-        uc = _use_case(json.dumps({"retentions": []}), taxes=[_CATALOGO[2]])
+    async def test_raises_when_only_autorretencion_is_available(self):
+        """La autorretención no es practicable en una compra: no cuenta como catálogo útil."""
+        uc = _use_case(
+            json.dumps({"retentions": []}),
+            retentions=[
+                {
+                    "id": 23,
+                    "name": "autorretencion",
+                    "type": "autorretencion",
+                    "percentage": 0.4,
+                    "active": True,
+                }
+            ],
+        )
 
         with pytest.raises(NoTaxCatalogError):
             await uc.execute(1)
 
     @pytest.mark.asyncio
     async def test_the_message_names_the_missing_prerequisite(self):
-        uc = _use_case("", taxes=[])
+        uc = _use_case("", retentions=[])
 
         with pytest.raises(NoTaxCatalogError) as exc:
             await uc.execute(1)
@@ -458,17 +486,7 @@ class TestOneRetentionPerType:
         # Se registra la ReteFuente inactiva del catálogo: las filas de `document_taxes`
         # no guardan el tipo, así que este debe resolverse contra el catálogo completo.
         doc = dict(_DOCUMENTO, taxes=[{"tax_id": 13}])
-        uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 11}]}),
-            document=doc,
-            ica_rates=[
-                {
-                    "municipality_code": "11001",
-                    "retention_concept": "servicios",
-                    "percentage": 6.9,
-                }
-            ],
-        )
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}), document=doc)
 
         result = await uc.execute(1)
 
@@ -479,7 +497,9 @@ class TestItAbstainsWithoutOfficialRates:
     """Sin tabla oficial, elegir entre once ReteFuente del mismo nombre es adivinar.
 
     Adivinar es exactamente lo que produjo 10% en una ejecución y 1% en la siguiente para
-    la misma factura, así que se prefiere no proponer y decir por qué.
+    la misma factura, así que se prefiere no proponer y decir por qué. ReteICA ya no
+    necesita esta abstención: cada candidata trae su propio anclaje (municipio + concepto +
+    base mínima), así que no puede llegar sin tarifa verificable.
     """
 
     @pytest.mark.asyncio
@@ -499,6 +519,15 @@ class TestItAbstainsWithoutOfficialRates:
         result = await uc.execute(1)
 
         assert any("Cargue la tabla" in w for w in result["warnings"])
+
+    @pytest.mark.asyncio
+    async def test_reteica_is_not_affected_by_a_missing_retefuente_table(self):
+        """Antes ReteICA compartía el mismo anclaje que ReteFuente; ya no."""
+        uc = _use_case(json.dumps({"retentions": [{"tax_id": 11}]}), rates=[])
+
+        result = await uc.execute(1)
+
+        assert [s["tax_id"] for s in result["suggestions"]] == [11]
 
     @pytest.mark.asyncio
     async def test_with_the_rate_table_loaded_it_does_propose(self):
@@ -535,13 +564,22 @@ class TestTaxableBasePerConcept:
 
     # Estos tests usan ReteICA (11) y no ReteFuente (10): la ReteFuente nunca llega a
     # `suggestions` —la practica SIIGO por su cuenta—, así que no sirve para probar el
-    # acotamiento de la base por renglón, que es mecánica genérica ajena a esa regla. Los
-    # `ica_rates` del cliente falso por defecto ya traen 6.9% para «servicios», así que no
-    # hace falta declarar una tabla propia.
+    # acotamiento de la base por renglón, que es mecánica genérica ajena a esa regla.
+    #: Justificación tributaria real: dos conceptos distintos en la misma factura. Sin este
+    #: campo el acotamiento se ignora por completo (ver `TestScopeReasonRequiredToNarrowTheBase`
+    #: más abajo, caso real 2026-08-31).
+    _JUSTIFICACION = "Este renglón es transporte de carga; el otro es refrigerio, concepto distinto"
+
     @pytest.mark.asyncio
     async def test_the_base_is_limited_to_the_indicated_lines(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [59]}]}),
+            json.dumps(
+                {
+                    "retentions": [
+                        {"tax_id": 11, "detail_ids": [59], "scope_reason": self._JUSTIFICACION}
+                    ]
+                }
+            ),
             document=_FACTURA_MIXTA,
         )
 
@@ -552,7 +590,17 @@ class TestTaxableBasePerConcept:
     @pytest.mark.asyncio
     async def test_several_lines_are_added_up(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [58, 59]}]}),
+            json.dumps(
+                {
+                    "retentions": [
+                        {
+                            "tax_id": 11,
+                            "detail_ids": [58, 59],
+                            "scope_reason": self._JUSTIFICACION,
+                        }
+                    ]
+                }
+            ),
             document=_FACTURA_MIXTA,
         )
 
@@ -563,7 +611,13 @@ class TestTaxableBasePerConcept:
     @pytest.mark.asyncio
     async def test_the_value_follows_the_narrowed_base(self):
         uc = _use_case(
-            json.dumps({"retentions": [{"tax_id": 11, "detail_ids": [59]}]}),
+            json.dumps(
+                {
+                    "retentions": [
+                        {"tax_id": 11, "detail_ids": [59], "scope_reason": self._JUSTIFICACION}
+                    ]
+                }
+            ),
             document=_FACTURA_MIXTA,
         )
 
@@ -605,6 +659,150 @@ class TestTaxableBasePerConcept:
         result = await uc.execute(1)
 
         assert result["suggestions"][0]["taxable_base"] == 148600.0
+
+
+# Calcado del documento real TOFV21575 (id 14) de TOC TOC SERVICIOS ESPECIALES SAS: dos
+# renglones de un único proveedor, ambos "servicios" por su descripción, que solo difieren
+# en si llevan IVA. Es el documento del caso real 2026-08-31 (ver `_taxable_base`).
+_FACTURA_SERVICIO_ASEO = {
+    "id": 14,
+    "document_type": "Factura de venta",
+    "issuer_name": "TOC TOC SERVICIOS ESPECIALES SAS",
+    "issuer_nit": "901308499",
+    "subtotal": 547345.80,
+    "total_taxes": 9454.15,
+    "total": 556799.95,
+    "details": [
+        {"id": 27, "description": "SERVICIO DE ASEO EVENTUAL 4 HORAS", "subtotal": 497587.12},
+        {"id": 28, "description": "AIU SERVICIOS", "subtotal": 49758.68},
+    ],
+    "taxes": [],
+}
+
+# ReteICA Bogotá D.C. · servicios tal como quedó tras la migración a `integration_retentions`
+# del 2026-08-31: base mínima 4 UVT, que con la UVT 2026 de `_UVT_POR_ANIO` (52.374) son
+# $209.496 — exactamente la cifra del log real que descartó la sugerencia.
+_RETENCIONES_ICA_CON_MINIMO = [
+    *_RETENTIONS,
+    {
+        "id": 20,
+        "name": "ReteICA Bogotá D.C. · servicios",
+        "type": "reteica",
+        "percentage": 9.66,
+        "active": True,
+        "municipality_code": "11001",
+        "municipality_name": "Bogotá D.C.",
+        "retention_concept": "servicios",
+        "minimum_base_uvt": 4.0,
+    },
+]
+
+
+class TestScopeReasonRequiredToNarrowTheBase:
+    """RF-08 · regresión del caso real 2026-08-31 (documento TOFV21575, id 14).
+
+    El modelo acotó una ReteICA a un solo renglón ("AIU SERVICIOS", $49.758,68) de una
+    factura de un único proveedor y un único concepto tributario (servicio de aseo), sin
+    ninguna razón tributaria para tratar ese renglón distinto del renglón de aseo
+    ($497.587,12) que dejó fuera — la única diferencia real entre ambos era la tarifa de IVA,
+    que no cambia el concepto de la retención. La base acotada quedó por debajo de la base
+    mínima de ReteICA ($209.496 = 4 UVT × $52.374) y la sugerencia se descartó por completo,
+    aunque el subtotal de la factura completa ($547.345,80) la superaba ampliamente.
+
+    `_taxable_base` ahora exige `scope_reason` para confiar en `detail_ids`: sin una
+    justificación tributaria explícita, se ignora el acotamiento y se usa el subtotal
+    completo, que es la base que de verdad aplica cuando no hay motivo para separar los
+    renglones.
+    """
+
+    @pytest.mark.asyncio
+    async def test_without_scope_reason_the_base_is_not_narrowed(self):
+        uc = _use_case(
+            json.dumps({"retentions": [{"tax_id": 20, "detail_ids": [28]}]}),
+            document=_FACTURA_SERVICIO_ASEO,
+            retentions=_RETENCIONES_ICA_CON_MINIMO,
+        )
+
+        result = await uc.execute(1)
+
+        assert result["suggestions"][0]["taxable_base"] == 547345.80
+
+    @pytest.mark.asyncio
+    async def test_without_scope_reason_the_suggestion_survives_validation(self):
+        """Antes de la corrección esta retención se perdía por completo: la base acotada a
+        un renglón no alcanzaba el mínimo aunque el subtotal de la factura sí lo hacía de
+        sobra. Reproduce el `warnings` real: «la base gravable ($49.759) no alcanza la base
+        mínima de ReteICA ($209.496)»."""
+        uc = _use_case(
+            json.dumps({"retentions": [{"tax_id": 20, "detail_ids": [28]}]}),
+            document=_FACTURA_SERVICIO_ASEO,
+            retentions=_RETENCIONES_ICA_CON_MINIMO,
+        )
+
+        result = await uc.execute(1)
+
+        assert [s["tax_id"] for s in result["suggestions"]] == [20]
+        assert not any("base mínima" in w for w in result["warnings"])
+
+    @pytest.mark.asyncio
+    async def test_an_empty_scope_reason_does_not_count_as_justification(self):
+        uc = _use_case(
+            json.dumps(
+                {"retentions": [{"tax_id": 20, "detail_ids": [28], "scope_reason": ""}]}
+            ),
+            document=_FACTURA_SERVICIO_ASEO,
+            retentions=_RETENCIONES_ICA_CON_MINIMO,
+        )
+
+        result = await uc.execute(1)
+
+        assert result["suggestions"][0]["taxable_base"] == 547345.80
+
+    @pytest.mark.asyncio
+    async def test_a_trivial_scope_reason_does_not_count_as_justification(self):
+        """Un relleno de una palabra no es una justificación tributaria: se ignora igual
+        que si el campo faltara."""
+        uc = _use_case(
+            json.dumps(
+                {"retentions": [{"tax_id": 20, "detail_ids": [28], "scope_reason": "sí"}]}
+            ),
+            document=_FACTURA_SERVICIO_ASEO,
+            retentions=_RETENCIONES_ICA_CON_MINIMO,
+        )
+
+        result = await uc.execute(1)
+
+        assert result["suggestions"][0]["taxable_base"] == 547345.80
+
+    @pytest.mark.asyncio
+    async def test_a_real_scope_reason_still_narrows_the_base(self):
+        """El acotamiento legítimo no queda deshabilitado: con una justificación tributaria
+        real el sistema sigue confiando en `detail_ids`, incluso cuando eso hace que la
+        retención se rechace por no alcanzar la base mínima con ese renglón únicamente. Se
+        respeta la decisión declarada del modelo en vez de sustituirla por otra."""
+        uc = _use_case(
+            json.dumps(
+                {
+                    "retentions": [
+                        {
+                            "tax_id": 20,
+                            "detail_ids": [28],
+                            "scope_reason": (
+                                "Solo este renglón corresponde a honorarios; el otro es una "
+                                "venta de bienes exenta de ICA en este municipio"
+                            ),
+                        }
+                    ]
+                }
+            ),
+            document=_FACTURA_SERVICIO_ASEO,
+            retentions=_RETENCIONES_ICA_CON_MINIMO,
+        )
+
+        result = await uc.execute(1)
+
+        assert result["suggestions"] == []
+        assert any("base mínima" in w for w in result["warnings"])
 
 
 class TestReteIvaBase:
@@ -815,39 +1013,36 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
     `total_taxes`, que es la suma de TODOS los impuestos del documento.
     """
 
-    # Calcado del catálogo real del tenant, incluidas las filas gemelas del Excel.
-    _CATALOGO_REAL = [
+    # Calcado del catálogo real del tenant, incluidas las filas gemelas del Excel — ya
+    # repartido entre las dos tablas físicas de la migración del 2026-08-31.
+    _CATALOGO_REAL_TAXES = [
+        {"id": 16, "name": "Impoconsumo 8%", "type": "Impoconsumo", "percentage": 8.0, "active": True},
+        {"id": 1, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": True},
+        {"id": 28, "name": "IVA 19%.", "type": "IVA", "percentage": 19.0, "active": True},
+    ]
+    _CATALOGO_REAL_RETENTIONS = [
         {
             "id": 23,
             "name": "autorretencion",
-            "type": "Autorretencion",
+            "type": "autorretencion",
             "percentage": 0.4,
             "active": True,
         },
         {
             "id": 29,
             "name": "autorretención.",
-            "type": "Autorretencion",
+            "type": "autorretencion",
             "percentage": 0.4,
             "active": True,
         },
         {
-            "id": 16,
-            "name": "Impoconsumo 8%",
-            "type": "Impoconsumo",
-            "percentage": 8.0,
-            "active": True,
-        },
-        {"id": 1, "name": "IVA 19%", "type": "IVA", "percentage": 19.0, "active": True},
-        {"id": 28, "name": "IVA 19%.", "type": "IVA", "percentage": 19.0, "active": True},
-        {
             "id": 10,
             "name": "Retefuente 2.5%",
-            "type": "Retefuente",
+            "type": "retefuente",
             "percentage": 2.5,
             "active": True,
         },
-        {"id": 14, "name": "ReteIVA 15%", "type": "ReteIVA", "percentage": 15.0, "active": True},
+        {"id": 14, "name": "ReteIVA 15%", "type": "reteiva", "percentage": 15.0, "active": True},
     ]
 
     # Factura que mezcla IVA e impoconsumo: `total_taxes` (27.000) NO es el IVA (19.000).
@@ -874,10 +1069,11 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
 
     @pytest.mark.asyncio
     async def test_el_impoconsumo_no_se_ofrece_como_retencion(self):
-        """Es un impuesto del documento, no algo que el comprador retenga al proveedor."""
+        """Vive en `integration_taxes`: ni siquiera entra a `retention_candidates`."""
         uc = _use_case(
             json.dumps({"retentions": [{"tax_id": 16}]}),
-            taxes=self._CATALOGO_REAL,
+            taxes=self._CATALOGO_REAL_TAXES,
+            retentions=self._CATALOGO_REAL_RETENTIONS,
             document=self._CON_IMPOCONSUMO,
         )
 
@@ -893,7 +1089,8 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
         """«Es un cálculo que se hace sobre las ventas, mas no por las compras» (contador)."""
         uc = _use_case(
             json.dumps({"retentions": [{"tax_id": 23}]}),
-            taxes=self._CATALOGO_REAL,
+            taxes=self._CATALOGO_REAL_TAXES,
+            retentions=self._CATALOGO_REAL_RETENTIONS,
             document=self._CON_IMPOCONSUMO,
         )
 
@@ -906,7 +1103,8 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
     async def test_la_base_de_reteiva_es_el_iva_real_no_el_total_de_impuestos(self):
         uc = _use_case(
             json.dumps({"retentions": [{"tax_id": 14}]}),
-            taxes=self._CATALOGO_REAL,
+            taxes=self._CATALOGO_REAL_TAXES,
+            retentions=self._CATALOGO_REAL_RETENTIONS,
             document=self._CON_IMPOCONSUMO,
         )
 
@@ -922,7 +1120,9 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
         uc = SuggestRetentionsUseCase(
             ai_service=ai,
             document_client=_FakeDocumentClient(self._CON_IMPOCONSUMO, None),
-            integration_config_client=_FakeIntegrationClient(self._CATALOGO_REAL),
+            integration_config_client=_FakeIntegrationClient(
+                self._CATALOGO_REAL_TAXES, retentions=self._CATALOGO_REAL_RETENTIONS
+            ),
             rag_client=None,
             catalog_client=_FakeCatalogClient(),
         )
@@ -952,7 +1152,8 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
         }
         uc = _use_case(
             json.dumps({"retentions": [{"tax_id": 14}]}),
-            taxes=self._CATALOGO_REAL,
+            taxes=self._CATALOGO_REAL_TAXES,
+            retentions=self._CATALOGO_REAL_RETENTIONS,
             document=documento,
         )
 
@@ -963,22 +1164,23 @@ class TestLaSeccionImpuestosAlimentaLaSugerencia:
 
     @pytest.mark.asyncio
     async def test_las_filas_gemelas_del_catalogo_se_colapsan_sin_molestar(self):
-        # ReteICA (14 más una gemela) y no ReteFuente: la ReteFuente nunca llega a
+        # ReteICA (11 más una gemela) y no ReteFuente: la ReteFuente nunca llega a
         # `suggestions`, y este test verifica precisamente lo contrario —que la
         # sugerencia SÍ sobrevive, sin aviso, tras colapsar la fila gemela del catálogo—.
-        catalogo = self._CATALOGO_REAL + [
+        retenciones = self._CATALOGO_REAL_RETENTIONS + [
             {
                 "id": 40,
                 "name": "ReteICA 6.9.",
-                "type": "ReteICA",
+                "type": "reteica",
                 "percentage": 6.9,
                 "active": True,
             },
-            {"id": 11, "name": "ReteICA 6.9", "type": "ReteICA", "percentage": 6.9, "active": True},
+            {"id": 11, "name": "ReteICA 6.9", "type": "reteica", "percentage": 6.9, "active": True},
         ]
         uc = _use_case(
             json.dumps({"retentions": [{"tax_id": 11}]}),
-            taxes=catalogo,
+            taxes=self._CATALOGO_REAL_TAXES,
+            retentions=retenciones,
             document=self._CON_IMPOCONSUMO,
         )
 

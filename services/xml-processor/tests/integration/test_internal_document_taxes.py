@@ -23,6 +23,7 @@ from app.adapters.api.routers.internal import (
 )
 from app.application.dto.document_tax import DocumentTaxCreateRequest
 from app.infrastructure.persistence.models.document import Document
+from app.infrastructure.persistence.models.integration_tax import IntegrationTax
 from app.infrastructure.persistence.repositories.document_tax_repository import (
     DocumentTaxRepository,
 )
@@ -144,6 +145,66 @@ class TestIdempotency:
 
         assert result.created == 1
         assert result.skipped == 1
+
+
+class TestNoMoreThanOneRetentionPerType:
+    """Como en la ruta pública de creación manual: como máximo una retención por tipo.
+
+    Sin catálogo cargado el chequeo de tipo se desactiva (igual que el de existencia,
+    ver el resto de la clase `TestPersistence`), así que estos tests siembran
+    `integration_taxes` a propósito.
+    """
+
+    def test_a_second_tax_id_of_the_same_type_is_skipped(self, document, db_session):
+        db_session.add_all(
+            [
+                IntegrationTax(id=10, name="ReteICA 6.9", type="reteica", percentage=0.69),
+                IntegrationTax(id=11, name="ReteICA 7", type="reteica", percentage=0.766),
+            ]
+        )
+        db_session.commit()
+
+        result = create_document_taxes_internal(
+            document.id, [_retention(10), _retention(11)], db=db_session
+        )
+
+        assert result.created == 1
+        assert result.skipped == 1
+        rows = DocumentTaxRepository(db_session).list_by_document(document.id)
+        assert [r.tax_id for r in rows] == [10]
+
+    def test_a_manually_registered_type_blocks_a_later_model_suggestion(
+        self, document, db_session
+    ):
+        db_session.add_all(
+            [
+                IntegrationTax(id=10, name="ReteICA 6.9", type="reteica", percentage=0.69),
+                IntegrationTax(id=11, name="ReteICA 7", type="reteica", percentage=0.766),
+            ]
+        )
+        db_session.commit()
+        DocumentTaxRepository(db_session).create(document.id, 10, 100000.0, 0.69, source="manual")
+
+        result = create_document_taxes_internal(document.id, [_retention(11)], db=db_session)
+
+        assert result.created == 0
+        assert result.skipped == 1
+
+    def test_a_different_type_is_still_created(self, document, db_session):
+        db_session.add_all(
+            [
+                IntegrationTax(id=10, name="ReteICA 6.9", type="reteica", percentage=0.69),
+                IntegrationTax(id=12, name="ReteIVA 15%", type="reteiva", percentage=15.0),
+            ]
+        )
+        db_session.commit()
+
+        result = create_document_taxes_internal(
+            document.id, [_retention(10), _retention(12)], db=db_session
+        )
+
+        assert result.created == 2
+        assert result.skipped == 0
 
 
 class TestTheRouteIsNotPublic:

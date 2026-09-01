@@ -29,7 +29,7 @@ class TaxRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def upsert_many(self, taxes: Iterable[dict]) -> int:
+    def upsert_many(self, taxes: Iterable[dict], replace: bool = False) -> int:
         """Sincroniza el catálogo **conservando el id de SIIGO como clave**.
 
         La identidad de un impuesto es su id en SIIGO, no su nombre: es el dato que viaja de
@@ -48,8 +48,22 @@ class TaxRepository:
         chocaba contra el `UNIQUE(name)` y tumbaba la sincronización entera. Emparejar por
         nombre a todos primero elimina esa competencia: el porcentaje solo decide entre las
         filas que ningún nombre reclamó.
+
+        `replace=True` (modo `replace` del import por Excel) borra TODO el catálogo antes de
+        reconstruirlo con el archivo. El borrado usa `flush()`, no `commit()`: sigue siendo
+        parte de esta misma transacción, así que si cualquier fila posterior falla, el único
+        `commit()` del método (al final) nunca se alcanza y el borrado se deshace con el resto
+        —el llamador (`get_tenant_db`) cierra la sesión sin confirmar, lo que revierte la
+        transacción pendiente—. El catálogo nunca queda vacío por un archivo que fallaba a
+        mitad de la importación. ADVERTENCIA: a diferencia de `replace` en centros de costo o
+        productos, aquí el borrado alcanza también los impuestos sincronizados desde SIIGO; una
+        factura que ya referencie un impuesto eliminado por el `replace` queda con una
+        referencia inválida si el impuesto no vuelve a aparecer en el archivo.
         """
         items = list(taxes)
+        if replace:
+            self.db.query(Tax).delete(synchronize_session=False)
+            self.db.flush()
         ids_de_siigo = {int(item["id"]) for item in items if item.get("id") is not None}
         reclamadas: set[int] = set()
 

@@ -11,8 +11,16 @@ from app.infrastructure.persistence.repositories.payment_type_repository import 
 
 
 class ImportPaymentTypesUseCase:
-    REQUIRED_COLUMNS = {"name", "type"}
-    OPTIONAL_COLUMNS = {"active"}
+    REQUIRED_COLUMNS = {"nombre", "tipo"}
+    OPTIONAL_COLUMNS = {"activo"}
+    # `name`/`type`/`active` siguen aceptandose: son el encabezado con que este endpoint
+    # funciono antes de que la plantilla pasara a espanol, y romperian un archivo ya armado
+    # con ellos. El encabezado explicito en espanol siempre gana sobre el alias.
+    HEADER_ALIASES = {
+        "name": "nombre",
+        "type": "tipo",
+        "active": "activo",
+    }
 
     def __init__(self, repository: PaymentTypeRepository):
         self.repository = repository
@@ -21,9 +29,12 @@ class ImportPaymentTypesUseCase:
         self,
         file_content: bytes,
         sheet_name: Optional[str] = None,
+        mode: str = "upsert",
     ) -> ImportPaymentTypesResponse:
+        if mode not in ("upsert", "replace"):
+            raise ValidationException("mode must be 'upsert' or 'replace'")
         payment_types = self._parse_excel(file_content=file_content, sheet_name=sheet_name)
-        imported = self.repository.upsert_many(payment_types)
+        imported = self.repository.upsert_many(payment_types, replace=(mode == "replace"))
         return ImportPaymentTypesResponse(
             imported=imported,
             payment_types=self.repository.list(),
@@ -50,6 +61,11 @@ class ImportPaymentTypesUseCase:
 
         headers = [self._normalize_header(value) for value in header_row]
         header_map = {name: index for index, name in enumerate(headers) if name}
+        # Un encabezado en espanol explicito siempre gana sobre su alias en ingles.
+        for index, name in enumerate(headers):
+            canonical = self.HEADER_ALIASES.get(name)
+            if canonical and canonical not in header_map:
+                header_map[canonical] = index
         missing = self.REQUIRED_COLUMNS - set(header_map)
         if missing:
             raise ValidationException(f"Missing required columns: {', '.join(sorted(missing))}")
@@ -60,8 +76,8 @@ class ImportPaymentTypesUseCase:
             if self._is_empty_row(row):
                 continue
 
-            name = self._cell(row, header_map["name"])
-            type_ = self._cell(row, header_map["type"])
+            name = self._cell(row, header_map["nombre"])
+            type_ = self._cell(row, header_map["tipo"])
             if name is None or str(name).strip() == "":
                 raise ValidationException(f"Row {row_number}: name is required")
             if type_ is None or str(type_).strip() == "":
@@ -77,7 +93,7 @@ class ImportPaymentTypesUseCase:
                     "name": normalized_name,
                     "type": str(type_).strip(),
                     "active": self._as_bool(
-                        self._optional_cell(row, header_map, "active"), default=True
+                        self._optional_cell(row, header_map, "activo"), default=True
                     ),
                 }
             )

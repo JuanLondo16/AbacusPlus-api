@@ -1,7 +1,9 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from openpyxl import Workbook
 
+from app.adapters.api.routers._excel_template import style_header, xlsx_response
 from app.application.dto.product import ImportProductsResponse, ProductResponse
 from app.application.use_cases.import_products import ImportProductsUseCase
 from app.application.use_cases.sync_siigo_products import SyncSiigoProductsUseCase
@@ -18,14 +20,18 @@ router = APIRouter()
 PRODUCTS_EXCEL_STRUCTURE = """
 Estructura del Excel:
 
-| Columna     | Obligatoria | Ejemplo                      | Descripcion                              |
-| ----------- | ----------- | ---------------------------- | ---------------------------------------- |
-| `code`      | Si          | `P-001`                      | Codigo unico del producto o servicio.    |
-| `type`      | Si          | `product`                    | Tipo: `product` o `service`.             |
-| `description` | Si        | `Licencia de software anual` | Descripcion del producto o servicio.     |
-| `active`    | No          | `true`                       | Estado. Si se omite, queda `true`.       |
+| Columna       | Obligatoria | Ejemplo                      | Descripcion                              |
+| ------------- | ----------- | ----------------------------- | ---------------------------------------- |
+| `código`      | Si          | `P-001`                       | Codigo unico del producto o servicio.    |
+| `tipo`        | Si          | `producto`                    | Tipo: `producto` o `servicio`.           |
+| `descripción` | Si          | `Licencia de software anual`  | Descripcion del producto o servicio.     |
+| `activo`      | No          | `true`                        | Estado. Si se omite, queda `true`.       |
 
 Valores booleanos aceptados: `true`, `false`, `1`, `0`, `yes`, `no`, `si`, `sí`, `x`.
+
+`code`, `type`, `description` y `active` tambien se aceptan como alias (igual que
+`product`/`service` para `tipo`): son el encabezado con que este endpoint funciono antes
+de que la plantilla pasara a espanol.
 """
 
 
@@ -79,13 +85,53 @@ async def import_products_from_excel(
         None, description="Nombre de hoja a leer. Si se omite, usa la primera hoja."
     ),
     file: UploadFile = File(..., description="Archivo Excel .xlsx con los productos."),
+    mode: str = Form(
+        "upsert",
+        description=(
+            "`upsert`: actualiza productos existentes y agrega nuevos (no elimina). "
+            "`replace`: elimina todo el catalogo de productos actual (incluidos los "
+            "sincronizados desde SIIGO) antes de importar."
+        ),
+        examples=["upsert"],
+    ),
     use_case: ImportProductsUseCase = Depends(get_import_products_use_case),
 ) -> ImportProductsResponse:
     content = await file.read()
     return use_case.execute(
         sheet_name=sheet_name,
         file_content=content,
+        mode=mode,
     )
+
+
+@router.get(
+    "/integrations/products/template",
+    summary="Descargar plantilla Excel de productos y servicios",
+    description=(
+        "Genera un `.xlsx` listo para llenar y volver a importar via "
+        "`POST /integrations/products/imports`.\n\n"
+        "La hoja llega solo con encabezados: los productos y servicios son propios de cada "
+        "empresa y no existe una tabla estandar que precargar.\n\n"
+        f"{PRODUCTS_EXCEL_STRUCTURE}"
+    ),
+    response_description="Archivo .xlsx de plantilla.",
+)
+def download_products_template():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Productos"
+    sheet.append(["código", "tipo", "descripción", "activo"])
+    style_header(
+        sheet,
+        notes={
+            "código": "Codigo unico del producto o servicio. Identifica cada fila al importar de nuevo.",
+            "tipo": "Tipo: 'producto' o 'servicio'.",
+            "descripción": "Descripcion del producto o servicio.",
+            "activo": "Opcional. true/false. Si se omite, queda true.",
+        },
+        widths={"A": 14, "B": 12, "C": 34, "D": 10},
+    )
+    return xlsx_response(workbook, "plantilla-productos.xlsx")
 
 
 @router.post(

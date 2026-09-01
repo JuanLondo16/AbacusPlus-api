@@ -14,6 +14,7 @@ from app.application.use_cases.manage_fiscal_profile import ManageFiscalProfileU
 from app.application.use_cases.manage_purchase_invoice_parameters import (
     ManagePurchaseInvoiceParametersUseCase,
 )
+from app.application.use_cases.import_retentions import ImportRetentionsUseCase
 from app.application.use_cases.manage_retention_criteria import ManageRetentionCriteriaUseCase
 from app.application.use_cases.sync_siigo_cost_centers import SyncSiigoCostCentersUseCase
 from app.application.use_cases.sync_siigo_payment_types import SyncSiigoPaymentTypesUseCase
@@ -37,6 +38,7 @@ from app.infrastructure.persistence.repositories.purchase_invoice_parameter_repo
 from app.infrastructure.persistence.repositories.retention_criteria_repository import (
     RetentionCriteriaRepository,
 )
+from app.infrastructure.persistence.repositories.retention_repository import RetentionRepository
 from app.infrastructure.persistence.repositories.tax_repository import TaxRepository
 from app.infrastructure.persistence.repositories.tenant_fiscal_profile_repository import (
     TenantFiscalProfileRepository,
@@ -135,10 +137,29 @@ def get_diagnose_fiscal_setup_use_case(
     )
 
 
+def get_retention_repository(db: Session = Depends(get_tenant_db)) -> RetentionRepository:
+    return RetentionRepository(db)
+
+
+def get_import_retentions_use_case(
+    db: Session = Depends(get_tenant_db),
+) -> ImportRetentionsUseCase:
+    return ImportRetentionsUseCase(RetentionRepository(db))
+
+
 def get_sync_siigo_taxes_use_case(db: Session = Depends(get_tenant_db)) -> SyncSiigoTaxesUseCase:
+    """Sincroniza `GET /v1/taxes` de SIIGO y reparte cada fila: impuestos a
+    `integration_taxes`, retenciones (menos ReteICA) a `integration_retentions`.
+
+    La misma instancia sirve tanto a `POST /integrations/taxes/siigo-syncs` como a
+    `POST /integrations/retentions/siigo-syncs`: es UNA sola llamada a SIIGO que escribe en
+    las dos tablas, no dos sincronizaciones independientes que duplicarían la petición
+    externa cada vez que alguien dispara la del otro recurso.
+    """
     return SyncSiigoTaxesUseCase(
         credential_repository=IntegrationCredentialRepository(db),
         tax_repository=TaxRepository(db),
+        retention_repository=RetentionRepository(db),
     )
 
 
